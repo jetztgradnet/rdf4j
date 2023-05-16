@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.workbench.base;
 
@@ -66,6 +69,7 @@ public abstract class AbstractServlet implements Servlet {
 	protected static final String APPLICATION_SPARQL_RESULTS_XML = "application/sparql-results+xml";
 
 	protected static final String TEXT_HTML = "text/html";
+	protected static final String TEXT_PLAIN = "text/plain";
 
 	protected static final String USER_AGENT = "User-Agent";
 
@@ -195,7 +199,7 @@ public abstract class AbstractServlet implements Servlet {
 	/**
 	 * Gets a {@link TupleResultBuilder} based on the Accept header, and sets the result content type to the best
 	 * available match for that, returning a builder that can be used to write out the results.
-	 * 
+	 *
 	 * @param req          the current HTTP request
 	 * @param resp         the current HTTP response
 	 * @param outputStream TODO
@@ -205,7 +209,7 @@ public abstract class AbstractServlet implements Servlet {
 	 */
 	protected TupleResultBuilder getTupleResultBuilder(HttpServletRequest req, HttpServletResponse resp,
 			OutputStream outputStream) throws UnsupportedQueryResultFormatException, IOException {
-		String contentType = null;
+		String contentType;
 		QueryResultWriter resultWriter = checkJSONP(req, outputStream);
 
 		if (resultWriter != null) {

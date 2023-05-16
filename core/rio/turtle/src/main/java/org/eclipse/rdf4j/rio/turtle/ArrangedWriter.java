@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2017 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.turtle;
 
@@ -26,6 +29,7 @@ import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
+import org.eclipse.rdf4j.model.Triple;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
@@ -34,6 +38,7 @@ import org.eclipse.rdf4j.rio.RDFHandlerException;
 import org.eclipse.rdf4j.rio.RDFWriter;
 import org.eclipse.rdf4j.rio.RioSetting;
 import org.eclipse.rdf4j.rio.WriterConfig;
+import org.eclipse.rdf4j.rio.helpers.AbstractRDFWriter;
 import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
 
 /**
@@ -41,8 +46,10 @@ import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
  *
  * @author James Leigh
  * @since 2.3
+ * @deprecated since 3.3.1. pretty printing / bnode inlining logic has been moved to {@link TurtleWriter} internally.
  */
-class ArrangedWriter implements RDFWriter {
+@Deprecated
+public class ArrangedWriter extends AbstractRDFWriter {
 
 	private final static int DEFAULT_QUEUE_SIZE = 100;
 
@@ -64,47 +71,49 @@ class ArrangedWriter implements RDFWriter {
 
 	private final Model blankReferences = new LinkedHashModel();
 
-	private final Comparator<Statement> comparator = new Comparator<Statement>() {
-
-		@Override
-		public int compare(Statement s1, Statement s2) {
-			IRI p1 = s1.getPredicate();
-			IRI p2 = s2.getPredicate();
-			if (p1.equals(RDF.TYPE) && !p2.equals(RDF.TYPE)) {
-				return -1;
-			} else if (!p1.equals(RDF.TYPE) && p2.equals(RDF.TYPE)) {
-				return 1;
-			}
-			int cmp = p1.stringValue().compareTo(p2.stringValue());
-			if (cmp != 0)
-				return cmp;
-			Value o1 = s1.getObject();
-			Value o2 = s2.getObject();
-			if (o1.equals(o2)) {
-				return 0;
-			}
-			if (!(o1 instanceof BNode) && o2 instanceof BNode) {
-				return -1;
-			} else if (o1 instanceof BNode && !(o2 instanceof BNode)) {
-				return 1;
-			}
-			if (!(o1 instanceof IRI) && o2 instanceof IRI) {
-				return -1;
-			} else if (o1 instanceof IRI && !(o2 instanceof IRI)) {
-				return 1;
-			}
-			int str_cmp = o1.stringValue().compareTo(o2.stringValue());
-			if (str_cmp != 0) {
-				return str_cmp;
-			}
-			Literal lit1 = (Literal) o1;
-			Literal lit2 = (Literal) o2;
-			int dt_cmp = lit1.getDatatype().stringValue().compareTo(lit2.getDatatype().stringValue());
-			if (dt_cmp != 0) {
-				return dt_cmp;
-			}
-			return lit1.getLanguage().orElse("").compareTo(lit2.getLanguage().orElse(""));
+	private final Comparator<Statement> comparator = (Statement s1, Statement s2) -> {
+		IRI p1 = s1.getPredicate();
+		IRI p2 = s2.getPredicate();
+		if (p1.equals(RDF.TYPE) && !p2.equals(RDF.TYPE)) {
+			return -1;
+		} else if (!p1.equals(RDF.TYPE) && p2.equals(RDF.TYPE)) {
+			return 1;
 		}
+		int cmp = p1.stringValue().compareTo(p2.stringValue());
+		if (cmp != 0) {
+			return cmp;
+		}
+		Value o1 = s1.getObject();
+		Value o2 = s2.getObject();
+		if (o1.equals(o2)) {
+			return 0;
+		}
+		if (!(o1 instanceof BNode) && o2 instanceof BNode) {
+			return -1;
+		} else if (o1 instanceof BNode && !(o2 instanceof BNode)) {
+			return 1;
+		}
+		if (!(o1 instanceof IRI) && o2 instanceof IRI) {
+			return -1;
+		} else if (o1 instanceof IRI && !(o2 instanceof IRI)) {
+			return 1;
+		}
+		if (!(o1 instanceof Triple) && o2 instanceof Triple) {
+			return -1;
+		} else if (o1 instanceof Triple && !(o2 instanceof Triple)) {
+			return 1;
+		}
+		int str_cmp = o1.stringValue().compareTo(o2.stringValue());
+		if (str_cmp != 0) {
+			return str_cmp;
+		}
+		Literal lit1 = (Literal) o1;
+		Literal lit2 = (Literal) o2;
+		int dt_cmp = lit1.getDatatype().stringValue().compareTo(lit2.getDatatype().stringValue());
+		if (dt_cmp != 0) {
+			return dt_cmp;
+		}
+		return lit1.getLanguage().orElse("").compareTo(lit2.getLanguage().orElse(""));
 	};
 
 	public ArrangedWriter(RDFWriter delegate) {
@@ -148,6 +157,7 @@ class ArrangedWriter implements RDFWriter {
 
 	@Override
 	public void startRDF() throws RDFHandlerException {
+		super.startRDF();
 		if (getWriterConfig().get(BasicWriterSettings.INLINE_BLANK_NODES)) {
 			targetQueueSize = -1;
 			repeatBlankNodes = true;
@@ -181,7 +191,7 @@ class ArrangedWriter implements RDFWriter {
 	}
 
 	@Override
-	public synchronized void handleStatement(Statement st) throws RDFHandlerException {
+	protected synchronized void consumeStatement(Statement st) throws RDFHandlerException {
 		if (targetQueueSize == 0) {
 			delegate.handleStatement(st);
 		} else {
@@ -332,6 +342,10 @@ class ArrangedWriter implements RDFWriter {
 
 	private void getUsedNamespaces(Set<Statement> stmts, Set<String> used) {
 		for (Statement st : stmts) {
+			if (st.getSubject() instanceof IRI) {
+				IRI uri = (IRI) st.getSubject();
+				used.add(uri.getNamespace());
+			}
 			used.add(st.getPredicate().getNamespace());
 			if (st.getObject() instanceof IRI) {
 				IRI uri = (IRI) st.getObject();
@@ -347,9 +361,9 @@ class ArrangedWriter implements RDFWriter {
 
 	private class SubjectInContext {
 
-		private Resource subject;
+		private final Resource subject;
 
-		private Resource context;
+		private final Resource context;
 
 		private SubjectInContext(Statement st) {
 			this(st.getSubject(), st.getContext());
@@ -389,20 +403,26 @@ class ArrangedWriter implements RDFWriter {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (this == obj)
+			if (this == obj) {
 				return true;
-			if (obj == null)
+			}
+			if (obj == null) {
 				return false;
-			if (getClass() != obj.getClass())
+			}
+			if (getClass() != obj.getClass()) {
 				return false;
+			}
 			SubjectInContext other = (SubjectInContext) obj;
-			if (!subject.equals(other.subject))
+			if (!subject.equals(other.subject)) {
 				return false;
+			}
 			if (context == null) {
-				if (other.context != null)
+				if (other.context != null) {
 					return false;
-			} else if (!context.equals(other.context))
+				}
+			} else if (!context.equals(other.context)) {
 				return false;
+			}
 			return true;
 		}
 	}

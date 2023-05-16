@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.structures;
 
@@ -22,10 +25,10 @@ import org.eclipse.rdf4j.rio.RDFHandlerException;
 /**
  * Abstraction of a {@link SailGraphQuery} which takes care for tracking the
  * {@link FedXRepositoryConnection#BINDING_ORIGINAL_MAX_EXECUTION_TIME} during evaluation.
- * 
+ *
  * All methods are delegated to the actual {@link SailGraphQuery}.
- * 
- * 
+ *
+ *
  * @author Andreas Schwarte
  *
  */
@@ -122,8 +125,8 @@ public class FedXGraphQuery extends SailGraphQuery {
 	}
 
 	@Override
-	public void setMaxExecutionTime(int maxExecutionTime) {
-		delegate.setMaxExecutionTime(maxExecutionTime);
+	public void setMaxExecutionTime(int maxExecutionTimeSeconds) {
+		delegate.setMaxExecutionTime(maxExecutionTimeSeconds);
 	}
 
 	@Override

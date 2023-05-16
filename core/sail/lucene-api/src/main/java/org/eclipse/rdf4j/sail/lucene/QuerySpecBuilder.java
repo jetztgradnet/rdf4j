@@ -1,13 +1,17 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.lucene;
 
 import static org.eclipse.rdf4j.model.vocabulary.RDF.TYPE;
+import static org.eclipse.rdf4j.sail.lucene.LuceneSailSchema.INDEXID;
 import static org.eclipse.rdf4j.sail.lucene.LuceneSailSchema.LUCENE_QUERY;
 import static org.eclipse.rdf4j.sail.lucene.LuceneSailSchema.MATCHES;
 import static org.eclipse.rdf4j.sail.lucene.LuceneSailSchema.PROPERTY;
@@ -50,19 +54,32 @@ public class QuerySpecBuilder implements SearchQueryInterpreter {
 
 	private final boolean incompleteQueryFails;
 
+	private final IRI indexId;
+
 	/**
 	 * Initialize a new QuerySpecBuilder
 	 *
 	 * @param incompleteQueryFails see {@link LuceneSail#isIncompleteQueryFails()}
 	 */
 	public QuerySpecBuilder(boolean incompleteQueryFails) {
+		this(incompleteQueryFails, null);
+	}
+
+	/**
+	 * Initialize a new QuerySpecBuilder
+	 *
+	 * @param incompleteQueryFails see {@link LuceneSail#isIncompleteQueryFails()}
+	 * @param indexId              the id of the index, null to do not filter by index id, see
+	 *                             {@link LuceneSail#INDEX_ID}
+	 */
+	public QuerySpecBuilder(boolean incompleteQueryFails, IRI indexId) {
 		this.incompleteQueryFails = incompleteQueryFails;
+		this.indexId = indexId;
 	}
 
 	/**
 	 * Returns a set of QuerySpecs embodying all necessary information to perform the Lucene query embedded in a
-	 * TupleExpr. To be removed, prefer {@link #process(TupleExpr tupleExpr, BindingSet bindings, Collection
-	 * <SearchQueryEvaluator> result)}.
+	 * TupleExpr. To be removed, prefer {@link #process(TupleExpr, BindingSet, Collection<SearchQueryEvaluator>)}.
 	 */
 	@SuppressWarnings("unchecked")
 	@Deprecated
@@ -103,6 +120,32 @@ public class QuerySpecBuilder implements SearchQueryInterpreter {
 			if (matchesVar.hasValue()) {
 				failOrWarn(MATCHES + " properties should have variable objects: " + matchesVar.getValue());
 				continue;
+			}
+
+			// do we need to filter by id?
+			StatementPattern idPattern;
+
+			if (indexId != null) {
+				try {
+					idPattern = getPattern(matchesVar, filter.idPatterns);
+				} catch (IllegalArgumentException e) {
+					failOrWarn(e);
+					continue;
+				}
+
+				if (idPattern == null) {
+					continue;
+				}
+
+				Var indexIdVar = idPattern.getObjectVar();
+				Value indexIdValue = indexIdVar.hasValue() ? indexIdVar.getValue()
+						: bindings.getValue(indexIdVar.getName());
+
+				if (!(indexIdValue instanceof IRI && indexIdVar.getValue().equals(indexId))) {
+					continue; // this match isn't for this index, continue for the next one
+				}
+			} else {
+				idPattern = null;
 			}
 
 			// find the relevant outgoing patterns
@@ -170,7 +213,7 @@ public class QuerySpecBuilder implements SearchQueryInterpreter {
 			}
 
 			QuerySpec querySpec = new QuerySpec(matchesPattern, queryPattern, propertyPattern, scorePattern,
-					snippetPattern, typePattern, subject, queryString, propertyURI);
+					snippetPattern, typePattern, idPattern, subject, queryString, propertyURI);
 
 			if (querySpec.isEvaluable()) {
 				// constant optimizer
@@ -252,8 +295,9 @@ public class QuerySpecBuilder implements SearchQueryInterpreter {
 			}
 		}
 		// remove the result from the list, to filter out superflous patterns
-		if (result != null)
+		if (result != null) {
 			patterns.remove(result);
+		}
 		return result;
 	}
 
@@ -270,6 +314,8 @@ public class QuerySpecBuilder implements SearchQueryInterpreter {
 		public ArrayList<StatementPattern> scorePatterns = new ArrayList<>();
 
 		public ArrayList<StatementPattern> snippetPatterns = new ArrayList<>();
+
+		public ArrayList<StatementPattern> idPatterns = new ArrayList<>();
 
 		/**
 		 * Method implementing the visitor pattern that gathers all statements using a predicate from the LuceneSail's
@@ -289,6 +335,8 @@ public class QuerySpecBuilder implements SearchQueryInterpreter {
 				scorePatterns.add(node);
 			} else if (SNIPPET.equals(predicate)) {
 				snippetPatterns.add(node);
+			} else if (INDEXID.equals(predicate)) {
+				idPatterns.add(node);
 			} else if (TYPE.equals(predicate)) {
 				Value object = node.getObjectVar().getValue();
 				if (LUCENE_QUERY.equals(object)) {

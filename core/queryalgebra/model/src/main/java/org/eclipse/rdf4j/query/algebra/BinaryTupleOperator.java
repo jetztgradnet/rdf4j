@@ -1,11 +1,17 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra;
+
+import org.eclipse.rdf4j.common.annotation.Experimental;
+import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 
 /**
  * An abstract superclass for binary tuple operators which, by definition, has two arguments.
@@ -26,6 +32,9 @@ public abstract class BinaryTupleOperator extends AbstractQueryModelNode impleme
 	 */
 	protected TupleExpr rightArg;
 
+	// the name of the algorithm used to combine leftArg and rightArg
+	private String algorithmName;
+
 	/*--------------*
 	 * Constructors *
 	 *--------------*/
@@ -35,9 +44,9 @@ public abstract class BinaryTupleOperator extends AbstractQueryModelNode impleme
 
 	/**
 	 * Creates a new binary tuple operator.
-	 * 
-	 * @param leftArg  The operator's left argument, must not be <tt>null</tt>.
-	 * @param rightArg The operator's right argument, must not be <tt>null</tt>.
+	 *
+	 * @param leftArg  The operator's left argument, must not be <var>null</var>.
+	 * @param rightArg The operator's right argument, must not be <var>null</var>.
 	 */
 	protected BinaryTupleOperator(TupleExpr leftArg, TupleExpr rightArg) {
 		setLeftArg(leftArg);
@@ -50,7 +59,7 @@ public abstract class BinaryTupleOperator extends AbstractQueryModelNode impleme
 
 	/**
 	 * Gets the left argument of this binary tuple operator.
-	 * 
+	 *
 	 * @return The operator's left argument.
 	 */
 	public TupleExpr getLeftArg() {
@@ -59,8 +68,8 @@ public abstract class BinaryTupleOperator extends AbstractQueryModelNode impleme
 
 	/**
 	 * Sets the left argument of this binary tuple operator.
-	 * 
-	 * @param leftArg The (new) left argument for this operator, must not be <tt>null</tt>.
+	 *
+	 * @param leftArg The (new) left argument for this operator, must not be <var>null</var>.
 	 */
 	public void setLeftArg(TupleExpr leftArg) {
 		assert leftArg != null : "leftArg must not be null";
@@ -71,7 +80,7 @@ public abstract class BinaryTupleOperator extends AbstractQueryModelNode impleme
 
 	/**
 	 * Gets the right argument of this binary tuple operator.
-	 * 
+	 *
 	 * @return The operator's right argument.
 	 */
 	public TupleExpr getRightArg() {
@@ -80,8 +89,8 @@ public abstract class BinaryTupleOperator extends AbstractQueryModelNode impleme
 
 	/**
 	 * Sets the right argument of this binary tuple operator.
-	 * 
-	 * @param rightArg The (new) right argument for this operator, must not be <tt>null</tt>.
+	 *
+	 * @param rightArg The (new) right argument for this operator, must not be <var>null</var>.
 	 */
 	public void setRightArg(TupleExpr rightArg) {
 		assert rightArg != null : "rightArg must not be null";
@@ -102,8 +111,6 @@ public abstract class BinaryTupleOperator extends AbstractQueryModelNode impleme
 			setLeftArg((TupleExpr) replacement);
 		} else if (rightArg == current) {
 			setRightArg((TupleExpr) replacement);
-		} else {
-			super.replaceChildNode(current, replacement);
 		}
 	}
 
@@ -125,8 +132,30 @@ public abstract class BinaryTupleOperator extends AbstractQueryModelNode impleme
 	@Override
 	public BinaryTupleOperator clone() {
 		BinaryTupleOperator clone = (BinaryTupleOperator) super.clone();
-		clone.setLeftArg(getLeftArg().clone());
-		clone.setRightArg(getRightArg().clone());
+
+		TupleExpr leftArgClone = getLeftArg().clone();
+		leftArgClone.setParentNode(clone);
+		clone.leftArg = leftArgClone;
+
+		TupleExpr rightArgClone = getRightArg().clone();
+		rightArgClone.setParentNode(clone);
+		clone.rightArg = rightArgClone;
+
 		return clone;
+	}
+
+	@Experimental
+	public void setAlgorithm(CloseableIteration<?, ?> iteration) {
+		this.algorithmName = iteration.getClass().getSimpleName();
+	}
+
+	@Experimental
+	public void setAlgorithm(String classSimpleName) {
+		this.algorithmName = classSimpleName;
+	}
+
+	@Experimental
+	public String getAlgorithmName() {
+		return algorithmName;
 	}
 }

@@ -1,16 +1,18 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.util;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
@@ -30,7 +32,7 @@ import org.eclipse.rdf4j.repository.RepositoryException;
 /**
  * Utility methods for comparing sets of statements (graphs) with each other. The supplied comparison operations map
  * bnodes in the two supplied models on to each other and thus define a graph isomorphism.
- * 
+ *
  * @author jeen
  * @author Arjohn Kampman
  */
@@ -82,20 +84,20 @@ public class RepositoryUtil {
 	 * Note that the method pulls the entire default context of both repositories into main memory. Use with caution.
 	 * <p>
 	 * <b>NOTE: this algorithm is currently broken; it doesn't actually map blank nodes between the two models.</b>
-	 * 
+	 *
 	 * @return The collection of statements that is the difference between rep1 and rep2.
 	 */
 	public static Collection<? extends Statement> difference(Repository rep1, Repository rep2)
 			throws RepositoryException {
-		Collection<Statement> model1 = new HashSet<>();
-		Collection<Statement> model2 = new HashSet<>();
+		Collection<Statement> model1;
+		Collection<Statement> model2;
 
 		try (RepositoryConnection con1 = rep1.getConnection()) {
-			Iterations.addAll(con1.getStatements(null, null, null, false), model1);
+			model1 = Iterations.asSet(con1.getStatements(null, null, null, false));
 		}
 
 		try (RepositoryConnection con2 = rep2.getConnection()) {
-			Iterations.addAll(con2.getStatements(null, null, null, false), model2);
+			model2 = Iterations.asSet(con2.getStatements(null, null, null, false));
 		}
 
 		return difference(model1, model2);
@@ -107,7 +109,7 @@ public class RepositoryUtil {
 	 * relevant for model equality, they are mapped from one model to the other by using the attached properties. *
 	 * <p>
 	 * <b>NOTE: this algorithm is currently broken; it doesn't actually map blank nodes between the two models.</b>
-	 * 
+	 *
 	 * @return The collection of statements that is the difference between model1 and model2.
 	 */
 	public static Collection<? extends Statement> difference(Collection<? extends Statement> model1,

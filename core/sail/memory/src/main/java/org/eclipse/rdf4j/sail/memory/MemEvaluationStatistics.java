@@ -1,15 +1,14 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.memory;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
@@ -19,22 +18,25 @@ import org.eclipse.rdf4j.query.algebra.Var;
 import org.eclipse.rdf4j.query.algebra.evaluation.impl.EvaluationStatistics;
 import org.eclipse.rdf4j.sail.memory.model.MemIRI;
 import org.eclipse.rdf4j.sail.memory.model.MemResource;
+import org.eclipse.rdf4j.sail.memory.model.MemStatementList;
 import org.eclipse.rdf4j.sail.memory.model.MemValue;
 import org.eclipse.rdf4j.sail.memory.model.MemValueFactory;
 
 /**
  * Uses the MemoryStore's statement sizes to give cost estimates based on the size of the expected results. This process
  * could be improved with repository statistics about size and distribution of statements.
- * 
+ *
  * @author Arjohn Kampman
  * @author James Leigh
  */
 class MemEvaluationStatistics extends EvaluationStatistics {
 
 	private final MemValueFactory valueFactory;
+	private final MemStatementList memStatementList;
 
-	MemEvaluationStatistics(MemValueFactory valueFactory) {
+	MemEvaluationStatistics(MemValueFactory valueFactory, MemStatementList memStatementList) {
 		this.valueFactory = valueFactory;
+		this.memStatementList = memStatementList;
 	}
 
 	@Override
@@ -48,7 +50,7 @@ class MemEvaluationStatistics extends EvaluationStatistics {
 		public double getCardinality(StatementPattern sp) {
 
 			Value subj = getConstantValue(sp.getSubjectVar());
-			if (!(subj instanceof Resource)) {
+			if (!(subj != null && subj.isResource())) {
 				// can happen when a previous optimizer has inlined a comparison
 				// operator.
 				// this can cause, for example, the subject variable to be
@@ -57,66 +59,86 @@ class MemEvaluationStatistics extends EvaluationStatistics {
 				subj = null;
 			}
 			Value pred = getConstantValue(sp.getPredicateVar());
-			if (!(pred instanceof IRI)) {
+			if (!(pred != null && pred.isIRI())) {
 				// can happen when a previous optimizer has inlined a comparison
 				// operator. See SES-970 / SES-998
 				pred = null;
 			}
 			Value obj = getConstantValue(sp.getObjectVar());
 			Value context = getConstantValue(sp.getContextVar());
-			if (!(context instanceof Resource)) {
+			if (!(context != null && context.isResource())) {
 				// can happen when a previous optimizer has inlined a comparison
 				// operator. See SES-970 / SES-998
 				context = null;
 			}
 
-			// Perform look-ups for value-equivalents of the specified values
-			MemResource memSubj = valueFactory.getMemResource((Resource) subj);
-			MemIRI memPred = valueFactory.getMemURI((IRI) pred);
-			MemValue memObj = valueFactory.getMemValue(obj);
-			MemResource memContext = valueFactory.getMemResource((Resource) context);
-
-			if (subj != null && memSubj == null || pred != null && memPred == null || obj != null && memObj == null
-					|| context != null && memContext == null) {
-				// non-existent subject, predicate, object or context
-				return 0.0;
-			}
-
-			// Search for the smallest list that can be used by the iterator
-			List<Integer> listSizes = new ArrayList<>(4);
-			if (memSubj != null) {
-				listSizes.add(memSubj.getSubjectStatementCount());
-			}
-			if (memPred != null) {
-				listSizes.add(memPred.getPredicateStatementCount());
-			}
-			if (memObj != null) {
-				listSizes.add(memObj.getObjectStatementCount());
-			}
-			if (memContext != null) {
-				listSizes.add(memContext.getContextStatementCount());
-			}
-
-			double cardinality;
-
-			if (listSizes.isEmpty()) {
-				// all wildcards
-				cardinality = Integer.MAX_VALUE;
+			if (subj == null && pred == null && obj == null && context == null) {
+				return memStatementList.size();
 			} else {
-				cardinality = (double) Collections.min(listSizes);
-
-				// List<Var> vars = getVariables(sp);
-				// int constantVarCount = countConstantVars(vars);
-				//
-				// // Subtract 1 from var count as this was used for the list
-				// size
-				// double unboundVarFactor = (double)(vars.size() -
-				// constantVarCount) / (vars.size() - 1);
-				//
-				// cardinality = Math.pow(cardinality, unboundVarFactor);
+				return minStatementCount(subj, pred, obj, context);
 			}
 
-			return cardinality;
+		}
+
+		private int minStatementCount(Value subj, Value pred, Value obj, Value context) {
+			int minListSizes = Integer.MAX_VALUE;
+
+			if (subj != null) {
+				MemResource memSubj = valueFactory.getMemResource((Resource) subj);
+				if (memSubj != null) {
+					minListSizes = memSubj.getSubjectStatementCount();
+					if (minListSizes == 0) {
+						return 0;
+					}
+				} else {
+					// couldn't find the value in the value factory, which means that there are no statements with that
+					// value
+					return 0;
+				}
+			}
+
+			if (pred != null) {
+				MemIRI memPred = valueFactory.getMemURI((IRI) pred);
+				if (memPred != null) {
+					minListSizes = Math.min(minListSizes, memPred.getPredicateStatementCount());
+					if (minListSizes == 0) {
+						return 0;
+					}
+				} else {
+					// couldn't find the value in the value factory, which means that there are no statements with that
+					// value
+					return 0;
+				}
+			}
+
+			if (obj != null) {
+				MemValue memObj = valueFactory.getMemValue(obj);
+				if (memObj != null) {
+					minListSizes = Math.min(minListSizes, memObj.getObjectStatementCount());
+					if (minListSizes == 0) {
+						return 0;
+					}
+				} else {
+					// couldn't find the value in the value factory, which means that there are no statements with that
+					// value
+					return 0;
+				}
+			}
+
+			if (context != null) {
+				MemResource memContext = valueFactory.getMemResource((Resource) context);
+				if (memContext != null) {
+					minListSizes = Math.min(minListSizes, memContext.getContextStatementCount());
+				} else {
+					// couldn't find the value in the value factory, which means that there are no statements with that
+					// value
+					return 0;
+				}
+			}
+
+			assert minListSizes != Integer.MAX_VALUE : "minListSizes should have been updated before this point";
+
+			return minListSizes;
 		}
 
 		protected Value getConstantValue(Var var) {
@@ -127,4 +149,5 @@ class MemEvaluationStatistics extends EvaluationStatistics {
 			return null;
 		}
 	}
-} // end inner class MemCardinalityCalculator
+
+}

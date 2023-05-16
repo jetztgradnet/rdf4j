@@ -1,25 +1,36 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.parser.sparql;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
+import org.eclipse.rdf4j.model.Namespace;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.model.util.Namespaces;
 import org.eclipse.rdf4j.query.Dataset;
 import org.eclipse.rdf4j.query.IncompatibleOperationException;
 import org.eclipse.rdf4j.query.MalformedQueryException;
 import org.eclipse.rdf4j.query.QueryLanguage;
+import org.eclipse.rdf4j.query.algebra.DeleteData;
+import org.eclipse.rdf4j.query.algebra.InsertData;
+import org.eclipse.rdf4j.query.algebra.QueryRoot;
 import org.eclipse.rdf4j.query.algebra.TupleExpr;
 import org.eclipse.rdf4j.query.algebra.UpdateExpr;
 import org.eclipse.rdf4j.query.parser.ParsedBooleanQuery;
@@ -47,15 +58,41 @@ import org.eclipse.rdf4j.query.parser.sparql.ast.ParseException;
 import org.eclipse.rdf4j.query.parser.sparql.ast.SyntaxTreeBuilder;
 import org.eclipse.rdf4j.query.parser.sparql.ast.TokenMgrError;
 import org.eclipse.rdf4j.query.parser.sparql.ast.VisitorException;
+import org.eclipse.rdf4j.rio.RDFParseException;
+import org.eclipse.rdf4j.rio.helpers.BasicParserSettings;
 
 @SuppressWarnings("deprecation")
 public class SPARQLParser implements QueryParser {
+	private final Map<String, String> customPrefixes;
+
+	/**
+	 * Create a new SPARQLParser.
+	 *
+	 * @param customPrefixes the default namespaces to apply to this parser. null for no prefixes
+	 */
+	public SPARQLParser(Set<Namespace> customPrefixes) {
+		Objects.requireNonNull(customPrefixes, "customPrefixes can't be null!");
+		if (customPrefixes.isEmpty()) {
+			this.customPrefixes = Collections.emptyMap();
+		} else {
+			this.customPrefixes = Namespaces.asMap(customPrefixes);
+		}
+	}
+
+	/**
+	 * Create a new SPARQLParser without any default prefixes.
+	 */
+	public SPARQLParser() {
+		this(Collections.emptySet());
+	}
 
 	@Override
 	public ParsedUpdate parseUpdate(String updateStr, String baseURI) throws MalformedQueryException {
 		try {
 
 			ParsedUpdate update = new ParsedUpdate(updateStr);
+
+			SPARQLUpdateDataBlockParser parser = new SPARQLUpdateDataBlockParser();
 
 			ASTUpdateSequence updateSequence = SyntaxTreeBuilder.parseUpdateSequence(updateStr);
 
@@ -89,7 +126,7 @@ public class SPARQLParser implements QueryParser {
 				// try and use
 				// prefix declarations from a previous operation in this sequence.
 				List<ASTPrefixDecl> prefixDeclList = uc.getPrefixDeclList();
-				if (prefixDeclList == null || prefixDeclList.size() == 0) {
+				if (prefixDeclList == null || prefixDeclList.isEmpty()) {
 					if (sharedPrefixDeclarations != null) {
 						for (ASTPrefixDecl prefixDecl : sharedPrefixDeclarations) {
 							uc.jjtAppendChild(prefixDecl);
@@ -99,7 +136,7 @@ public class SPARQLParser implements QueryParser {
 					sharedPrefixDeclarations = prefixDeclList;
 				}
 
-				PrefixDeclProcessor.process(uc);
+				PrefixDeclProcessor.process(uc, customPrefixes);
 				Set<String> usedBNodeIds = BlankNodeVarProcessor.process(uc);
 
 				if (uc.getUpdate() instanceof ASTInsertData || uc.getUpdate() instanceof ASTInsertData) {
@@ -119,6 +156,24 @@ public class SPARQLParser implements QueryParser {
 
 					// add individual update expression to ParsedUpdate sequence
 					// container
+
+					String datablock = "";
+					if (updateExpr instanceof InsertData) {
+						InsertData insertDataExpr = (InsertData) updateExpr;
+						parser.getParserConfig().set(BasicParserSettings.SKOLEMIZE_ORIGIN, null);
+						parser.setLineNumberOffset(insertDataExpr.getLineNumberOffset());
+						datablock = insertDataExpr.getDataBlock();
+					} else if (updateExpr instanceof DeleteData) {
+						DeleteData deleteDataExpr = (DeleteData) updateExpr;
+						parser.setLineNumberOffset(deleteDataExpr.getLineNumberOffset());
+						parser.setAllowBlankNodes(false);
+						datablock = deleteDataExpr.getDataBlock();
+					}
+
+					if (!datablock.equals("")) {
+						parser.parse(new StringReader(datablock), "");
+					}
+
 					update.addUpdateExpr(updateExpr);
 
 					// associate updateExpr with the correct dataset (if any)
@@ -128,11 +183,7 @@ public class SPARQLParser implements QueryParser {
 			} // end for
 
 			return update;
-		} catch (ParseException e) {
-			throw new MalformedQueryException(e.getMessage(), e);
-		} catch (TokenMgrError e) {
-			throw new MalformedQueryException(e.getMessage(), e);
-		} catch (VisitorException e) {
+		} catch (RDFParseException | ParseException | TokenMgrError | VisitorException | IOException e) {
 			throw new MalformedQueryException(e.getMessage(), e);
 		}
 
@@ -144,7 +195,7 @@ public class SPARQLParser implements QueryParser {
 			ASTQueryContainer qc = SyntaxTreeBuilder.parseQuery(queryStr);
 			StringEscapesProcessor.process(qc);
 			BaseDeclProcessor.process(qc, baseURI);
-			Map<String, String> prefixes = PrefixDeclProcessor.process(qc);
+			Map<String, String> prefixes = PrefixDeclProcessor.process(qc, customPrefixes);
 			WildcardProjectionProcessor.process(qc);
 			BlankNodeVarProcessor.process(qc);
 
@@ -153,6 +204,11 @@ public class SPARQLParser implements QueryParser {
 				// handle query operation
 
 				TupleExpr tupleExpr = buildQueryModel(qc);
+
+				// Ensure we always return a rooted query.
+				if (!(tupleExpr instanceof QueryRoot)) {
+					tupleExpr = new QueryRoot(tupleExpr);
+				}
 
 				ParsedQuery query;
 
@@ -179,9 +235,7 @@ public class SPARQLParser implements QueryParser {
 			} else {
 				throw new IncompatibleOperationException("supplied string is not a query operation");
 			}
-		} catch (ParseException e) {
-			throw new MalformedQueryException(e.getMessage(), e);
-		} catch (TokenMgrError e) {
+		} catch (ParseException | TokenMgrError e) {
 			throw new MalformedQueryException(e.getMessage(), e);
 		}
 	}
@@ -201,7 +255,7 @@ public class SPARQLParser implements QueryParser {
 		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 
 		StringBuilder buf = new StringBuilder();
-		String line = null;
+		String line;
 
 		int emptyLineCount = 0;
 		while ((line = in.readLine()) != null) {

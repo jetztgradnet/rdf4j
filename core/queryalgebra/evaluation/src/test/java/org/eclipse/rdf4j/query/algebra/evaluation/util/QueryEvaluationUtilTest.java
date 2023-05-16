@@ -1,34 +1,47 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.util;
 
 import static org.eclipse.rdf4j.query.algebra.Compare.CompareOp.EQ;
-import static org.eclipse.rdf4j.query.algebra.Compare.CompareOp.NE;
 import static org.eclipse.rdf4j.query.algebra.Compare.CompareOp.LT;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.eclipse.rdf4j.query.algebra.Compare.CompareOp.NE;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.Optional;
+
+import javax.xml.datatype.XMLGregorianCalendar;
+
+import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.model.base.CoreDatatype;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
+import org.eclipse.rdf4j.query.algebra.Compare;
 import org.eclipse.rdf4j.query.algebra.Compare.CompareOp;
 import org.eclipse.rdf4j.query.algebra.evaluation.ValueExprEvaluationException;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Jeen Broekstra
  */
 public class QueryEvaluationUtilTest {
 
-	private ValueFactory f = SimpleValueFactory.getInstance();
+	private final ValueFactory f = SimpleValueFactory.getInstance();
 
 	private Literal arg1simple;
 
@@ -70,8 +83,8 @@ public class QueryEvaluationUtilTest {
 
 	private Literal arg2unknown;
 
-	@Before
-	public void setUp() throws Exception {
+	@BeforeEach
+	public void setUp() {
 		arg1simple = f.createLiteral("abc");
 		arg2simple = f.createLiteral("b");
 
@@ -81,30 +94,30 @@ public class QueryEvaluationUtilTest {
 		arg1cy = f.createLiteral("abc", "cy");
 		arg2cy = f.createLiteral("b", "cy");
 
-		arg1string = f.createLiteral("abc", XMLSchema.STRING);
-		arg2string = f.createLiteral("b", XMLSchema.STRING);
+		arg1string = f.createLiteral("abc", XSD.STRING);
+		arg2string = f.createLiteral("b", XSD.STRING);
 
-		arg1year = f.createLiteral("2007", XMLSchema.GYEAR);
-		arg2year = f.createLiteral("2009", XMLSchema.GYEAR);
+		arg1year = f.createLiteral("2007", XSD.GYEAR);
+		arg2year = f.createLiteral("2009", XSD.GYEAR);
 
-		arg1dateTime = f.createLiteral("2009-01-01T20:20:20Z", XMLSchema.DATETIME);
-		arg2dateTime = f.createLiteral("2007-01-01T20:20:20+02:00", XMLSchema.DATETIME);
+		arg1dateTime = f.createLiteral("2009-01-01T20:20:20Z", XSD.DATETIME);
+		arg2dateTime = f.createLiteral("2007-01-01T20:20:20+02:00", XSD.DATETIME);
 
 		arg1int = f.createLiteral(10);
 		arg2int = f.createLiteral(1);
 
-		arg1duration = f.createLiteral("P1Y30DT1H1M1S", XMLSchema.DURATION);
-		arg2duration = f.createLiteral("P1Y31DT1H1M1S", XMLSchema.DURATION);
+		arg1duration = f.createLiteral("P1Y30DT1H1M1S", XSD.DURATION);
+		arg2duration = f.createLiteral("P1Y31DT1H1M1S", XSD.DURATION);
 
-		arg1yearMonthDuration = f.createLiteral("P1M", XMLSchema.YEARMONTHDURATION);
-		arg2yearMonthDuration = f.createLiteral("P1Y1M", XMLSchema.YEARMONTHDURATION);
+		arg1yearMonthDuration = f.createLiteral("P1M", XSD.YEARMONTHDURATION);
+		arg2yearMonthDuration = f.createLiteral("P1Y1M", XSD.YEARMONTHDURATION);
 
 		arg1unknown = f.createLiteral("foo", f.createIRI("http://example.com/datatype"));
 		arg2unknown = f.createLiteral("bar", f.createIRI("http://example.com/datatype"));
 	}
 
 	@Test
-	public void testCompatibleArguments() throws Exception {
+	public void testCompatibleArguments() {
 
 		assertTrue(QueryEvaluationUtil.compatibleArguments(arg1simple, arg2simple));
 		assertFalse(QueryEvaluationUtil.compatibleArguments(arg1simple, arg2en));
@@ -141,7 +154,7 @@ public class QueryEvaluationUtilTest {
 	}
 
 	@Test
-	public void testCompareEQ() throws Exception {
+	public void testCompareEQ() {
 		assertCompareTrue(arg1simple, arg1simple, EQ);
 		assertCompareTrue(arg1en, arg1en, EQ);
 		assertCompareTrue(arg2cy, arg2cy, EQ);
@@ -223,7 +236,7 @@ public class QueryEvaluationUtilTest {
 	}
 
 	@Test
-	public void testCompareNE() throws Exception {
+	public void testCompareNE() {
 		assertCompareFalse(arg1simple, arg1simple, NE);
 		assertCompareFalse(arg1en, arg1en, NE);
 		assertCompareFalse(arg1cy, arg1cy, NE);
@@ -303,7 +316,7 @@ public class QueryEvaluationUtilTest {
 	}
 
 	@Test
-	public void testCompareLT() throws Exception {
+	public void testCompareLT() {
 		assertCompareFalse(arg1simple, arg1simple, LT);
 		assertCompareException(arg1en, arg1en, LT);
 		assertCompareFalse(arg1string, arg1string, LT);
@@ -395,18 +408,18 @@ public class QueryEvaluationUtilTest {
 	 * @param lit2 The right literal
 	 * @param op   The operator for the comparison
 	 */
-	private void assertCompareException(Literal lit1, Literal lit2, CompareOp op) throws Exception {
+	private void assertCompareException(Literal lit1, Literal lit2, CompareOp op) {
 		assertCompareException(lit1, lit2, op, true);
 	}
 
 	/**
 	 * Assert that there is an exception as a result of comparing the two literals with the given operator.
-	 * 
+	 *
 	 * @param lit1 The left literal
 	 * @param lit2 The right literal
 	 * @param op   The operator for the comparison
 	 */
-	private void assertCompareException(Literal lit1, Literal lit2, CompareOp op, boolean strict) throws Exception {
+	private void assertCompareException(Literal lit1, Literal lit2, CompareOp op, boolean strict) {
 		try {
 			boolean returnValue = QueryEvaluationUtil.compareLiterals(lit1, lit2, op, strict);
 			fail("Did not receive expected ValueExprEvaluationException (return value was " + returnValue + ") for "
@@ -416,39 +429,217 @@ public class QueryEvaluationUtilTest {
 		}
 	}
 
-	private void assertCompareFalse(Literal lit1, Literal lit2, CompareOp op) throws Exception {
+	private void assertCompareFalse(Literal lit1, Literal lit2, CompareOp op) {
 		assertCompareFalse(lit1, lit2, op, true);
 	}
 
 	/**
 	 * Assert that there is no exception as a result of comparing the two literals with the given operator and it
 	 * returns false.
-	 * 
+	 *
 	 * @param lit1 The left literal
 	 * @param lit2 The right literal
 	 * @param op   The operator for the comparison
 	 */
-	private void assertCompareFalse(Literal lit1, Literal lit2, CompareOp op, boolean strict) throws Exception {
-		assertFalse("Compare did not return false for " + lit1.toString() + op.getSymbol() + lit2.toString(),
-				QueryEvaluationUtil.compareLiterals(lit1, lit2, op, strict));
+	private void assertCompareFalse(Literal lit1, Literal lit2, CompareOp op, boolean strict) {
+		assertFalse(QueryEvaluationUtil.compareLiterals(lit1, lit2, op, strict),
+				"Compare did not return false for " + lit1.toString() + op.getSymbol() + lit2.toString());
 	}
 
-	private void assertCompareTrue(Literal lit1, Literal lit2, CompareOp op) throws Exception {
+	private void assertCompareTrue(Literal lit1, Literal lit2, CompareOp op) {
 		assertCompareTrue(lit1, lit2, op, true);
 	}
 
 	/**
 	 * Assert that there is no exception as a result of comparing the two literals with the given operator and it
 	 * returns true.
-	 * 
+	 *
 	 * @param lit1   The left literal
 	 * @param lit2   The right literal
 	 * @param op     The operator for the comparison
 	 * @param strict boolean switch between strict and extended comparison
 	 */
-	private void assertCompareTrue(Literal lit1, Literal lit2, CompareOp op, boolean strict) throws Exception {
-		assertTrue("Compare did not return true for " + lit1.toString() + op.getSymbol() + lit2.toString(),
-				QueryEvaluationUtil.compareLiterals(lit1, lit2, op, strict));
+	private void assertCompareTrue(Literal lit1, Literal lit2, CompareOp op, boolean strict) {
+		assertTrue(QueryEvaluationUtil.compareLiterals(lit1, lit2, op, strict),
+				"Compare did not return true for " + lit1.toString() + op.getSymbol() + lit2.toString());
 	}
 
+	/**
+	 * Reporoduces GH-2760: an NPE has been thrown when comparing custom literal implementations
+	 */
+	@Test
+	public void testCompareWithCustomLiterals() {
+		SimpleValueFactory vf = SimpleValueFactory.getInstance();
+		Literal left = vf.createLiteral(5);
+
+		Literal right = getCustomLiteral(vf.createLiteral(6));
+		// GH-2760: should not throw an NPE, simply try all avaliable comparator operators
+		for (CompareOp op : Compare.CompareOp.values()) {
+			QueryEvaluationUtil.compareLiterals(left, right, op, true);
+			QueryEvaluationUtil.compareLiterals(right, left, op, true);
+		}
+
+	}
+
+	/**
+	 * Reporoduces GH-2760: an NPE has been thrown when comparing custom literal implementations
+	 */
+	@Test
+	public void testCompareWithCustomLiteralsIncompatible() {
+		SimpleValueFactory vf = SimpleValueFactory.getInstance();
+		Literal left = vf.createLiteral("abc");
+
+		Literal right = getCustomLiteral(vf.createLiteral(6));
+		// GH-2760: should not throw an NPE, simply try all avaliable comparator operators
+		for (CompareOp op : Compare.CompareOp.values()) {
+			try {
+				QueryEvaluationUtil.compareLiterals(left, right, op, true);
+			} catch (ValueExprEvaluationException e) {
+				assertEquals("Unable to compare strings with other supported types", e.getMessage());
+			}
+			try {
+				QueryEvaluationUtil.compareLiterals(right, left, op, true);
+			} catch (ValueExprEvaluationException e) {
+				assertEquals("Unable to compare strings with other supported types", e.getMessage());
+			}
+		}
+	}
+
+	@Test
+	public void testCompareWithCustomLiteralsInditerminate() {
+		SimpleValueFactory vf = SimpleValueFactory.getInstance();
+		Literal left = vf.createLiteral("2000-01-01T12:00:00", XSD.DATETIME);
+
+		Literal right = getCustomLiteral(vf.createLiteral("1999-12-31T23:00:00Z", XSD.DATETIME));
+		// GH-2760: should not throw an NPE, simply try all avaliable comparator operators
+		for (CompareOp op : Compare.CompareOp.values()) {
+			try {
+				QueryEvaluationUtil.compareLiterals(left, right, op, true);
+			} catch (ValueExprEvaluationException e) {
+				assertEquals("Indeterminate result for date/time comparison", e.getMessage());
+			}
+			try {
+				QueryEvaluationUtil.compareLiterals(right, left, op, true);
+			} catch (ValueExprEvaluationException e) {
+				assertEquals("Indeterminate result for date/time comparison", e.getMessage());
+			}
+		}
+	}
+
+	@Test
+	public void testCompareCustomDatatypes() {
+		SimpleValueFactory vf = SimpleValueFactory.getInstance();
+		Literal left = vf.createLiteral(1);
+
+		Literal right = vf.createLiteral("I", vf.createIRI("http://example.org/romanNumeral"));
+		// GH-2760: should not throw an NPE, simply try all avaliable comparator operators
+		for (CompareOp op : Compare.CompareOp.values()) {
+			try {
+				QueryEvaluationUtil.compareLiterals(left, right, op, true);
+			} catch (ValueExprEvaluationException e) {
+				assertEquals("Unable to compare literals with unsupported types", e.getMessage());
+			}
+			try {
+				QueryEvaluationUtil.compareLiterals(right, left, op, true);
+			} catch (ValueExprEvaluationException e) {
+				assertEquals("Unable to compare literals with unsupported types", e.getMessage());
+			}
+		}
+	}
+
+	/**
+	 * Reporoduces GH-2760: an NPE has been thrown when comparing custom literal implementations
+	 */
+	@Test
+	public void testCompareWithOnlyCustomLiterals() {
+		SimpleValueFactory vf = SimpleValueFactory.getInstance();
+		Literal left = getCustomLiteral(vf.createLiteral(1));
+
+		Literal right = getCustomLiteral(vf.createLiteral(6));
+		// GH-2760: should not throw an NPE, simply try all avaliable comparator operators
+		for (CompareOp op : Compare.CompareOp.values()) {
+			QueryEvaluationUtil.compareLiterals(left, right, op, true);
+		}
+	}
+
+	private Literal getCustomLiteral(Literal nested) {
+		Literal right = new Literal() {
+
+			@Override
+			public String stringValue() {
+				return nested.stringValue();
+			}
+
+			@Override
+			public short shortValue() {
+				return nested.shortValue();
+			}
+
+			@Override
+			public long longValue() {
+				return nested.longValue();
+			}
+
+			@Override
+			public BigInteger integerValue() {
+				return nested.integerValue();
+			}
+
+			@Override
+			public int intValue() {
+				return nested.intValue();
+			}
+
+			@Override
+			public Optional<String> getLanguage() {
+				return nested.getLanguage();
+			}
+
+			@Override
+			public String getLabel() {
+				return nested.getLabel();
+			}
+
+			@Override
+			public IRI getDatatype() {
+				return nested.getDatatype();
+			}
+
+			@Override
+			public float floatValue() {
+				return nested.floatValue();
+			}
+
+			@Override
+			public double doubleValue() {
+				return nested.doubleValue();
+			}
+
+			@Override
+			public BigDecimal decimalValue() {
+				return nested.decimalValue();
+			}
+
+			@Override
+			public XMLGregorianCalendar calendarValue() {
+				return nested.calendarValue();
+			}
+
+			@Override
+			public CoreDatatype getCoreDatatype() {
+				return nested.getCoreDatatype();
+			}
+
+			@Override
+			public byte byteValue() {
+				return nested.byteValue();
+			}
+
+			@Override
+			public boolean booleanValue() {
+				return nested.booleanValue();
+			}
+		};
+		return right;
+	}
 }

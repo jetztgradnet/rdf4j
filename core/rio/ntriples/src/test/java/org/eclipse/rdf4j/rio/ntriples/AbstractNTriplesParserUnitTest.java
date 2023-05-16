@@ -1,29 +1,41 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.ntriples;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.InputStream;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.TreeSet;
 
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.util.Models;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
+import org.eclipse.rdf4j.rio.RDFHandlerException;
 import org.eclipse.rdf4j.rio.RDFParseException;
 import org.eclipse.rdf4j.rio.RDFParser;
+import org.eclipse.rdf4j.rio.helpers.BasicParserSettings;
 import org.eclipse.rdf4j.rio.helpers.NTriplesParserSettings;
+import org.eclipse.rdf4j.rio.helpers.ParseErrorCollector;
 import org.eclipse.rdf4j.rio.helpers.StatementCollector;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for N-Triples Parser.
@@ -32,24 +44,20 @@ import org.junit.Test;
  */
 public abstract class AbstractNTriplesParserUnitTest {
 
-	private static String NTRIPLES_TEST_URL = "http://www.w3.org/2000/10/rdf-tests/rdfcore/ntriples/test.nt";
+	private static final String NTRIPLES_TEST_URL = "http://www.w3.org/2000/10/rdf-tests/rdfcore/ntriples/test.nt";
 
-	private static String NTRIPLES_TEST_FILE = "/testcases/ntriples/test.nt";
+	private static final String NTRIPLES_TEST_FILE = "/testcases/ntriples/test.nt";
 
 	@Test
 	public void testNTriplesFile() throws Exception {
 		RDFParser ntriplesParser = createRDFParser();
-		ntriplesParser.setDatatypeHandling(RDFParser.DatatypeHandling.IGNORE);
 		Model model = new LinkedHashModel();
 		ntriplesParser.setRDFHandler(new StatementCollector(model));
 
-		InputStream in = this.getClass().getResourceAsStream(NTRIPLES_TEST_FILE);
-		try {
+		try (InputStream in = this.getClass().getResourceAsStream(NTRIPLES_TEST_FILE)) {
 			ntriplesParser.parse(in, NTRIPLES_TEST_URL);
 		} catch (RDFParseException e) {
 			fail("Failed to parse N-Triples test document: " + e.getMessage());
-		} finally {
-			in.close();
 		}
 
 		assertEquals(30, model.size());
@@ -63,7 +71,6 @@ public abstract class AbstractNTriplesParserUnitTest {
 		String data = "invalid nt";
 
 		RDFParser ntriplesParser = createRDFParser();
-		ntriplesParser.setDatatypeHandling(RDFParser.DatatypeHandling.IGNORE);
 		Model model = new LinkedHashModel();
 		ntriplesParser.setRDFHandler(new StatementCollector(model));
 
@@ -80,7 +87,7 @@ public abstract class AbstractNTriplesParserUnitTest {
 		String data = "invalid nt";
 
 		RDFParser ntriplesParser = createRDFParser();
-		ntriplesParser.getParserConfig().set(NTriplesParserSettings.FAIL_ON_NTRIPLES_INVALID_LINES, Boolean.TRUE);
+		ntriplesParser.getParserConfig().set(NTriplesParserSettings.FAIL_ON_INVALID_LINES, Boolean.TRUE);
 
 		Model model = new LinkedHashModel();
 		ntriplesParser.setRDFHandler(new StatementCollector(model));
@@ -98,7 +105,7 @@ public abstract class AbstractNTriplesParserUnitTest {
 		String data = "invalid nt";
 
 		RDFParser ntriplesParser = createRDFParser();
-		ntriplesParser.getParserConfig().addNonFatalError(NTriplesParserSettings.FAIL_ON_NTRIPLES_INVALID_LINES);
+		ntriplesParser.getParserConfig().addNonFatalError(NTriplesParserSettings.FAIL_ON_INVALID_LINES);
 
 		Model model = new LinkedHashModel();
 		ntriplesParser.setRDFHandler(new StatementCollector(model));
@@ -116,7 +123,7 @@ public abstract class AbstractNTriplesParserUnitTest {
 		String data = "invalid nt";
 
 		RDFParser ntriplesParser = createRDFParser();
-		ntriplesParser.getParserConfig().set(NTriplesParserSettings.FAIL_ON_NTRIPLES_INVALID_LINES, false);
+		ntriplesParser.getParserConfig().set(NTriplesParserSettings.FAIL_ON_INVALID_LINES, false);
 
 		Model model = new LinkedHashModel();
 		ntriplesParser.setRDFHandler(new StatementCollector(model));
@@ -288,7 +295,7 @@ public abstract class AbstractNTriplesParserUnitTest {
 
 	@Test
 	public void testSupportedSettings() throws Exception {
-		assertEquals(13, createRDFParser().getSupportedSettings().size());
+		assertEquals(14, createRDFParser().getSupportedSettings().size());
 	}
 
 	@Test
@@ -377,22 +384,18 @@ public abstract class AbstractNTriplesParserUnitTest {
 		assertEquals(0, model.objects().size());
 	}
 
-	@Test(expected = RDFParseException.class)
+	@Test
 	public void testBlankNodeIdentifiersWithDotAsLastCahracter() throws Exception {
 		// The character . may appear anywhere except the first or last character.
 		RDFParser ntriplesParser = new NTriplesParser();
 		Model model = new LinkedHashModel();
 		ntriplesParser.setRDFHandler(new StatementCollector(model));
-		try {
-			ntriplesParser.parse(new StringReader("_:123 <urn:test:predicate> _:456. ."), NTRIPLES_TEST_URL);
-		} catch (RDFParseException e) {
-			assertEquals(0, model.size());
-			assertEquals(0, model.subjects().size());
-			assertEquals(0, model.predicates().size());
-			assertEquals(0, model.objects().size());
-			throw e;
-		}
-		fail("Should have failed to parse invalid N-Triples bnode with '.' at the end of the bnode label");
+		assertThrows(RDFParseException.class,
+				() -> ntriplesParser.parse(new StringReader("_:123 <urn:test:predicate> _:456. ."), NTRIPLES_TEST_URL));
+		assertEquals(0, model.size());
+		assertEquals(0, model.subjects().size());
+		assertEquals(0, model.predicates().size());
+		assertEquals(0, model.objects().size());
 	}
 
 	@Test
@@ -421,18 +424,18 @@ public abstract class AbstractNTriplesParserUnitTest {
 						+ " in charactersList");
 			}
 
-			assertEquals("Should parse '" + character + "'", 1, model.size());
-			assertEquals("Should have subject when triple has character : '" + character + "'", 1,
-					model.subjects().size());
-			assertEquals("Should have predicate when triple has character : '" + character + "'", 1,
-					model.predicates().size());
-			assertEquals("Should have object when triple has character : '" + character + "'", 1,
-					model.objects().size());
+			assertEquals(1, model.size(), "Should parse '" + character + "'");
+			assertEquals(1, model.subjects().size(),
+					"Should have subject when triple has character : '" + character + "'");
+			assertEquals(1, model.predicates().size(),
+					"Should have predicate when triple has character : '" + character + "'");
+			assertEquals(1, model.objects().size(),
+					"Should have object when triple has character : '" + character + "'");
 		}
 
 	}
 
-	@Test(expected = RDFParseException.class)
+	@Test
 	public void testBlankNodeIdentifiersWithOtherCharactersAsFirstCharacter() throws Exception {
 		// The characters -, U+00B7, U+0300 to U+036F and U+203F to U+2040 are permitted anywhere except the first
 		// character.
@@ -449,20 +452,79 @@ public abstract class AbstractNTriplesParserUnitTest {
 			Model model = new LinkedHashModel();
 			ntriplesParser.setRDFHandler(new StatementCollector(model));
 
-			try {
+			assertThrows(RDFParseException.class, () -> {
 				ntriplesParser.parse(
 						new StringReader("<urn:test:subject> <urn:test:predicate> _:" + character + "1 . "),
 						NTRIPLES_TEST_URL);
-			} catch (RDFParseException e) {
-				assertEquals(0, model.size());
-				assertEquals(0, model.subjects().size());
-				assertEquals(0, model.predicates().size());
-				assertEquals(0, model.objects().size());
-				throw e;
-			}
-			fail("Should have failed to parse invalid N-Triples bnode with '" + character
-					+ "' at the begining of the bnode label");
+			});
+			assertEquals(0, model.size());
+			assertEquals(0, model.subjects().size());
+			assertEquals(0, model.predicates().size());
+			assertEquals(0, model.objects().size());
 		}
+	}
+
+	private static class CommentCollector extends StatementCollector {
+		final List<String> comments = new LinkedList<>();
+
+		public CommentCollector(Model model) {
+			super(model);
+		}
+
+		@Override
+		public void handleComment(String comment) throws RDFHandlerException {
+			comments.add(comment);
+		}
+	}
+
+	@Test
+	public void testHandleComment() throws Exception {
+		RDFParser ntriplesParser = createRDFParser();
+		Model model = new LinkedHashModel();
+		String commentStr = "some comment in it's own line";
+		CommentCollector cc = new CommentCollector(model);
+		ntriplesParser.setRDFHandler(cc);
+		ntriplesParser.parse(
+				new StringReader("<s:1> <p:1> <o:1> .\n#" + commentStr + "\n<s:2> <p:2> <o:2> ."),
+				"http://example/");
+		assertEquals(2, model.size());
+		assertEquals(new TreeSet<>(Arrays.asList("o:1", "o:2")), Models.objectStrings(model));
+		assertEquals(List.of(commentStr), cc.comments);
+	}
+
+	@Test
+	public void testLinenumberDatatypeValidation() throws Exception {
+		RDFParser ntriplesParser = createRDFParser();
+		ntriplesParser.getParserConfig().addNonFatalError(BasicParserSettings.VERIFY_DATATYPE_VALUES);
+		ntriplesParser.getParserConfig().set(BasicParserSettings.VERIFY_DATATYPE_VALUES, true);
+		ParseErrorCollector collector = new ParseErrorCollector();
+		ntriplesParser.setParseErrorListener(collector);
+
+		ntriplesParser.parse(
+				new StringReader("<urn:test:o> <urn:test:p> \"invalid\"^^<" + XSD.DATETIME.stringValue() + "> ."),
+				NTRIPLES_TEST_URL);
+		List<String> errors = collector.getErrors();
+
+		assertEquals(1, errors.size());
+		assertTrue(errors.get(0).contains("(1, 32)"), "Unknown line number");
+	}
+
+	@Test
+	public void testLinenumberLanguagetagValidation() throws Exception {
+		RDFParser ntriplesParser = createRDFParser();
+		ntriplesParser.getParserConfig().addNonFatalError(BasicParserSettings.FAIL_ON_UNKNOWN_LANGUAGES);
+		ntriplesParser.getParserConfig().set(BasicParserSettings.FAIL_ON_UNKNOWN_LANGUAGES, true);
+		ntriplesParser.getParserConfig().set(BasicParserSettings.VERIFY_LANGUAGE_TAGS, true);
+		ParseErrorCollector collector = new ParseErrorCollector();
+		ntriplesParser.setParseErrorListener(collector);
+
+		ntriplesParser.parse(
+				new StringReader("<urn:test:o> <urn:test:p> \"hello\"@inv+alid ."),
+				NTRIPLES_TEST_URL);
+		List<String> errors = collector.getErrors();
+
+		assertEquals(1, errors.size());
+		assertTrue(errors.get(0).contains("(1, 32)"), "Unknown line number");
 	}
 
 	protected abstract RDFParser createRDFParser();

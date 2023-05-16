@@ -1,22 +1,22 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.endpoint;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.rdf4j.federated.SPARQLBaseTest;
-import org.eclipse.rdf4j.federated.endpoint.Endpoint;
-import org.eclipse.rdf4j.federated.endpoint.EndpointBase;
-import org.eclipse.rdf4j.federated.endpoint.EndpointFactory;
-import org.eclipse.rdf4j.federated.endpoint.EndpointType;
-import org.eclipse.rdf4j.federated.endpoint.ManagedRepositoryEndpoint;
 import org.eclipse.rdf4j.federated.server.SPARQLEmbeddedServer;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Disabled;
@@ -56,13 +56,12 @@ public class EndpointFactoryTest extends SPARQLBaseTest {
 	@Test
 	public void testDataConfig() throws Exception {
 
-		fedxRule.setConfig("validateRepositoryConnections", "false");
-		fedxRule.setConfig("baseDir", "target/tmp/fedxTest");
+		File baseDir = new File("target/tmp/fedxTest");
 
 		File dataConfig = new File(
 				EndpointFactoryTest.class.getResource("/tests/dataconfig/endpointfactoryTest.ttl").toURI());
 
-		List<Endpoint> endpoints = EndpointFactory.loadFederationMembers(dataConfig);
+		List<Endpoint> endpoints = EndpointFactory.loadFederationMembers(dataConfig, baseDir);
 
 		endpoints.sort((e1, e2) -> e1.getName().compareTo(e2.getName()));
 
@@ -85,6 +84,27 @@ public class EndpointFactoryTest extends SPARQLBaseTest {
 		Assertions.assertEquals(new File("target/tmp/fedxTest", "repositories/dbmodel"),
 				((ManagedRepositoryEndpoint) nativeStore).repository.getDataDir());
 
+	}
+
+	@Test
+	public void testDataConfig_writableEndpoint() throws Exception {
+
+		File baseDir = new File("target/tmp/fedxTest");
+
+		File dataConfig = new File(
+				EndpointFactoryTest.class.getResource("/tests/dataconfig/endpointfactoryTest_writable.ttl").toURI());
+
+		List<Endpoint> endpoints = EndpointFactory.loadFederationMembers(dataConfig, baseDir);
+
+		endpoints.sort((e1, e2) -> e1.getName().compareTo(e2.getName()));
+
+		assertThat(endpoints.size()).isEqualTo(3);
+
+		Endpoint nativeStore = endpoints.get(2);
+		assertThat(nativeStore.getName()).isEqualTo("http://dbpedia.native");
+		assertThat(nativeStore.getId()).isEqualTo("dbmodel");
+		assertThat(nativeStore.getEndpoint()).isEqualTo("dbmodel");
+		assertThat(nativeStore.isWritable()).isTrue();
 	}
 
 }

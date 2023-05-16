@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.algebra;
 
@@ -12,7 +15,7 @@ import org.eclipse.rdf4j.query.algebra.QueryModelVisitor;
 
 /**
  * A structure representing a relevant source for some expression.
- * 
+ *
  * @author Andreas Schwarte
  *
  */
@@ -20,10 +23,10 @@ public class StatementSource extends AbstractQueryModelNode {
 
 	private static final long serialVersionUID = 1415552729436432653L;
 
-	public static enum StatementSourceType {
+	public enum StatementSourceType {
 		LOCAL,
 		REMOTE,
-		REMOTE_POSSIBLY;
+		REMOTE_POSSIBLY
 	}
 
 	protected String id;
@@ -39,6 +42,11 @@ public class StatementSource extends AbstractQueryModelNode {
 	public <X extends Exception> void visit(QueryModelVisitor<X> visitor)
 			throws X {
 		visitor.meetOther(this);
+	}
+
+	@Override
+	public <X extends Exception> void visitChildren(QueryModelVisitor<X> visitor) throws X {
+		// no-op
 	}
 
 	@Override
@@ -68,23 +76,30 @@ public class StatementSource extends AbstractQueryModelNode {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		}
+		if (obj == null) {
 			return false;
-		if (getClass() != obj.getClass())
+		}
+		if (getClass() != obj.getClass()) {
 			return false;
+		}
 		StatementSource other = (StatementSource) obj;
 		if (id == null) {
-			if (other.id != null)
+			if (other.id != null) {
 				return false;
-		} else if (!id.equals(other.id))
+			}
+		} else if (!id.equals(other.id)) {
 			return false;
+		}
 		if (type == null) {
-			if (other.type != null)
+			if (other.type != null) {
 				return false;
-		} else if (!type.equals(other.type))
+			}
+		} else if (!type.equals(other.type)) {
 			return false;
+		}
 		return true;
 	}
 

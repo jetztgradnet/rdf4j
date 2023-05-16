@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.evaluation.concurrent;
 
@@ -11,22 +14,24 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
+import org.eclipse.rdf4j.common.iteration.Iterations;
 import org.eclipse.rdf4j.common.iteration.LookAheadIteration;
-import org.eclipse.rdf4j.federated.FederationManager;
+import org.eclipse.rdf4j.federated.FederationContext;
 import org.eclipse.rdf4j.federated.algebra.FedXService;
 import org.eclipse.rdf4j.federated.evaluation.FederationEvalStrategy;
 import org.eclipse.rdf4j.federated.structures.QueryInfo;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.QueryEvaluationException;
 import org.eclipse.rdf4j.query.QueryInterruptedException;
+import org.eclipse.rdf4j.repository.sparql.federation.CollectionIteration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Parallel executor for {@link FedXService} nodes, which wrap SERVICE expressions.
- * 
+ *
  * Uses the union scheduler to execute the task
- * 
+ *
  * @author Andreas Schwarte
  */
 public class ParallelServiceExecutor extends LookAheadIteration<BindingSet, QueryEvaluationException>
@@ -34,7 +39,7 @@ public class ParallelServiceExecutor extends LookAheadIteration<BindingSet, Quer
 
 	/*
 	 * IMPLEMENTATION NOTE
-	 * 
+	 *
 	 * This class explicitly does not extend ParallelServiceExecutor: here the execution of the #run() is non blocking,
 	 * i.g. blocking is done a consumption time of the iterator
 	 */
@@ -44,6 +49,7 @@ public class ParallelServiceExecutor extends LookAheadIteration<BindingSet, Quer
 	protected final FedXService service;
 	protected final FederationEvalStrategy strategy;
 	protected final BindingSet bindings;
+	protected final FederationContext federationContext;
 
 	protected CloseableIteration<BindingSet, QueryEvaluationException> rightIter = null;
 	protected boolean finished = false;
@@ -55,20 +61,22 @@ public class ParallelServiceExecutor extends LookAheadIteration<BindingSet, Quer
 	 * @param service
 	 * @param strategy
 	 * @param bindings
+	 * @param federationContext
 	 */
 	public ParallelServiceExecutor(FedXService service,
-			FederationEvalStrategy strategy, BindingSet bindings) {
+			FederationEvalStrategy strategy, BindingSet bindings, FederationContext federationContext) {
 		super();
 		this.service = service;
 		this.strategy = strategy;
 		this.bindings = bindings;
+		this.federationContext = federationContext;
 	}
 
 	@Override
 	public void run() {
 
 		latch = new CountDownLatch(1);
-		ControlledWorkerScheduler<BindingSet> scheduler = FederationManager.getInstance().getUnionScheduler();
+		ControlledWorkerScheduler<BindingSet> scheduler = federationContext.getManager().getUnionScheduler();
 		scheduler.schedule(new ParallelServiceTask());
 	}
 
@@ -88,7 +96,7 @@ public class ParallelServiceExecutor extends LookAheadIteration<BindingSet, Quer
 
 	@Override
 	public void done() {
-		; // no-op
+		// no-op
 	}
 
 	@Override
@@ -108,8 +116,9 @@ public class ParallelServiceExecutor extends LookAheadIteration<BindingSet, Quer
 
 		// error resulting from TOSS
 		if (error != null) {
-			if (error instanceof QueryEvaluationException)
+			if (error instanceof QueryEvaluationException) {
 				throw (QueryEvaluationException) error;
+			}
 			throw new QueryEvaluationException(error);
 		}
 
@@ -121,6 +130,7 @@ public class ParallelServiceExecutor extends LookAheadIteration<BindingSet, Quer
 					throw new QueryInterruptedException("Timeout during service evaluation");
 				}
 			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
 				log.debug("Error while evaluating service expression. Thread got interrupted.");
 				error = e;
 			}
@@ -128,28 +138,33 @@ public class ParallelServiceExecutor extends LookAheadIteration<BindingSet, Quer
 
 		// check again for error
 		if (error != null) {
-			if (error instanceof QueryEvaluationException)
+			if (error instanceof QueryEvaluationException) {
 				throw (QueryEvaluationException) error;
+			}
 			throw new QueryEvaluationException(error);
 		}
 
-		if (rightIter.hasNext())
+		if (rightIter.hasNext()) {
 			return rightIter.next();
+		}
 
 		return null;
 	}
 
 	/**
 	 * Task for evaluating service requests
-	 * 
+	 *
 	 * @author Andreas Schwarte
 	 */
 	private class ParallelServiceTask extends ParallelTaskBase<BindingSet> {
 
 		@Override
-		public CloseableIteration<BindingSet, QueryEvaluationException> performTask()
-				throws Exception {
-			return strategy.evaluate(service.getService(), bindings);
+		protected CloseableIteration<BindingSet, QueryEvaluationException> performTaskInternal() throws Exception {
+
+			// Note: in order two avoid deadlocks we consume the SERVICE result.
+			// This is basically required to avoid processing background tuple
+			// request (i.e. HTTP slots) in the correct order.
+			return new CollectionIteration<>(Iterations.asList(strategy.evaluate(service.getService(), bindings)));
 		}
 
 		@Override

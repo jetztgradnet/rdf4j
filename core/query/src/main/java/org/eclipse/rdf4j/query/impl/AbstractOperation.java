@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.impl;
 
@@ -14,7 +17,7 @@ import org.eclipse.rdf4j.query.Operation;
 
 /**
  * Abstract super class of all operation types.
- * 
+ *
  * @author Jeen Broekstra
  */
 public abstract class AbstractOperation implements Operation {
@@ -29,7 +32,7 @@ public abstract class AbstractOperation implements Operation {
 
 	protected boolean includeInferred = true;
 
-	private int maxExecutionTime = 0;
+	private int maxExecutionTimeSeconds = 0;
 
 	/*--------------*
 	 * Constructors *
@@ -47,7 +50,7 @@ public abstract class AbstractOperation implements Operation {
 
 	@Override
 	public void setBinding(String name, Value value) {
-		bindings.addBinding(name, value);
+		bindings.setBinding(name, value);
 	}
 
 	@Override
@@ -86,12 +89,12 @@ public abstract class AbstractOperation implements Operation {
 	}
 
 	@Override
-	public void setMaxExecutionTime(int maxExecutionTime) {
-		this.maxExecutionTime = maxExecutionTime;
+	public void setMaxExecutionTime(int maxExecutionTimeSeconds) {
+		this.maxExecutionTimeSeconds = maxExecutionTimeSeconds;
 	}
 
 	@Override
 	public int getMaxExecutionTime() {
-		return maxExecutionTime;
+		return maxExecutionTimeSeconds;
 	}
 }

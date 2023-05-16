@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.base;
 
@@ -12,13 +15,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.net.URL;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.eclipse.rdf4j.IsolationLevel;
-import org.eclipse.rdf4j.OpenRDFUtil;
 import org.eclipse.rdf4j.common.iteration.Iteration;
 import org.eclipse.rdf4j.common.iteration.Iterations;
+import org.eclipse.rdf4j.common.transaction.IsolationLevel;
 import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.Namespace;
+import org.eclipse.rdf4j.model.NamespaceAware;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
@@ -50,8 +55,8 @@ import org.slf4j.LoggerFactory;
  * parameters and mapping the methods to the basic (abstractly declared) methods.
  * <p>
  * Open connections are automatically closed when being garbage collected. A warning message will be logged when the
- * system property <tt>org.eclipse.rdf4j.repository.debug</tt> has been set to a non-<tt>null</tt> value.
- * 
+ * system property <var>org.eclipse.rdf4j.repository.debug</var> has been set to a non-<var>null</var> value.
+ *
  * @author Jeen Broekstra
  * @author Arjohn Kampman
  */
@@ -163,7 +168,7 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 	@Override
 	public boolean hasStatement(Resource subj, IRI pred, Value obj, boolean includeInferred, Resource... contexts)
 			throws RepositoryException {
-		try (RepositoryResult<Statement> stIter = getStatements(subj, pred, obj, includeInferred, contexts);) {
+		try (RepositoryResult<Statement> stIter = getStatements(subj, pred, obj, includeInferred, contexts)) {
 			return stIter.hasNext();
 		}
 	}
@@ -213,7 +218,8 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 	@Override
 	public void add(File file, String baseURI, RDFFormat dataFormat, Resource... contexts)
 			throws IOException, RDFParseException, RepositoryException {
-		OpenRDFUtil.verifyContextNotNull(contexts);
+		Objects.requireNonNull(contexts,
+				"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 
 		RDFInserter rdfInserter = new RDFInserter(this);
 		rdfInserter.enforceContext(contexts);
@@ -230,13 +236,7 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 
 			// RDFInserter only throws wrapped RepositoryExceptions
 			throw (RepositoryException) e.getCause();
-		} catch (RDFParseException e) {
-			conditionalRollback(localTransaction);
-			throw e;
-		} catch (IOException e) {
-			conditionalRollback(localTransaction);
-			throw e;
-		} catch (RuntimeException e) {
+		} catch (IOException | RuntimeException e) {
 			conditionalRollback(localTransaction);
 			throw e;
 		}
@@ -245,7 +245,8 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 	@Override
 	public void add(URL url, String baseURI, RDFFormat dataFormat, Resource... contexts)
 			throws IOException, RDFParseException, RepositoryException {
-		OpenRDFUtil.verifyContextNotNull(contexts);
+		Objects.requireNonNull(contexts,
+				"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 
 		RDFInserter rdfInserter = new RDFInserter(this);
 		rdfInserter.enforceContext(contexts);
@@ -262,13 +263,7 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 
 			// RDFInserter only throws wrapped RepositoryExceptions
 			throw (RepositoryException) e.getCause();
-		} catch (RDFParseException e) {
-			conditionalRollback(localTransaction);
-			throw e;
-		} catch (IOException e) {
-			conditionalRollback(localTransaction);
-			throw e;
-		} catch (RuntimeException e) {
+		} catch (IOException | RuntimeException e) {
 			conditionalRollback(localTransaction);
 			throw e;
 		}
@@ -277,7 +272,8 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 	@Override
 	public void add(InputStream in, String baseURI, RDFFormat dataFormat, Resource... contexts)
 			throws IOException, RDFParseException, RepositoryException {
-		OpenRDFUtil.verifyContextNotNull(contexts);
+		Objects.requireNonNull(contexts,
+				"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 
 		RDFInserter rdfInserter = new RDFInserter(this);
 		rdfInserter.enforceContext(contexts);
@@ -294,13 +290,7 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 
 			// RDFInserter only throws wrapped RepositoryExceptions
 			throw (RepositoryException) e.getCause();
-		} catch (RDFParseException e) {
-			conditionalRollback(localTransaction);
-			throw e;
-		} catch (IOException e) {
-			conditionalRollback(localTransaction);
-			throw e;
-		} catch (RuntimeException e) {
+		} catch (IOException | RuntimeException e) {
 			conditionalRollback(localTransaction);
 			throw e;
 		}
@@ -308,7 +298,7 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 
 	/**
 	 * Starts a new transaction if one is not already active.
-	 * 
+	 *
 	 * @return <code>true</code> if a new transaction was started, <code>false</code> if a transaction was already
 	 *         active.
 	 * @throws RepositoryException
@@ -323,7 +313,7 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 
 	/**
 	 * Invokes {@link #commit()} if supplied boolean condition is <code>true</code>.
-	 * 
+	 *
 	 * @param condition a boolean condition.
 	 * @throws RepositoryException
 	 */
@@ -335,7 +325,7 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 
 	/**
 	 * Invokes {@link #rollback()} if supplied boolean condition is <code>true</code>.
-	 * 
+	 *
 	 * @param condition a boolean condition.
 	 * @throws RepositoryException
 	 */
@@ -348,7 +338,8 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 	@Override
 	public void add(Reader reader, String baseURI, RDFFormat dataFormat, Resource... contexts)
 			throws IOException, RDFParseException, RepositoryException {
-		OpenRDFUtil.verifyContextNotNull(contexts);
+		Objects.requireNonNull(contexts,
+				"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 
 		RDFInserter rdfInserter = new RDFInserter(this);
 		rdfInserter.enforceContext(contexts);
@@ -365,13 +356,7 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 
 			// RDFInserter only throws wrapped RepositoryExceptions
 			throw (RepositoryException) e.getCause();
-		} catch (RDFParseException e) {
-			conditionalRollback(localTransaction);
-			throw e;
-		} catch (IOException e) {
-			conditionalRollback(localTransaction);
-			throw e;
-		} catch (RuntimeException e) {
+		} catch (IOException | RuntimeException e) {
 			conditionalRollback(localTransaction);
 			throw e;
 		}
@@ -379,17 +364,27 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 
 	@Override
 	public void add(Iterable<? extends Statement> statements, Resource... contexts) throws RepositoryException {
-		OpenRDFUtil.verifyContextNotNull(contexts);
+		Objects.requireNonNull(contexts,
+				"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 
 		boolean localTransaction = startLocalTransaction();
+
 		try {
 			for (Statement st : statements) {
 				addWithoutCommit(st, contexts);
 			}
+
+			if (statements instanceof NamespaceAware) {
+				var newNamespaces = ((NamespaceAware) statements).getNamespaces();
+				for (Namespace newNamespace : newNamespaces) {
+					String nsPrefix = newNamespace.getPrefix();
+					if (getNamespace(nsPrefix) == null) {
+						setNamespace(nsPrefix, newNamespace.getName());
+					}
+				}
+			}
+
 			conditionalCommit(localTransaction);
-		} catch (RepositoryException e) {
-			conditionalRollback(localTransaction);
-			throw e;
 		} catch (RuntimeException e) {
 			conditionalRollback(localTransaction);
 			throw e;
@@ -400,7 +395,8 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 	public <E extends Exception> void add(Iteration<? extends Statement, E> statements, Resource... contexts)
 			throws RepositoryException, E {
 		try {
-			OpenRDFUtil.verifyContextNotNull(contexts);
+			Objects.requireNonNull(contexts,
+					"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 
 			boolean localTransaction = startLocalTransaction();
 
@@ -410,9 +406,6 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 				}
 
 				conditionalCommit(localTransaction);
-			} catch (RepositoryException e) {
-				conditionalRollback(localTransaction);
-				throw e;
 			} catch (RuntimeException e) {
 				conditionalRollback(localTransaction);
 				throw e;
@@ -426,7 +419,9 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 	public void add(Statement st, Resource... contexts) throws RepositoryException {
 		boolean localTransaction = startLocalTransaction();
 
-		OpenRDFUtil.verifyContextNotNull(contexts);
+		Objects.requireNonNull(contexts,
+				"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
+
 		addWithoutCommit(st, contexts);
 
 		conditionalCommit(localTransaction);
@@ -436,7 +431,8 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 	public void add(Resource subject, IRI predicate, Value object, Resource... contexts) throws RepositoryException {
 		boolean localTransaction = startLocalTransaction();
 
-		OpenRDFUtil.verifyContextNotNull(contexts);
+		Objects.requireNonNull(contexts,
+				"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 		addWithoutCommit(subject, predicate, object, contexts);
 
 		conditionalCommit(localTransaction);
@@ -444,7 +440,8 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 
 	@Override
 	public void remove(Iterable<? extends Statement> statements, Resource... contexts) throws RepositoryException {
-		OpenRDFUtil.verifyContextNotNull(contexts);
+		Objects.requireNonNull(contexts,
+				"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 
 		boolean localTransaction = startLocalTransaction();
 
@@ -454,9 +451,6 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 			}
 
 			conditionalCommit(localTransaction);
-		} catch (RepositoryException e) {
-			conditionalRollback(localTransaction);
-			throw e;
 		} catch (RuntimeException e) {
 			conditionalRollback(localTransaction);
 			throw e;
@@ -475,9 +469,6 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 				}
 
 				conditionalCommit(localTransaction);
-			} catch (RepositoryException e) {
-				conditionalRollback(localTransaction);
-				throw e;
 			} catch (RuntimeException e) {
 				conditionalRollback(localTransaction);
 				throw e;
@@ -491,7 +482,8 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 	public void remove(Statement st, Resource... contexts) throws RepositoryException {
 		boolean localTransaction = startLocalTransaction();
 
-		OpenRDFUtil.verifyContextNotNull(contexts);
+		Objects.requireNonNull(contexts,
+				"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 		removeWithoutCommit(st, contexts);
 
 		conditionalCommit(localTransaction);
@@ -501,7 +493,8 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 	public void remove(Resource subject, IRI predicate, Value object, Resource... contexts) throws RepositoryException {
 		boolean localTransaction = startLocalTransaction();
 
-		OpenRDFUtil.verifyContextNotNull(contexts);
+		Objects.requireNonNull(contexts,
+				"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 		removeWithoutCommit(subject, predicate, object, contexts);
 
 		conditionalCommit(localTransaction);
@@ -511,6 +504,10 @@ public abstract class AbstractRepositoryConnection implements RepositoryConnecti
 	public void clear(Resource... contexts) throws RepositoryException {
 		remove(null, null, null, contexts);
 	}
+
+	public abstract String getNamespace(String prefix) throws RepositoryException;
+
+	public abstract void setNamespace(String prefix, String name) throws RepositoryException;
 
 	protected void addWithoutCommit(Statement st, Resource... contexts) throws RepositoryException {
 		if (contexts.length == 0 && st.getContext() != null) {

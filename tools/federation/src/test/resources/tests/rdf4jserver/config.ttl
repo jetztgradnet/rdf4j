@@ -8,10 +8,10 @@
 [] a rep:Repository ;
    rep:repositoryImpl [
       rep:repositoryType "fedx:FedXRepository" ;
-      fedx:fedxConfig "fedxConfig.prop" ;
       fedx:member [
          fedx:store "ResolvableRepository" ;
-         fedx:repositoryName "endpoint1" 
+         fedx:repositoryName "endpoint1" ;
+         fedx:writable true 
       ] ,
       [
          fedx:store "ResolvableRepository" ;

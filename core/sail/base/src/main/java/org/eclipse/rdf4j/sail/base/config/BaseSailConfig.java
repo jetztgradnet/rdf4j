@@ -1,11 +1,17 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.base.config;
+
+import static org.eclipse.rdf4j.sail.base.config.BaseSailSchema.EVALUATION_STRATEGY_FACTORY;
+import static org.eclipse.rdf4j.sail.base.config.BaseSailSchema.NAMESPACE;
 
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
@@ -15,8 +21,6 @@ import org.eclipse.rdf4j.model.util.Models;
 import org.eclipse.rdf4j.query.algebra.evaluation.EvaluationStrategyFactory;
 import org.eclipse.rdf4j.sail.config.AbstractSailImplConfig;
 import org.eclipse.rdf4j.sail.config.SailConfigException;
-
-import static org.eclipse.rdf4j.sail.base.config.BaseSailSchema.*;
 
 public abstract class BaseSailConfig extends AbstractSailImplConfig {
 
@@ -68,7 +72,7 @@ public abstract class BaseSailConfig extends AbstractSailImplConfig {
 
 		try {
 
-			Models.objectLiteral(graph.filter(implNode, EVALUATION_STRATEGY_FACTORY, null))
+			Models.objectLiteral(graph.getStatements(implNode, EVALUATION_STRATEGY_FACTORY, null))
 					.ifPresent(factoryClassName -> {
 						setEvaluationStrategyFactoryClassName(factoryClassName.stringValue());
 					});

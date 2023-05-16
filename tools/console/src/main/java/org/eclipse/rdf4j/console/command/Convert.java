@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console.command;
 
@@ -29,7 +32,7 @@ import org.eclipse.rdf4j.rio.Rio;
 
 /**
  * Convert RDF file from one format to another
- * 
+ *
  * @author Bart Hanssens
  */
 public class Convert extends ConsoleCommand {
@@ -55,7 +58,7 @@ public class Convert extends ConsoleCommand {
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * @param consoleIO
 	 * @param state
 	 * @param settings
@@ -76,7 +79,7 @@ public class Convert extends ConsoleCommand {
 
 	/**
 	 * Get working dir setting.
-	 * 
+	 *
 	 * @return path of working dir
 	 */
 	private Path getWorkDir() {
@@ -85,7 +88,7 @@ public class Convert extends ConsoleCommand {
 
 	/**
 	 * Convert a file
-	 * 
+	 *
 	 * @param fileFrom file name
 	 * @param fileTo   file name
 	 */

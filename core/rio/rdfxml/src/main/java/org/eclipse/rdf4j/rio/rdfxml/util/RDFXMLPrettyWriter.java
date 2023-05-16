@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.rdfxml.util;
 
@@ -12,6 +15,8 @@ import java.io.Flushable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Writer;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Stack;
 
 import org.eclipse.rdf4j.common.net.ParsedIRI;
@@ -21,11 +26,14 @@ import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
+import org.eclipse.rdf4j.model.base.CoreDatatype;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.util.Literals;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.eclipse.rdf4j.rio.RDFHandlerException;
+import org.eclipse.rdf4j.rio.RioSetting;
+import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
 import org.eclipse.rdf4j.rio.rdfxml.RDFXMLWriter;
 
 /**
@@ -47,7 +55,7 @@ import org.eclipse.rdf4j.rio.rdfxml.RDFXMLWriter;
  * descriptions in each other.
  * <p>
  * Example:
- * 
+ *
  * <pre>
  * &lt;rdf:Seq&gt;
  *    &lt;rdf:li&gt;
@@ -61,34 +69,34 @@ import org.eclipse.rdf4j.rio.rdfxml.RDFXMLWriter;
  *    &lt;/rdf:li&gt;
  * &lt;/rdf:Seq&gt;
  * </pre>
- * 
+ * <p>
  * Typed node elements means that we write out type information in the short form of
- * 
+ *
  * <pre>
  * &lt;foaf:Person rdf:about=&quot;...&quot;&gt;
  *     ...
  *  &lt;/foaf:Person&gt;
  * </pre>
- * 
+ * <p>
  * instead of
- * 
+ *
  * <pre>
  * &lt;rdf:Description rdf:about=&quot;...&quot;&gt;
  *    &lt;rdf:type rdf:resource=&quot;http://xmlns.com/foaf/0.1/Person&quot;/&gt;
  *     ...
  *  &lt;/rdf:Description&gt;
  * </pre>
- * 
+ * <p>
  * Empty property elements are of the form
- * 
+ *
  * <pre>
  * &lt;foaf:Person&gt;
  *    &lt;foaf:homepage rdf:resource=&quot;http://www.cs.vu.nl/&tilde;marta&quot;/&gt;
  * &lt;/foaf:Person&gt;
  * </pre>
- * 
+ * <p>
  * instead of
- * 
+ *
  * <pre>
  * &lt;foaf:Person&gt;
  *    &lt;foaf:homepage&gt;
@@ -96,7 +104,7 @@ import org.eclipse.rdf4j.rio.rdfxml.RDFXMLWriter;
  *    &lt;foaf:homepage&gt;
  * &lt;/foaf:Person&gt;
  * </pre>
- * 
+ *
  * @author Peter Mika (pmika@cs.vu.nl)
  */
 public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flushable {
@@ -119,13 +127,15 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 	 */
 	private final Stack<IRI> predicateStack = new Stack<>();
 
+	private boolean writingEnded;
+
 	/*--------------*
 	 * Constructors *
 	 *--------------*/
 
 	/**
 	 * Creates a new RDFXMLPrintWriter that will write to the supplied OutputStream.
-	 * 
+	 *
 	 * @param out The OutputStream to write the RDF/XML document to.
 	 */
 	public RDFXMLPrettyWriter(OutputStream out) {
@@ -143,7 +153,7 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 
 	/**
 	 * Creates a new RDFXMLPrintWriter that will write to the supplied Writer.
-	 * 
+	 *
 	 * @param out The Writer to write the RDF/XML document to.
 	 */
 	public RDFXMLPrettyWriter(Writer out) {
@@ -153,7 +163,8 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 	/**
 	 * Creates a new RDFXMLPrintWriter that will write to the supplied Writer.
 	 *
-	 * @param out The Writer to write the RDF/XML document to.
+	 * @param writer  the Writer to write the RDF/XML document to
+	 * @param baseIRI base IRI
 	 */
 	public RDFXMLPrettyWriter(Writer writer, ParsedIRI baseIRI) {
 		super(writer, baseIRI);
@@ -162,6 +173,14 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 	/*---------*
 	 * Methods *
 	 *---------*/
+
+	@Override
+	public void endRDF() throws RDFHandlerException {
+		if (!writingEnded) {
+			super.endRDF();
+			writingEnded = true;
+		}
+	}
 
 	@Override
 	protected void writeHeader() throws IOException {
@@ -173,7 +192,7 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 
 	@Override
 	public void flush() throws IOException {
-		if (writingStarted) {
+		if (isWritingStarted()) {
 			if (!headerWritten) {
 				writeHeader();
 			}
@@ -193,9 +212,16 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 	}
 
 	@Override
+	public Collection<RioSetting<?>> getSupportedSettings() {
+		final Collection<RioSetting<?>> settings = new HashSet<>(super.getSupportedSettings());
+		settings.add(BasicWriterSettings.INLINE_BLANK_NODES);
+		return settings;
+	}
+
+	@Override
 	public void close() throws IOException {
 		try {
-			if (writingStarted) {
+			if (isWritingStarted() && !writingEnded) {
 				endRDF();
 			}
 		} catch (RDFHandlerException e) {
@@ -220,7 +246,7 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 
 	/**
 	 * Write out the stacks until we find subject. If subject == null, write out the entire stack
-	 * 
+	 *
 	 * @param newSubject
 	 */
 	private void popStacks(Resource newSubject) throws IOException, RDFHandlerException {
@@ -308,11 +334,7 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 	}
 
 	@Override
-	public void handleStatement(Statement st) throws RDFHandlerException {
-		if (!writingStarted) {
-			throw new RDFHandlerException("Document writing has not yet been started");
-		}
-
+	public void consumeStatement(Statement st) throws RDFHandlerException {
 		Resource subj = st.getSubject();
 		IRI pred = st.getPredicate();
 		Value obj = st.getObject();
@@ -365,6 +387,7 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 	 * Used both in writeStartSubject and writeEmptySubject.
 	 */
 	private void writeNodeStartOfStartTag(Node node) throws IOException, RDFHandlerException {
+		Boolean inlineBlankNodes = getWriterConfig().get(BasicWriterSettings.INLINE_BLANK_NODES);
 		Value value = node.getValue();
 
 		if (node.hasType()) {
@@ -380,7 +403,9 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 			writeAttribute(RDF.NAMESPACE, "about", uri.toString());
 		} else {
 			BNode bNode = (BNode) value;
-			writeAttribute(RDF.NAMESPACE, "nodeID", getValidNodeId(bNode));
+			if (!inlineBlankNodes) {
+				writeAttribute(RDF.NAMESPACE, "nodeID", getValidNodeId(bNode));
+			}
 		}
 	}
 
@@ -434,9 +459,9 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 		} else if (obj instanceof Literal) {
 			Literal objLit = (Literal) obj;
 			// datatype attribute
-			IRI datatype = objLit.getDatatype();
+			CoreDatatype datatype = objLit.getCoreDatatype();
 			// Check if datatype is rdf:XMLLiteral
-			boolean isXmlLiteral = datatype.equals(RDF.XMLLITERAL);
+			boolean isXmlLiteral = datatype == CoreDatatype.RDF.XMLLITERAL;
 
 			// language attribute
 			if (Literals.isLanguageLiteral(objLit)) {
@@ -445,7 +470,7 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 				if (isXmlLiteral) {
 					writeAttribute(RDF.NAMESPACE, "parseType", "Literal");
 				} else {
-					writeAttribute(RDF.NAMESPACE, "datatype", datatype.toString());
+					writeAttribute(RDF.NAMESPACE, "datatype", objLit.getDatatype().toString());
 				}
 			}
 
@@ -471,7 +496,7 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 	}
 
 	/**
-	 * Writes <tt>n</tt> indents.
+	 * Writes <var>n</var> indents.
 	 */
 	protected void writeIndents(int n) throws IOException {
 		for (int i = 0; i < n; i++) {
@@ -489,7 +514,7 @@ public class RDFXMLPrettyWriter extends RDFXMLWriter implements Closeable, Flush
 
 		private Resource nextLi;
 
-		private Value value;
+		private final Value value;
 
 		// type == null means that we use <rdf:Description>
 		private IRI type = null;

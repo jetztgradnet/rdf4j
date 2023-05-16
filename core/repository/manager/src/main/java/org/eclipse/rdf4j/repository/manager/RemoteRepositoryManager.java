@@ -1,16 +1,16 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.manager;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -24,9 +24,7 @@ import org.eclipse.rdf4j.http.protocol.Protocol;
 import org.eclipse.rdf4j.http.protocol.UnauthorizedException;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Model;
-import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Value;
-import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.util.Literals;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.QueryEvaluationException;
@@ -37,20 +35,15 @@ import org.eclipse.rdf4j.repository.config.RepositoryConfig;
 import org.eclipse.rdf4j.repository.config.RepositoryConfigException;
 import org.eclipse.rdf4j.repository.config.RepositoryConfigUtil;
 import org.eclipse.rdf4j.repository.http.HTTPRepository;
-import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.rio.helpers.StatementCollector;
 
 /**
  * A manager for {@link Repository}s that reside on a remote server. This repository manager allows one to access
  * repositories over HTTP similar to how local repositories are accessed using the {@link LocalRepositoryManager}.
- * 
+ *
  * @author Arjohn Kampman
  */
 public class RemoteRepositoryManager extends RepositoryManager {
-
-	/*------------------------*
-	 * Static utility methods *
-	 *------------------------*/
 
 	/**
 	 * Creates an initialized {@link RemoteRepositoryManager} with the specified server URL.
@@ -72,11 +65,9 @@ public class RemoteRepositoryManager extends RepositoryManager {
 		return manager;
 	}
 
-	/*-----------*
-	 * Variables *
-	 *-----------*/
-
-	/** dependent life cycle */
+	/**
+	 * dependent life cycle
+	 */
 	private volatile SharedHttpClientSessionManager client;
 
 	/**
@@ -88,23 +79,15 @@ public class RemoteRepositoryManager extends RepositoryManager {
 
 	private String password;
 
-	/*--------------*
-	 * Constructors *
-	 *--------------*/
-
 	/**
 	 * Creates a new RepositoryManager that operates on the specified base directory.
-	 * 
+	 *
 	 * @param serverURL The URL of the server.
 	 */
 	public RemoteRepositoryManager(String serverURL) {
 		super();
 		this.serverURL = serverURL;
 	}
-
-	/*---------*
-	 * Methods *
-	 *---------*/
 
 	/**
 	 * @return Returns the {@link SharedHttpClientSessionManager}
@@ -152,7 +135,7 @@ public class RemoteRepositoryManager extends RepositoryManager {
 
 	/**
 	 * Set the username and password for authenication with the remote server.
-	 * 
+	 *
 	 * @param username the username
 	 * @param password the password
 	 */
@@ -161,19 +144,9 @@ public class RemoteRepositoryManager extends RepositoryManager {
 		this.password = password;
 	}
 
-	@Override
-	@Deprecated
-	protected Repository createSystemRepository() throws RepositoryException {
-		HTTPRepository systemRepository = new HTTPRepository(serverURL, SystemRepository.ID);
-		systemRepository.setHttpClientSessionManager(getSharedHttpClientSessionManager());
-		systemRepository.setUsernameAndPassword(username, password);
-		systemRepository.initialize();
-		return systemRepository;
-	}
-
 	/**
 	 * Gets the URL of the remote server, e.g. "http://localhost:8080/rdf4j-server/".
-	 * 
+	 *
 	 * @throws MalformedURLException If serverURL cannot be parsed
 	 */
 	@Override
@@ -190,9 +163,9 @@ public class RemoteRepositoryManager extends RepositoryManager {
 
 	/**
 	 * Creates and initializes the repository with the specified ID.
-	 * 
+	 *
 	 * @param id A repository ID.
-	 * @return The created repository, or <tt>null</tt> if no such repository exists.
+	 * @return The created repository, or <var>null</var> if no such repository exists.
 	 * @throws RepositoryConfigException If no repository could be created due to invalid or incomplete configuration
 	 *                                   data.
 	 */
@@ -218,13 +191,8 @@ public class RemoteRepositoryManager extends RepositoryManager {
 			protocolSession.setUsernameAndPassword(username, password);
 
 			int serverProtocolVersion = Integer.parseInt(protocolSession.getServerProtocol());
-			if (serverProtocolVersion < 10) { // explicit per-repo config endpoint was introduced in Protocol version 10
-				protocolSession.setRepository(Protocol.getRepositoryLocation(serverURL, SystemRepository.ID));
-				protocolSession.getStatements(null, null, null, true, new StatementCollector(model));
-			} else {
-				protocolSession.setRepository(Protocol.getRepositoryLocation(serverURL, id));
-				protocolSession.getRepositoryConfig(new StatementCollector(model));
-			}
+			protocolSession.setRepository(Protocol.getRepositoryLocation(serverURL, id));
+			protocolSession.getRepositoryConfig(new StatementCollector(model));
 
 		} catch (IOException | QueryEvaluationException | UnauthorizedException ue) {
 			throw new RepositoryException(ue);
@@ -233,49 +201,43 @@ public class RemoteRepositoryManager extends RepositoryManager {
 	}
 
 	@Override
-	public Collection<RepositoryInfo> getAllRepositoryInfos(boolean skipSystemRepo) throws RepositoryException {
+	public Collection<RepositoryInfo> getAllRepositoryInfos() throws RepositoryException {
 		List<RepositoryInfo> result = new ArrayList<>();
 
 		try (RDF4JProtocolSession protocolSession = getSharedHttpClientSessionManager()
 				.createRDF4JProtocolSession(serverURL)) {
 			protocolSession.setUsernameAndPassword(username, password);
-			TupleQueryResult responseFromServer = protocolSession.getRepositoryList();
-			while (responseFromServer.hasNext()) {
-				BindingSet bindingSet = responseFromServer.next();
-				RepositoryInfo repInfo = new RepositoryInfo();
+			try (TupleQueryResult responseFromServer = protocolSession.getRepositoryList()) {
+				while (responseFromServer.hasNext()) {
+					BindingSet bindingSet = responseFromServer.next();
+					RepositoryInfo repInfo = new RepositoryInfo();
 
-				String id = Literals.getLabel(bindingSet.getValue("id"), null);
+					String id = Literals.getLabel(bindingSet.getValue("id"), null);
 
-				if (skipSystemRepo && id.equals(SystemRepository.ID)) {
-					continue;
-				}
+					Value uri = bindingSet.getValue("uri");
+					String description = Literals.getLabel(bindingSet.getValue("title"), null);
+					boolean readable = Literals.getBooleanValue(bindingSet.getValue("readable"), false);
+					boolean writable = Literals.getBooleanValue(bindingSet.getValue("writable"), false);
 
-				Value uri = bindingSet.getValue("uri");
-				String description = Literals.getLabel(bindingSet.getValue("title"), null);
-				boolean readable = Literals.getBooleanValue(bindingSet.getValue("readable"), false);
-				boolean writable = Literals.getBooleanValue(bindingSet.getValue("writable"), false);
-
-				if (uri instanceof IRI) {
-					try {
-						repInfo.setLocation(new URL(uri.toString()));
-					} catch (MalformedURLException e) {
-						logger.warn("Server reported malformed repository URL: {}", uri);
+					if (uri instanceof IRI) {
+						try {
+							repInfo.setLocation(new URL(uri.toString()));
+						} catch (MalformedURLException e) {
+							logger.warn("Server reported malformed repository URL: {}", uri);
+						}
 					}
+
+					repInfo.setId(id);
+					repInfo.setDescription(description);
+					repInfo.setReadable(readable);
+					repInfo.setWritable(writable);
+
+					result.add(repInfo);
 				}
-
-				repInfo.setId(id);
-				repInfo.setDescription(description);
-				repInfo.setReadable(readable);
-				repInfo.setWritable(writable);
-
-				result.add(repInfo);
 			}
-		} catch (IOException ioe) {
+		} catch (IOException | QueryEvaluationException ioe) {
 			logger.warn("Unable to retrieve list of repositories", ioe);
 			throw new RepositoryException(ioe);
-		} catch (QueryEvaluationException qee) {
-			logger.warn("Unable to retrieve list of repositories", qee);
-			throw new RepositoryException(qee);
 		} catch (UnauthorizedException ue) {
 			logger.warn("Not authorized to retrieve list of repositories", ue);
 			throw new RepositoryException(ue);
@@ -295,18 +257,8 @@ public class RemoteRepositoryManager extends RepositoryManager {
 
 			int serverProtocolVersion = Integer.parseInt(protocolSession.getServerProtocol());
 			if (serverProtocolVersion < 9) { // explicit PUT create operation was introduced in Protocol version 9
-				String baseURI = Protocol.getRepositoryLocation(serverURL, config.getID());
-				Resource ctx = SimpleValueFactory.getInstance().createIRI(baseURI + "#" + config.getID());
-				protocolSession.setRepository(Protocol.getRepositoryLocation(serverURL, SystemRepository.ID));
-				Model model = getModelFactory().createEmptyModel();
-				config.export(model, ctx);
-				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				Rio.write(model, baos, protocolSession.getPreferredRDFFormat());
-				removeRepository(config.getID());
-				try (InputStream contents = new ByteArrayInputStream(baos.toByteArray())) {
-					protocolSession.upload(contents, baseURI, protocolSession.getPreferredRDFFormat(), false, true,
-							ctx);
-				}
+				throw new RepositoryException(
+						"Remote Server RDF4J Protocol version not compatible with this version of RDF4J");
 			} else {
 				if (hasRepositoryConfig(config.getID())) {
 					protocolSession.updateRepository(config);

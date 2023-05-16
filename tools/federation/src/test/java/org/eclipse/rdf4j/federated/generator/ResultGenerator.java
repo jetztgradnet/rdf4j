@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.generator;
 
@@ -13,6 +16,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 import org.eclipse.rdf4j.common.io.IOUtil;
 import org.eclipse.rdf4j.federated.SPARQLBaseTest;
@@ -56,11 +61,11 @@ public class ResultGenerator {
 
 	/**
 	 * Create the result files for queryFile (without extensions)
-	 * 
+	 *
 	 * Resources are located on classpath.
-	 * 
+	 *
 	 * e.g. createResult("/tests/medium/", "query01");
-	 * 
+	 *
 	 * @param queryFile
 	 */
 	protected void createResult(String baseDir, String queryFile) throws Exception {
@@ -107,18 +112,15 @@ public class ResultGenerator {
 
 	/**
 	 * Read the query string from the specified resource
-	 * 
+	 *
 	 * @param queryResource
 	 * @return
 	 * @throws RepositoryException
 	 * @throws IOException
 	 */
 	private String readQueryString(String queryFile) throws RepositoryException, IOException {
-		InputStream stream = SPARQLBaseTest.class.getResourceAsStream(queryFile);
-		try {
-			return IOUtil.readString(new InputStreamReader(stream, "UTF-8"));
-		} finally {
-			stream.close();
+		try (InputStream stream = SPARQLBaseTest.class.getResourceAsStream(queryFile)) {
+			return IOUtil.readString(new InputStreamReader(Objects.requireNonNull(stream), StandardCharsets.UTF_8));
 		}
 	}
 

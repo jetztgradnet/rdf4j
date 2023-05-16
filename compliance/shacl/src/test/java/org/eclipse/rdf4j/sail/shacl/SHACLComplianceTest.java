@@ -1,19 +1,21 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.shacl;
 
 import org.eclipse.rdf4j.model.Model;
-import org.eclipse.rdf4j.sail.NotifyingSail;
 import org.eclipse.rdf4j.sail.Sail;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
-import org.eclipse.rdf4j.shacl.manifest.AbstractSHACLTest;
-import org.eclipse.rdf4j.shacl.manifest.SHACLManifestTestSuiteFactory;
-import org.eclipse.rdf4j.shacl.manifest.SHACLManifestTestSuiteFactory.TestFactory;
+import org.eclipse.rdf4j.testsuite.shacl.manifest.AbstractSHACLTest;
+import org.eclipse.rdf4j.testsuite.shacl.manifest.SHACLManifestTestSuiteFactory;
+import org.eclipse.rdf4j.testsuite.shacl.manifest.SHACLManifestTestSuiteFactory.TestFactory;
 
 import junit.framework.TestSuite;
 
@@ -21,7 +23,10 @@ import junit.framework.TestSuite;
  * Tests the SHACL implementation against the w3c test suite
  *
  * @author James Leigh
+ * @deprecated This test suite is not maintained. Use {@see org.eclipse.rdf4j.sail.shacl.W3cComplianceTest} instead. We
+ *             may un-deprecate this suite in the future.
  */
+@Deprecated
 public class SHACLComplianceTest extends AbstractSHACLTest {
 
 	// set this to true to run all tests!
@@ -30,8 +35,9 @@ public class SHACLComplianceTest extends AbstractSHACLTest {
 	public static TestSuite suite() throws Exception {
 		String[] ignoredDirectories = { "targets", "sparql", "complex", "misc", "node", "path", "validation-reports",
 				"property" };
-		if (RUN_ALL)
+		if (RUN_ALL) {
 			ignoredDirectories = new String[0];
+		}
 
 		return new SHACLManifestTestSuiteFactory().createTestSuite(new TestFactory() {
 
@@ -54,15 +60,9 @@ public class SHACLComplianceTest extends AbstractSHACLTest {
 		super(testURI, label, shapesGraph, dataGraph, failure, conforms);
 	}
 
-	protected NotifyingSail newDataSail() {
-		return new MemoryStore();
-	}
-
 	@Override
 	protected Sail newSail() {
-		ShaclSail shaclSail = new ShaclSail(new MemoryStore());
-		shaclSail.setIgnoreNoShapesLoadedException(true);
-		return shaclSail;
+		return new ShaclSail(new MemoryStore());
 	}
 
 }

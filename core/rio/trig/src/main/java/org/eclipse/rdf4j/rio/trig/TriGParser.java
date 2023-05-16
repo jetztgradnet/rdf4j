@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.trig;
 
@@ -24,7 +27,7 @@ import org.eclipse.rdf4j.rio.turtle.TurtleUtil;
 /**
  * RDF parser for <a href="https://www.w3.org/TR/trig/">RDF-1.1 TriG</a> files. This parser is not thread-safe,
  * therefore its public methods are synchronized.
- * 
+ *
  * @author Arjohn Kampman
  * @author Peter Ansell
  * @see TurtleParser
@@ -50,7 +53,7 @@ public class TriGParser extends TurtleParser {
 
 	/**
 	 * Creates a new TriGParser that will use the supplied ValueFactory to create RDF model objects.
-	 * 
+	 *
 	 * @param valueFactory A ValueFactory.
 	 */
 	public TriGParser(ValueFactory valueFactory) {

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.resultio.text;
 
@@ -24,7 +27,7 @@ import org.eclipse.rdf4j.query.resultio.BooleanQueryResultWriter;
 
 /**
  * Writer for the plain text boolean result format.
- * 
+ *
  * @author Arjohn Kampman
  */
 public class BooleanTextWriter extends AbstractQueryResultWriter implements BooleanQueryResultWriter {
@@ -36,14 +39,18 @@ public class BooleanTextWriter extends AbstractQueryResultWriter implements Bool
 	/**
 	 * The writer to write the boolean result to.
 	 */
-	private Writer writer;
+	private final Writer writer;
 
 	/*--------------*
 	 * Constructors *
 	 *--------------*/
 
 	public BooleanTextWriter(OutputStream out) {
-		writer = new OutputStreamWriter(out, StandardCharsets.US_ASCII);
+		this(new OutputStreamWriter(out, StandardCharsets.US_ASCII));
+	}
+
+	public BooleanTextWriter(Writer writer) {
+		this.writer = writer;
 	}
 
 	/*---------*
@@ -119,7 +126,7 @@ public class BooleanTextWriter extends AbstractQueryResultWriter implements Bool
 	}
 
 	@Override
-	public void handleSolution(BindingSet bindingSet) throws TupleQueryResultHandlerException {
+	protected void handleSolutionImpl(BindingSet bindingSet) throws TupleQueryResultHandlerException {
 		throw new UnsupportedOperationException("Cannot handle tuple results");
 	}
 

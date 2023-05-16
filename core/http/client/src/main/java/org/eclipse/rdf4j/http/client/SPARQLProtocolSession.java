@@ -1,27 +1,38 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.http.client;
 
 import static org.eclipse.rdf4j.http.protocol.Protocol.ACCEPT_PARAM_NAME;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.StringReader;
+import java.io.Writer;
+import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HeaderElement;
 import org.apache.http.HttpEntity;
@@ -49,9 +60,15 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.CoreConnectionPNames;
 import org.apache.http.params.HttpParams;
+import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
-import org.eclipse.rdf4j.RDF4JConfigException;
-import org.eclipse.rdf4j.RDF4JException;
+import org.eclipse.rdf4j.common.exception.RDF4JConfigException;
+import org.eclipse.rdf4j.common.exception.RDF4JException;
+import org.eclipse.rdf4j.common.io.ByteSink;
+import org.eclipse.rdf4j.common.io.CharSink;
+import org.eclipse.rdf4j.common.io.Sink;
+import org.eclipse.rdf4j.common.lang.FileFormat;
+import org.eclipse.rdf4j.http.client.shacl.RemoteShaclValidationException;
 import org.eclipse.rdf4j.http.protocol.Protocol;
 import org.eclipse.rdf4j.http.protocol.UnauthorizedException;
 import org.eclipse.rdf4j.http.protocol.error.ErrorInfo;
@@ -108,7 +125,7 @@ import org.slf4j.LoggerFactory;
  * <p/>
  * Functionality specific to the RDF4J HTTP protocol can be found in {@link RDF4JProtocolSession} (which is used by
  * HTTPRepository).
- * 
+ *
  * @author Herko ter Horst
  * @author Arjohn Kampman
  * @author Andreas Schwarte
@@ -117,10 +134,6 @@ import org.slf4j.LoggerFactory;
  * @see <a href="https://www.w3.org/TR/sparql11-protocol/">SPARQL 1.1 Protocol (W3C Recommendation)</a>
  */
 public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable {
-
-	/*-----------*
-	 * Constants *
-	 *-----------*/
 
 	protected static final Charset UTF8 = StandardCharsets.UTF_8;
 
@@ -148,11 +161,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 	 */
 	private final int maximumUrlLength;
 
-	final Logger logger = LoggerFactory.getLogger(this.getClass());
-
-	/*-----------*
-	 * Variables *
-	 *-----------*/
+	final static Logger logger = LoggerFactory.getLogger(SPARQLProtocolSession.class);
 
 	private ValueFactory valueFactory;
 
@@ -178,9 +187,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 
 	private Map<String, String> additionalHttpHeaders = Collections.emptyMap();
 
-	/*--------------*
-	 * Constructors *
-	 *--------------*/
+	private boolean passThroughEnabled = true;
 
 	public SPARQLProtocolSession(HttpClient client, ExecutorService executor) {
 		this.httpClient = client;
@@ -205,10 +212,6 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 		}
 		this.maximumUrlLength = maximumUrlLength;
 	}
-
-	/*-----------------*
-	 * Get/set methods *
-	 *-----------------*/
 
 	@Override
 	public final HttpClient getHttpClient() {
@@ -243,10 +246,9 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 	}
 
 	/**
-	 * Sets the preferred format for encoding tuple query results. The {@link TupleQueryResultFormat#BINARY binary}
-	 * format is preferred by default.
-	 * 
-	 * @param format The preferred {@link TupleQueryResultFormat}, or <tt>null</tt> to indicate no specific format is
+	 * Sets the preferred format for encoding tuple query results.
+	 *
+	 * @param format The preferred {@link TupleQueryResultFormat}, or <var>null</var> to indicate no specific format is
 	 *               preferred.
 	 */
 	public void setPreferredTupleQueryResultFormat(TupleQueryResultFormat format) {
@@ -254,48 +256,49 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 	}
 
 	/**
-	 * Gets the preferred {@link TupleQueryResultFormat} for encoding tuple query results.
-	 * 
-	 * @return The preferred format, of <tt>null</tt> if no specific format is preferred.
+	 * Gets the preferred {@link TupleQueryResultFormat} for encoding tuple query results. The
+	 * {@link TupleQueryResultFormat#SPARQL SPARQL/XML} format is preferred by default.
+	 *
+	 * @return The preferred format, of <var>null</var> if no specific format is preferred.
 	 */
 	public TupleQueryResultFormat getPreferredTupleQueryResultFormat() {
 		return preferredTQRFormat;
 	}
 
 	/**
-	 * Sets the preferred format for encoding RDF documents. The {@link RDFFormat#TURTLE Turtle} format is preferred by
-	 * default.
-	 * 
-	 * @param format The preferred {@link RDFFormat}, or <tt>null</tt> to indicate no specific format is preferred.
+	 * Sets the preferred format for encoding RDF documents.
+	 *
+	 * @param format The preferred {@link RDFFormat}, or <var>null</var> to indicate no specific format is preferred.
 	 */
 	public void setPreferredRDFFormat(RDFFormat format) {
 		preferredRDFFormat = format;
 	}
 
 	/**
-	 * Gets the preferred {@link RDFFormat} for encoding RDF documents.
-	 * 
-	 * @return The preferred format, of <tt>null</tt> if no specific format is preferred.
+	 * Gets the preferred {@link RDFFormat} for encoding RDF documents. The {@link RDFFormat#TURTLE Turtle} format is
+	 * preferred by default.
+	 *
+	 * @return The preferred format, of <var>null</var> if no specific format is preferred.
 	 */
 	public RDFFormat getPreferredRDFFormat() {
 		return preferredRDFFormat;
 	}
 
 	/**
-	 * Sets the preferred format for encoding boolean query results. The {@link BooleanQueryResultFormat#TEXT binary}
-	 * format is preferred by default.
-	 * 
-	 * @param format The preferred {@link BooleanQueryResultFormat}, or <tt>null</tt> to indicate no specific format is
-	 *               preferred.
+	 * Sets the preferred format for encoding boolean query results.
+	 *
+	 * @param format The preferred {@link BooleanQueryResultFormat}, or <var>null</var> to indicate no specific format
+	 *               is preferred.
 	 */
 	public void setPreferredBooleanQueryResultFormat(BooleanQueryResultFormat format) {
 		preferredBQRFormat = format;
 	}
 
 	/**
-	 * Gets the preferred {@link BooleanQueryResultFormat} for encoding boolean query results.
-	 * 
-	 * @return The preferred format, of <tt>null</tt> if no specific format is preferred.
+	 * Gets the preferred {@link BooleanQueryResultFormat} for encoding boolean query results. The
+	 * {@link BooleanQueryResultFormat#TEXT binary} format is preferred by default.
+	 *
+	 * @return The preferred format, of <var>null</var> if no specific format is preferred.
 	 */
 	public BooleanQueryResultFormat getPreferredBooleanQueryResultFormat() {
 		return preferredBQRFormat;
@@ -303,7 +306,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 
 	/**
 	 * Set the username and password for authentication with the remote server.
-	 * 
+	 *
 	 * @param username the username
 	 * @param password the password
 	 */
@@ -351,17 +354,27 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 	 * Query evaluation *
 	 *------------------*/
 
+	/**
+	 * @deprecated WeakReference<?> callerRef argument will be removed
+	 */
+	@Deprecated(since = "4.1.2")
 	public TupleQueryResult sendTupleQuery(QueryLanguage ql, String query, Dataset dataset, boolean includeInferred,
+			WeakReference<?> callerRef,
 			Binding... bindings) throws IOException, RepositoryException, MalformedQueryException,
 			UnauthorizedException, QueryInterruptedException {
-		return sendTupleQuery(ql, query, null, dataset, includeInferred, 0, bindings);
+		return sendTupleQuery(ql, query, null, dataset, includeInferred, 0, callerRef, bindings);
 	}
 
+	/**
+	 * @deprecated WeakReference<?> callerRef argument will be removed
+	 */
+	@Deprecated(since = "4.1.2")
 	public TupleQueryResult sendTupleQuery(QueryLanguage ql, String query, String baseURI, Dataset dataset,
-			boolean includeInferred, int maxQueryTime, Binding... bindings) throws IOException, RepositoryException,
+			boolean includeInferred, int maxQueryTime, WeakReference<?> callerRef, Binding... bindings)
+			throws IOException, RepositoryException,
 			MalformedQueryException, UnauthorizedException, QueryInterruptedException {
 		HttpUriRequest method = getQueryMethod(ql, query, baseURI, dataset, includeInferred, maxQueryTime, bindings);
-		return getBackgroundTupleQueryResult(method);
+		return getBackgroundTupleQueryResult(method, callerRef);
 	}
 
 	public void sendTupleQuery(QueryLanguage ql, String query, String baseURI, Dataset dataset, boolean includeInferred,
@@ -385,30 +398,36 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 
 		try {
 			executeNoContent(method);
-		} catch (RepositoryException e) {
-			throw e;
-		} catch (MalformedQueryException e) {
-			throw e;
-		} catch (QueryInterruptedException e) {
+		} catch (RepositoryException | MalformedQueryException | QueryInterruptedException e) {
 			throw e;
 		} catch (RDF4JException e) {
 			throw new RepositoryException(e);
 		}
 	}
 
+	/**
+	 * @deprecated WeakReference<?> callerRef argument will be removed
+	 */
+	@Deprecated(since = "4.1.2")
 	public GraphQueryResult sendGraphQuery(QueryLanguage ql, String query, Dataset dataset, boolean includeInferred,
+			WeakReference<?> callerRef,
 			Binding... bindings) throws IOException, RepositoryException, MalformedQueryException,
 			UnauthorizedException, QueryInterruptedException {
-		return sendGraphQuery(ql, query, null, dataset, includeInferred, 0, bindings);
+		return sendGraphQuery(ql, query, null, dataset, includeInferred, 0, callerRef, bindings);
 	}
 
+	/**
+	 * @deprecated WeakReference<?> callerRef argument will be removed
+	 */
+	@Deprecated(since = "4.1.2")
 	public GraphQueryResult sendGraphQuery(QueryLanguage ql, String query, String baseURI, Dataset dataset,
-			boolean includeInferred, int maxQueryTime, Binding... bindings) throws IOException, RepositoryException,
+			boolean includeInferred, int maxQueryTime, WeakReference<?> callerRef, Binding... bindings)
+			throws IOException, RepositoryException,
 			MalformedQueryException, UnauthorizedException, QueryInterruptedException {
 		try {
 			HttpUriRequest method = getQueryMethod(ql, query, baseURI, dataset, includeInferred, maxQueryTime,
 					bindings);
-			return getRDFBackground(method, false);
+			return getRDFBackground(method, false, callerRef);
 		} catch (RDFHandlerException e) {
 			// Found a bug in TupleQueryResultBuilder?
 			throw new RepositoryException(e);
@@ -440,11 +459,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 		HttpUriRequest method = getQueryMethod(ql, query, baseURI, dataset, includeInferred, maxQueryTime, bindings);
 		try {
 			return getBoolean(method);
-		} catch (RepositoryException e) {
-			throw e;
-		} catch (MalformedQueryException e) {
-			throw e;
-		} catch (QueryInterruptedException e) {
+		} catch (RepositoryException | MalformedQueryException | QueryInterruptedException e) {
 			throw e;
 		} catch (RDF4JException e) {
 			throw new RepositoryException(e);
@@ -453,7 +468,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 
 	/**
 	 * Get the additional HTTP headers which will be used
-	 * 
+	 *
 	 * @return a read-only view of the additional HTTP headers which will be included in every request to the server.
 	 */
 	public Map<String, String> getAdditionalHttpHeaders() {
@@ -463,7 +478,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 	/**
 	 * Set additional HTTP headers to be included in every request to the server, which may be required for certain
 	 * unusual server configurations.
-	 * 
+	 *
 	 * @param additionalHttpHeaders a map containing pairs of header names and values. May be null
 	 */
 	public void setAdditionalHttpHeaders(Map<String, String> additionalHttpHeaders) {
@@ -482,8 +497,9 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 		String queryUrlWithParams;
 		try {
 			URIBuilder urib = new URIBuilder(getQueryURL());
-			for (NameValuePair nvp : queryParams)
+			for (NameValuePair nvp : queryParams) {
 				urib.addParameter(nvp.getName(), nvp.getValue());
+			}
 			queryUrlWithParams = urib.toString();
 		} catch (URISyntaxException e) {
 			throw new AssertionError(e);
@@ -509,7 +525,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 
 	/**
 	 * Return whether the provided query should use POST (otherwise use GET)
-	 * 
+	 *
 	 * @param fullQueryUrl the complete URL, including hostname and all HTTP query parameters
 	 */
 	protected boolean shouldUsePost(String fullQueryUrl) {
@@ -533,8 +549,9 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 		method.setEntity(new UrlEncodedFormEntity(queryParams, UTF8));
 
 		if (this.additionalHttpHeaders != null) {
-			for (Map.Entry<String, String> additionalHeader : additionalHttpHeaders.entrySet())
+			for (Map.Entry<String, String> additionalHeader : additionalHttpHeaders.entrySet()) {
 				method.addHeader(additionalHeader.getKey(), additionalHeader.getValue());
+			}
 		}
 
 		return method;
@@ -549,7 +566,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 		 */
 
 		if (query != null) {
-			if (baseURI != null && !baseURI.equals("")) {
+			if (baseURI != null && !baseURI.isEmpty()) {
 				// prepend query string with base URI declaration
 				query = "BASE <" + baseURI + "> \n" + query;
 			}
@@ -580,7 +597,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 		List<NameValuePair> queryParams = new ArrayList<>();
 
 		if (update != null) {
-			if (baseURI != null && !baseURI.equals("")) {
+			if (baseURI != null && !baseURI.isEmpty()) {
 				// prepend update string with base URI declaration
 				update = "BASE <" + baseURI + "> \n" + update;
 			}
@@ -640,8 +657,11 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 	/**
 	 * Parse the response in a background thread. HTTP connections are dealt with in the {@link BackgroundTupleResult}
 	 * or (in the error-case) in this method.
+	 *
+	 * @deprecated WeakReference<?> callerRef argument will be removed
 	 */
-	protected TupleQueryResult getBackgroundTupleQueryResult(HttpUriRequest method)
+	@Deprecated(since = "4.1.2")
+	protected TupleQueryResult getBackgroundTupleQueryResult(HttpUriRequest method, WeakReference<?> callerRef)
 			throws RepositoryException, QueryInterruptedException, MalformedQueryException, IOException {
 
 		boolean submitted = false;
@@ -652,7 +672,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 			throw new RepositoryException("No tuple query result parsers have been registered");
 		}
 
-		TupleQueryResult tRes = null;
+		TupleQueryResult tRes;
 		// send the tuple query
 		HttpResponse response = sendTupleQueryViaHttp(method, tqrFormats);
 		try {
@@ -663,7 +683,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 					.orElseThrow(() -> new RepositoryException(
 							"Server responded with an unsupported file format: " + mimeType));
 			TupleQueryResultParser parser = QueryResultIO.createTupleParser(format, getValueFactory());
-			tRes = background.parse(parser, response.getEntity().getContent());
+			tRes = background.parse(parser, response.getEntity().getContent(), callerRef);
 			submitted = true;
 			return tRes;
 		} finally {
@@ -696,6 +716,13 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 				QueryResultFormat format = TupleQueryResultFormat.matchMIMEType(mimeType, tqrFormats)
 						.orElseThrow(() -> new RepositoryException(
 								"Server responded with an unsupported file format: " + mimeType));
+
+				// Check if we can pass through to the writer directly
+				if (handler instanceof Sink && passThrough(response, format, ((Sink) handler))) {
+					return;
+				}
+
+				// we need to parse the result and re-serialize.
 				TupleQueryResultParser parser = QueryResultIO.createTupleParser(format, getValueFactory());
 				parser.setQueryResultHandler(handler);
 				parser.parseQueryResult(response.getEntity().getContent());
@@ -717,7 +744,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 	 * Send the tuple query via HTTP and throws an exception in case anything goes wrong, i.e. only for HTTP 200 the
 	 * method returns without exception. If HTTP status code is not equal to 200, the request is aborted, however pooled
 	 * connections are not released.
-	 * 
+	 *
 	 * @param method
 	 * @throws RepositoryException
 	 * @throws HttpException
@@ -763,8 +790,12 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 	/**
 	 * Parse the response in a background thread. HTTP connections are dealt with in the {@link BackgroundGraphResult}
 	 * or (in the error-case) in this method.
+	 *
+	 * @deprecated WeakReference<?> callerRef argument will be removed
 	 */
-	protected GraphQueryResult getRDFBackground(HttpUriRequest method, boolean requireContext)
+	@Deprecated(since = "4.1.2")
+	protected GraphQueryResult getRDFBackground(HttpUriRequest method, boolean requireContext,
+			WeakReference<?> callerRef)
 			throws IOException, RDFHandlerException, RepositoryException, MalformedQueryException,
 			UnauthorizedException, QueryInterruptedException {
 
@@ -776,7 +807,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 			throw new RepositoryException("No tuple RDF parsers have been registered");
 		}
 
-		GraphQueryResult gRes = null;
+		GraphQueryResult gRes;
 		// send the tuple query
 		HttpResponse response = sendGraphQueryViaHttp(method, requireContext, rdfFormats);
 		try {
@@ -817,7 +848,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 			}
 
 			String baseURI = method.getURI().toASCIIString();
-			gRes = background.parse(parser, entity.getContent(), charset, baseURI);
+			gRes = background.parse(parser, entity.getContent(), charset, baseURI, callerRef);
 			submitted = true;
 			return gRes;
 		} finally {
@@ -850,6 +881,13 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 				RDFFormat format = RDFFormat.matchMIMEType(mimeType, rdfFormats)
 						.orElseThrow(() -> new RepositoryException(
 								"Server responded with an unsupported file format: " + mimeType));
+
+				// Check if we can pass through to the writer directly
+				if (handler instanceof Sink && passThrough(response, format, ((Sink) handler))) {
+					return;
+				}
+
+				// we need to parse the result and re-serialize.
 				RDFParser parser = Rio.createParser(format, getValueFactory());
 				parser.setParserConfig(getParserConfig());
 				parser.setParseErrorListener(new ParseErrorLogger());
@@ -861,6 +899,39 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 		} finally {
 			EntityUtils.consumeQuietly(response.getEntity());
 		}
+	}
+
+	/**
+	 * Pass through response content directly to the supplied sink if possible.
+	 *
+	 * @param response       the {@link HttpResponse} with the content.
+	 * @param responseFormat the format of the response.
+	 * @param sink           the {@link Sink} to pass the content through to.
+	 * @return {@code true} if the content was passed through, {@code false} otherwise.
+	 * @throws IOException
+	 */
+	private boolean passThrough(HttpResponse response, FileFormat responseFormat, Sink sink)
+			throws IOException {
+		if (!isPassThroughEnabled()) {
+			return false;
+		}
+		if (sink.acceptsFileFormat(responseFormat)) {
+			InputStream in = response.getEntity().getContent();
+			if (sink instanceof CharSink) {
+				Writer out = ((CharSink) sink).getWriter();
+				IOUtils.copy(in, out,
+						getResponseCharset(response).orElse(responseFormat.getCharset()));
+				out.flush();
+				return true;
+			} else if (sink instanceof ByteSink) {
+				OutputStream out = ((ByteSink) sink).getOutputStream();
+				IOUtils.copy(in, out);
+				out.flush();
+				return true;
+			}
+
+		}
+		return false;
 	}
 
 	private HttpResponse sendGraphQueryViaHttp(HttpUriRequest method, boolean requireContext, Set<RDFFormat> rdfFormats)
@@ -882,7 +953,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 	/**
 	 * Parse the response in this thread using a suitable {@link BooleanQueryResultParser}. All HTTP connections are
 	 * closed and released in this method
-	 * 
+	 *
 	 * @throws RDF4JException
 	 */
 	protected boolean getBoolean(HttpUriRequest method) throws IOException, RDF4JException {
@@ -949,7 +1020,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 	/**
 	 * Convenience method to deal with HTTP level errors of tuple, graph and boolean queries in the same way. This
 	 * method aborts the HTTP connection.
-	 * 
+	 *
 	 * @param method
 	 * @throws RDF4JException
 	 */
@@ -1015,6 +1086,11 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 						throw new MalformedQueryException(errInfo.getErrorMessage());
 					} else if (errInfo.getErrorType() == ErrorType.UNSUPPORTED_QUERY_LANGUAGE) {
 						throw new UnsupportedQueryLanguageException(errInfo.getErrorMessage());
+					} else if (contentTypeIs(response, "application/shacl-validation-report")) {
+						RDFFormat format = getContentTypeSerialisation(response);
+						throw new RepositoryException(new RemoteShaclValidationException(
+								new StringReader(errInfo.toString()), "", format));
+
 					} else if (errInfo.toString().length() > 0) {
 						throw new RepositoryException(errInfo.toString());
 					} else {
@@ -1029,17 +1105,75 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 		}
 	}
 
+	static RDFFormat getContentTypeSerialisation(HttpResponse response) {
+		Header[] headers = response.getHeaders("Content-Type");
+
+		Set<RDFFormat> rdfFormats = RDFParserRegistry.getInstance().getKeys();
+		if (rdfFormats.isEmpty()) {
+			throw new RepositoryException("No tuple RDF parsers have been registered");
+		}
+
+		for (Header header : headers) {
+			for (HeaderElement element : header.getElements()) {
+				// SHACL Validation report Content-Type gets transformed from:
+				// application/shacl-validation-report+n-quads => application/n-quads
+				// application/shacl-validation-report+ld+json => application/ld+json
+				// text/shacl-validation-report+turtle => text/turtle
+
+				String[] split = element.getName().split("\\+");
+				StringBuilder serialisation = new StringBuilder(element.getName().split("/")[0] + "/");
+				for (int i = 1; i < split.length; i++) {
+					serialisation.append(split[i]);
+					if (i + 1 < split.length) {
+						serialisation.append("+");
+					}
+				}
+
+				logger.debug("SHACL validation report is serialised as: " + serialisation.toString());
+
+				Optional<RDFFormat> rdfFormat = RDFFormat.matchMIMEType(serialisation.toString(), rdfFormats);
+
+				if (rdfFormat.isPresent()) {
+					return rdfFormat.get();
+				}
+			}
+		}
+
+		throw new RepositoryException("Unsupported content-type for SHACL Validation Report: "
+				+ Arrays.toString(response.getHeaders("Content-Type"))
+				+ "! If the format seems correct, then you may need a maven dependency for that.");
+
+	}
+
+	private static boolean contentTypeIs(HttpResponse response, String contentType) {
+		Header[] headers = response.getHeaders("Content-Type");
+		if (headers.length == 0) {
+			return false;
+		}
+
+		for (Header header : headers) {
+			for (HeaderElement element : header.getElements()) {
+				String name = element.getName().split("\\+")[0];
+				if (contentType.equals(name)) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
 	/*-------------------------*
 	 * General utility methods *
 	 *-------------------------*/
 
 	/**
 	 * Gets the MIME type specified in the response headers of the supplied method, if any. For example, if the response
-	 * headers contain <tt>Content-Type: application/xml;charset=UTF-8</tt>, this method will return
-	 * <tt>application/xml</tt> as the MIME type.
-	 * 
+	 * headers contain <var>Content-Type: application/xml;charset=UTF-8</var>, this method will return
+	 * <var>application/xml</var> as the MIME type.
+	 *
 	 * @param method The method to get the reponse MIME type from.
-	 * @return The response MIME type, or <tt>null</tt> if not available.
+	 * @return The response MIME type, or <var>null</var> if not available.
 	 */
 	protected String getResponseMIMEType(HttpResponse method) throws IOException {
 		Header[] headers = method.getHeaders("Content-Type");
@@ -1050,7 +1184,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 			for (HeaderElement headerEl : headerElements) {
 				String mimeType = headerEl.getName();
 				if (mimeType != null) {
-					logger.debug("reponse MIME type is {}", mimeType);
+					logger.debug("response MIME type is {}", mimeType);
 					return mimeType;
 				}
 			}
@@ -1059,10 +1193,40 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 		return null;
 	}
 
+	/**
+	 * Gets the character encoding specified in the HTTP headers of the supplied response, if any. For example, if the
+	 * response headers contain <var>Content-Type: application/xml;charset=UTF-8</var>, this method will return
+	 * {@link StandardCharsets#UTF_8 UTF-8} as the character encoding.
+	 *
+	 * @param response the response to get the character encoding from.
+	 * @return the response character encoding, {@link Optional#empty()} if it can not be determined.
+	 */
+	Optional<Charset> getResponseCharset(HttpResponse response) {
+		Header[] headers = response.getHeaders("Content-Type");
+		for (Header header : headers) {
+			HeaderElement[] headerElements = header.getElements();
+
+			for (HeaderElement element : headerElements) {
+				NameValuePair charsetParam = element.getParameterByName("charset");
+				if (charsetParam != null) {
+					try {
+						Charset charset = Charset.forName(charsetParam.getValue());
+						logger.debug("response charset is {}", charset);
+						return Optional.ofNullable(charset);
+					} catch (IllegalArgumentException e) {
+						// continue
+					}
+				}
+			}
+		}
+		return Optional.empty();
+	}
+
 	protected ErrorInfo getErrorInfo(HttpResponse response) throws RepositoryException {
 		try {
 			ErrorInfo errInfo = ErrorInfo.parse(EntityUtils.toString(response.getEntity()));
-			logger.warn("Server reports problem: {}", errInfo.getErrorMessage());
+			logger.warn("Server reports problem: {} (enable debug logging for full details)", errInfo.getErrorType());
+			logger.debug("full error message: {}", errInfo.getErrorMessage());
 			return errInfo;
 		} catch (IOException e) {
 			logger.warn("Unable to retrieve error info from server");
@@ -1072,7 +1236,7 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 
 	/**
 	 * Sets the parser configuration used to process HTTP response data.
-	 * 
+	 *
 	 * @param parserConfig The parserConfig to set.
 	 */
 	public void setParserConfig(ParserConfig parserConfig) {
@@ -1093,12 +1257,12 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 		if (params == null) {
 			return 0;
 		}
-		return (long) params.getIntParameter(CoreConnectionPNames.SO_TIMEOUT, 0);
+		return params.getIntParameter(CoreConnectionPNames.SO_TIMEOUT, 0);
 	}
 
 	/**
 	 * Sets the http connection read timeout.
-	 * 
+	 *
 	 * @param timeout timeout in milliseconds. Zero sets to infinity.
 	 */
 	public void setConnectionTimeout(long timeout) {
@@ -1106,5 +1270,34 @@ public class SPARQLProtocolSession implements HttpClientDependent, AutoCloseable
 			params = new BasicHttpParams();
 		}
 		params.setIntParameter(CoreConnectionPNames.SO_TIMEOUT, (int) timeout);
+	}
+
+	/**
+	 * Get the {@link HttpContext} used for sending HTTP requests.
+	 *
+	 * @return the {@link HttpContext} instance used for all protocol session requests.
+	 */
+	protected HttpContext getHttpContext() {
+		return this.httpContext;
+	}
+
+	/**
+	 * Indicates if direct pass-through of the endpoint result to the supplied {@link Sink} is enabled.
+	 *
+	 * @return the passThroughEnabled setting.
+	 */
+	public boolean isPassThroughEnabled() {
+		return passThroughEnabled;
+	}
+
+	/**
+	 * Configure direct pass-through of the endpoint result to the supplied {@link Sink}.
+	 * <p>
+	 * If not explicitly configured, the setting defaults to {@code true}.
+	 *
+	 * @param passThroughEnabled the passThroughEnabled to set.
+	 */
+	public void setPassThroughEnabled(boolean passThroughEnabled) {
+		this.passThroughEnabled = passThroughEnabled;
 	}
 }

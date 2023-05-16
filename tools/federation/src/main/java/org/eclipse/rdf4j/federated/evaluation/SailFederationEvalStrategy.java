@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.evaluation;
 
@@ -13,6 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.common.iteration.EmptyIteration;
+import org.eclipse.rdf4j.federated.FederationContext;
 import org.eclipse.rdf4j.federated.algebra.CheckStatementPattern;
 import org.eclipse.rdf4j.federated.algebra.ExclusiveGroup;
 import org.eclipse.rdf4j.federated.algebra.FilterTuple;
@@ -36,16 +40,16 @@ import org.eclipse.rdf4j.repository.RepositoryException;
  * Implementation of a federation evaluation strategy which provides some special optimizations for Native (local)
  * Sesame repositories. The most important optimization is to use prepared Queries that are already created in the
  * internal representation used by Sesame. This is necessary to avoid String parsing overhead.
- * 
+ *
  * Joins are executed using {@link ControlledWorkerJoin}
- * 
+ *
  * @author Andreas Schwarte
  *
  */
 public class SailFederationEvalStrategy extends FederationEvalStrategy {
 
-	public SailFederationEvalStrategy() {
-
+	public SailFederationEvalStrategy(FederationContext federationContext) {
+		super(federationContext);
 	}
 
 	@Override
@@ -54,12 +58,14 @@ public class SailFederationEvalStrategy extends FederationEvalStrategy {
 			throws QueryEvaluationException {
 
 		// we can omit the bound join handling
-		if (bindings.size() == 1)
+		if (bindings.size() == 1) {
 			return evaluate(stmt, bindings.get(0));
+		}
 
 		FilterValueExpr filterExpr = null;
-		if (stmt instanceof FilterTuple)
+		if (stmt instanceof FilterTuple) {
 			filterExpr = ((FilterTuple) stmt).getFilterExpr();
+		}
 
 		Boolean isEvaluated = false;
 		TupleExpr preparedQuery = QueryAlgebraUtil.selectQueryBoundUnion((StatementPattern) stmt, bindings, filterExpr,
@@ -71,9 +77,10 @@ public class SailFederationEvalStrategy extends FederationEvalStrategy {
 		// apply filter and/or convert to original bindings
 		if (filterExpr != null && !isEvaluated) {
 			result = new BoundJoinConversionIteration(result, bindings); // apply conversion
-			result = new FilteringIteration(filterExpr, result); // apply filter
-			if (!result.hasNext())
-				return new EmptyIteration<BindingSet, QueryEvaluationException>();
+			result = new FilteringIteration(filterExpr, result, this); // apply filter
+			if (!result.hasNext()) {
+				return new EmptyIteration<>();
+			}
 		} else {
 			result = new BoundJoinConversionIteration(result, bindings);
 		}
@@ -86,8 +93,9 @@ public class SailFederationEvalStrategy extends FederationEvalStrategy {
 			CheckStatementPattern stmt, List<BindingSet> bindings)
 			throws QueryEvaluationException {
 
-		if (bindings.size() == 1)
+		if (bindings.size() == 1) {
 			return stmt.evaluate(bindings.get(0));
+		}
 
 		TupleExpr preparedQuery = QueryAlgebraUtil.selectQueryStringBoundCheck(stmt.getStatementPattern(), bindings);
 
@@ -122,7 +130,7 @@ public class SailFederationEvalStrategy extends FederationEvalStrategy {
 		AtomicBoolean isEvaluated = new AtomicBoolean(false);
 		TupleExpr preparedQuery = QueryAlgebraUtil.selectQuery(group, bindings, group.getFilterExpr(), isEvaluated);
 		return tripleSource.getStatements(preparedQuery, bindings,
-				(isEvaluated.get() ? null : group.getFilterExpr()));
+				(isEvaluated.get() ? null : group.getFilterExpr()), group.getQueryInfo());
 
 		// other option (which might be faster for sesame native stores): join over the statements
 		// TODO implement this and evaluate if it is faster ..

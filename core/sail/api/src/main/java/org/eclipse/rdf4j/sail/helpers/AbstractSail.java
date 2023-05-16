@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.helpers;
 
@@ -16,8 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.eclipse.rdf4j.IsolationLevel;
-import org.eclipse.rdf4j.IsolationLevels;
+import org.eclipse.rdf4j.common.transaction.IsolationLevel;
+import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.sail.Sail;
 import org.eclipse.rdf4j.sail.SailConnection;
 import org.eclipse.rdf4j.sail.SailException;
@@ -27,7 +30,7 @@ import org.slf4j.LoggerFactory;
 /**
  * An abstract Sail implementation that takes care of common sail tasks, including proper closing of active connections
  * and a grace period for active connections during shutdown of the store.
- * 
+ *
  * @author Herko ter Horst
  * @author jeen
  * @author Arjohn Kampman
@@ -88,8 +91,8 @@ public abstract class AbstractSail implements Sail {
 	private volatile File dataDir;
 
 	/**
-	 * Flag indicating whether the Sail has been initialized. Sails are initialized from {@link #initialize()
-	 * initialization} until {@link #shutDown() shutdown}.
+	 * Flag indicating whether the Sail has been initialized. Sails are initialized from {@link #init() initialization}
+	 * until {@link #shutDown() shutdown}.
 	 */
 	private volatile boolean initialized = false;
 
@@ -108,6 +111,9 @@ public abstract class AbstractSail implements Sail {
 	protected volatile long connectionTimeOut = DEFAULT_CONNECTION_TIMEOUT;
 
 	private long iterationCacheSyncThreshold = DEFAULT_ITERATION_SYNC_THRESHOLD;
+
+	// track the results size that each node in the query plan produces during execution
+	private boolean trackResultSize;
 
 	/**
 	 * Map used to track active connections and where these were acquired. The Throwable value may be null in case
@@ -131,7 +137,7 @@ public abstract class AbstractSail implements Sail {
 
 	/**
 	 * Set connection timeout on shutdown (in ms).
-	 * 
+	 *
 	 * @param connectionTimeOut timeout (in ms)
 	 */
 	public void setConnectionTimeOut(long connectionTimeOut) {
@@ -162,18 +168,13 @@ public abstract class AbstractSail implements Sail {
 	}
 
 	/**
-	 * Checks whether the Sail has been initialized. Sails are initialized from {@link #initialize() initialization}
-	 * until {@link #shutDown() shutdown}.
-	 * 
-	 * @return <tt>true</tt> if the Sail has been initialized, <tt>false</tt> otherwise.
+	 * Checks whether the Sail has been initialized. Sails are initialized from {@link #init() initialization} until
+	 * {@link #shutDown() shutdown}.
+	 *
+	 * @return <var>true</var> if the Sail has been initialized, <var>false</var> otherwise.
 	 */
 	protected boolean isInitialized() {
 		return initialized;
-	}
-
-	@Override
-	public void initialize() throws SailException {
-		init();
 	}
 
 	@Override
@@ -284,7 +285,7 @@ public abstract class AbstractSail implements Sail {
 
 	/**
 	 * Returns a store-specific SailConnection object.
-	 * 
+	 *
 	 * @return A connection to the store.
 	 */
 	protected abstract SailConnection getConnectionInternal() throws SailException;
@@ -292,7 +293,7 @@ public abstract class AbstractSail implements Sail {
 	/**
 	 * Signals to the store that the supplied connection has been closed; called by
 	 * {@link AbstractSailConnection#close()}.
-	 * 
+	 *
 	 * @param connection The connection that has been closed.
 	 */
 	protected void connectionClosed(SailConnection connection) {
@@ -313,7 +314,7 @@ public abstract class AbstractSail implements Sail {
 
 	/**
 	 * Appends the provided {@link IsolationLevels} to the SAIL's list of supported isolation levels.
-	 * 
+	 *
 	 * @param level a supported IsolationLevel.
 	 */
 	protected void addSupportedIsolationLevel(IsolationLevels level) {
@@ -322,7 +323,7 @@ public abstract class AbstractSail implements Sail {
 
 	/**
 	 * Removes all occurrences of the provided {@link IsolationLevels} in the list of supported Isolation levels.
-	 * 
+	 *
 	 * @param level the isolation level to remove.
 	 */
 	protected void removeSupportedIsolationLevel(IsolationLevel level) {
@@ -333,7 +334,7 @@ public abstract class AbstractSail implements Sail {
 	/**
 	 * Sets the list of supported {@link IsolationLevels}s for this SAIL. The list is expected to be ordered in
 	 * increasing complexity.
-	 * 
+	 *
 	 * @param supportedIsolationLevels a list of supported isolation levels.
 	 */
 	protected void setSupportedIsolationLevels(List<IsolationLevel> supportedIsolationLevels) {
@@ -343,7 +344,7 @@ public abstract class AbstractSail implements Sail {
 	/**
 	 * Sets the list of supported {@link IsolationLevels}s for this SAIL. The list is expected to be ordered in
 	 * increasing complexity.
-	 * 
+	 *
 	 * @param supportedIsolationLevels a list of supported isolation levels.
 	 */
 	protected void setSupportedIsolationLevels(IsolationLevel... supportedIsolationLevels) {
@@ -362,7 +363,7 @@ public abstract class AbstractSail implements Sail {
 
 	/**
 	 * Sets the default {@link IsolationLevel} on which transactions in this Sail operate.
-	 * 
+	 *
 	 * @param defaultIsolationLevel The defaultIsolationLevel to set.
 	 */
 	public void setDefaultIsolationLevel(IsolationLevel defaultIsolationLevel) {
@@ -374,7 +375,7 @@ public abstract class AbstractSail implements Sail {
 
 	/**
 	 * Retrieves the currently configured threshold for syncing query evaluation iteration caches to disk.
-	 * 
+	 *
 	 * @return Returns the iterationCacheSyncThreshold.
 	 */
 	public long getIterationCacheSyncThreshold() {
@@ -383,10 +384,30 @@ public abstract class AbstractSail implements Sail {
 
 	/**
 	 * Set the threshold for syncing query evaluation iteration caches to disk.
-	 * 
+	 *
 	 * @param iterationCacheSyncThreshold The iterationCacheSyncThreshold to set.
 	 */
 	public void setIterationCacheSyncThreshold(long iterationCacheSyncThreshold) {
 		this.iterationCacheSyncThreshold = iterationCacheSyncThreshold;
+	}
+
+	/**
+	 * Returns the status of the result size tracking for the query plan. Useful to determine which parts of a query
+	 * plan generated the most data.
+	 *
+	 * @return true if result size tracking is enabled.
+	 */
+	public boolean isTrackResultSize() {
+		return trackResultSize;
+	}
+
+	/**
+	 * Enable or disable results size tracking for the query plan. Useful to determine which parts of a query plan
+	 * generated the most data.
+	 *
+	 * @param trackResultSize true to enable tracking.
+	 */
+	public void setTrackResultSize(boolean trackResultSize) {
+		this.trackResultSize = trackResultSize;
 	}
 }

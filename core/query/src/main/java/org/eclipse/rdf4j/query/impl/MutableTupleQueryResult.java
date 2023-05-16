@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.impl;
 
@@ -15,6 +18,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
+import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.common.iteration.Iteration;
 import org.eclipse.rdf4j.common.iteration.Iterations;
 import org.eclipse.rdf4j.query.BindingSet;
@@ -25,7 +29,7 @@ import org.eclipse.rdf4j.query.TupleQueryResult;
  * An implementation of the {@link TupleQueryResult} interface that stores the complete query result in memory. The
  * query results in a MutableTupleQueryResult can be iterated over multiple times and can also be iterated over in
  * reverse order.
- * 
+ *
  * @author Arjohn Kampman
  */
 public class MutableTupleQueryResult implements TupleQueryResult, Cloneable {
@@ -41,13 +45,13 @@ public class MutableTupleQueryResult implements TupleQueryResult, Cloneable {
 	/**
 	 * The index of the next element that will be returned by a call to {@link #next()}.
 	 */
-	private volatile int currentIndex = 0;
+	private int currentIndex = 0;
 
 	/**
 	 * The index of the last element that was returned by a call to {@link #next()} or {@link #previous()}. Equal to -1
 	 * if there is no such element.
 	 */
-	private volatile int lastReturned = -1;
+	private int lastReturned = -1;
 
 	/*--------------*
 	 * Constructors *
@@ -61,7 +65,7 @@ public class MutableTupleQueryResult implements TupleQueryResult, Cloneable {
 	 * Creates a query result table with the supplied binding names. <em>The supplied list of binding names is assumed
 	 * to be constant</em>; care should be taken that the contents of this list doesn't change after supplying it to
 	 * this solution.
-	 * 
+	 *
 	 * @param bindingNames The binding names, in order of projection.
 	 */
 	public MutableTupleQueryResult(Collection<String> bindingNames, Collection<? extends BindingSet> bindingSets) {
@@ -69,8 +73,15 @@ public class MutableTupleQueryResult implements TupleQueryResult, Cloneable {
 		this.bindingSets.addAll(bindingSets);
 	}
 
+	@Deprecated(since = "4.1.0", forRemoval = true)
 	public <E extends Exception> MutableTupleQueryResult(Collection<String> bindingNames,
 			Iteration<? extends BindingSet, E> bindingSetIter) throws E {
+		this.bindingNames.addAll(bindingNames);
+		Iterations.addAll(bindingSetIter, this.bindingSets);
+	}
+
+	public <E extends Exception> MutableTupleQueryResult(Collection<String> bindingNames,
+			CloseableIteration<? extends BindingSet, E> bindingSetIter) throws E {
 		this.bindingNames.addAll(bindingNames);
 		Iterations.addAll(bindingSetIter, this.bindingSets);
 	}
@@ -159,9 +170,9 @@ public class MutableTupleQueryResult implements TupleQueryResult, Cloneable {
 	 * Inserts the specified binding set into the list. The binding set is inserted immediately before the next element
 	 * that would be returned by {@link #next()}, if any, and after the next element that would be returned by
 	 * {@link #previous}, if any. (If the table contains no binding sets, the new element becomes the sole element on
-	 * the table.) The new element is inserted before the implicit cursor: a subsequent call to <tt>next()</tt> would be
-	 * unaffected, and a subsequent call to <tt>previous()</tt> would return the new binding set.
-	 * 
+	 * the table.) The new element is inserted before the implicit cursor: a subsequent call to <var>next()</var> would
+	 * be unaffected, and a subsequent call to <var>previous()</var> would return the new binding set.
+	 *
 	 * @param bindingSet The binding set to insert.
 	 */
 	public void insert(BindingSet bindingSet) {

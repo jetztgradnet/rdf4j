@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.nativerdf;
 
@@ -23,10 +26,10 @@ import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Value;
-import org.eclipse.rdf4j.model.impl.AbstractValueFactory;
+import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.util.Literals;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.sail.SailException;
 import org.eclipse.rdf4j.sail.nativerdf.datastore.DataStore;
 import org.eclipse.rdf4j.sail.nativerdf.model.NativeBNode;
@@ -37,15 +40,13 @@ import org.eclipse.rdf4j.sail.nativerdf.model.NativeValue;
 
 /**
  * File-based indexed storage and retrieval of RDF values. ValueStore maps RDF values to integer IDs and vice-versa.
- * 
+ *
  * @author Arjohn Kampman
- * 
- * @deprecated since 3.0. This feature is for internal use only: its existence, signature or behavior may change without
- *             warning from one release to the next.
+ * @apiNote This feature is for internal use only: its existence, signature or behavior may change without warning from
+ *          one release to the next.
  */
 @InternalUseOnly
-@Deprecated
-public class ValueStore extends AbstractValueFactory {
+public class ValueStore extends SimpleValueFactory {
 
 	/*-----------*
 	 * Constants *
@@ -172,10 +173,10 @@ public class ValueStore extends AbstractValueFactory {
 
 	/**
 	 * Gets the value for the specified ID.
-	 * 
+	 *
 	 * @param id A value ID.
-	 * @return The value for the ID, or <tt>null</tt> no such value could be found.
-	 * @exception IOException If an I/O error occurred.
+	 * @return The value for the ID, or <var>null</var> no such value could be found.
+	 * @throws IOException If an I/O error occurred.
 	 */
 	public NativeValue getValue(int id) throws IOException {
 		// Check value cache
@@ -199,10 +200,10 @@ public class ValueStore extends AbstractValueFactory {
 
 	/**
 	 * Gets the ID for the specified value.
-	 * 
+	 *
 	 * @param value A value.
 	 * @return The ID for the specified value, or {@link NativeValue#UNKNOWN_ID} if no such ID could be found.
-	 * @exception IOException If an I/O error occurred.
+	 * @throws IOException If an I/O error occurred.
 	 */
 	public int getID(Value value) throws IOException {
 		// Try to get the internal ID from the value itself
@@ -256,7 +257,7 @@ public class ValueStore extends AbstractValueFactory {
 					// Store id in cache
 					NativeValue nv = getNativeValue(value);
 					nv.setInternalID(id, revision);
-					valueIDCache.put(nv, new Integer(id));
+					valueIDCache.put(nv, Integer.valueOf(id));
 				}
 			}
 
@@ -269,10 +270,10 @@ public class ValueStore extends AbstractValueFactory {
 	/**
 	 * Stores the supplied value and returns the ID that has been assigned to it. In case the value was already present,
 	 * the value will not be stored again and the ID of the existing value is returned.
-	 * 
+	 *
 	 * @param value The Value to store.
 	 * @return The ID that has been assigned to the value.
-	 * @exception IOException If an I/O error occurred.
+	 * @throws IOException If an I/O error occurred.
 	 */
 	public int storeValue(Value value) throws IOException {
 		// Try to get the internal ID from the value itself
@@ -324,8 +325,8 @@ public class ValueStore extends AbstractValueFactory {
 
 	/**
 	 * Removes all values from the ValueStore.
-	 * 
-	 * @exception IOException If an I/O error occurred.
+	 *
+	 * @throws IOException If an I/O error occurred.
 	 */
 	public void clear() throws IOException {
 		try {
@@ -338,8 +339,6 @@ public class ValueStore extends AbstractValueFactory {
 				namespaceCache.clear();
 				namespaceIDCache.clear();
 
-				initBNodeParams();
-
 				setNewRevision();
 			} finally {
 				writeLock.release();
@@ -351,8 +350,8 @@ public class ValueStore extends AbstractValueFactory {
 
 	/**
 	 * Synchronizes any changes that are cached in memory to disk.
-	 * 
-	 * @exception IOException If an I/O error occurred.
+	 *
+	 * @throws IOException If an I/O error occurred.
 	 */
 	public void sync() throws IOException {
 		dataStore.sync();
@@ -360,8 +359,8 @@ public class ValueStore extends AbstractValueFactory {
 
 	/**
 	 * Closes the ValueStore, releasing any file references, etc. Once closed, the ValueStore can no longer be used.
-	 * 
-	 * @exception IOException If an I/O error occurred.
+	 *
+	 * @throws IOException If an I/O error occurred.
 	 */
 	public void close() throws IOException {
 		dataStore.close();
@@ -475,8 +474,9 @@ public class ValueStore extends AbstractValueFactory {
 
 	private byte[] literal2legacy(Literal literal) throws IOException {
 		IRI dt = literal.getDatatype();
-		if (XMLSchema.STRING.equals(dt) || RDF.LANGSTRING.equals(dt))
+		if (XSD.STRING.equals(dt) || RDF.LANGSTRING.equals(dt)) {
 			return literal2data(literal.getLabel(), literal.getLanguage(), null, false);
+		}
 		return literal2data(literal.getLabel(), literal.getLanguage(), dt, false);
 	}
 
@@ -574,7 +574,7 @@ public class ValueStore extends AbstractValueFactory {
 		} else if (datatype != null) {
 			return new NativeLiteral(revision, label, datatype, id);
 		} else {
-			return new NativeLiteral(revision, label, XMLSchema.STRING, id);
+			return new NativeLiteral(revision, label, XSD.STRING, id);
 		}
 	}
 
@@ -639,7 +639,7 @@ public class ValueStore extends AbstractValueFactory {
 
 	@Override
 	public NativeLiteral createLiteral(String value) {
-		return new NativeLiteral(revision, value, XMLSchema.STRING);
+		return new NativeLiteral(revision, value, XSD.STRING);
 	}
 
 	@Override
@@ -653,7 +653,7 @@ public class ValueStore extends AbstractValueFactory {
 	}
 
 	/*----------------------------------------------------------------------*
-	 * Methods for converting model objects to NativeStore-specific objects * 
+	 * Methods for converting model objects to NativeStore-specific objects *
 	 *----------------------------------------------------------------------*/
 
 	public NativeValue getNativeValue(Value value) {
@@ -679,7 +679,7 @@ public class ValueStore extends AbstractValueFactory {
 	/**
 	 * Creates a NativeURI that is equal to the supplied URI. This method returns the supplied URI itself if it is
 	 * already a NativeURI that has been created by this ValueStore, which prevents unnecessary object creations.
-	 * 
+	 *
 	 * @return A NativeURI for the specified URI.
 	 */
 	public NativeIRI getNativeURI(IRI uri) {
@@ -693,7 +693,7 @@ public class ValueStore extends AbstractValueFactory {
 	/**
 	 * Creates a NativeBNode that is equal to the supplied bnode. This method returns the supplied bnode itself if it is
 	 * already a NativeBNode that has been created by this ValueStore, which prevents unnecessary object creations.
-	 * 
+	 *
 	 * @return A NativeBNode for the specified bnode.
 	 */
 	public NativeBNode getNativeBNode(BNode bnode) {
@@ -708,7 +708,7 @@ public class ValueStore extends AbstractValueFactory {
 	 * Creates an NativeLiteral that is equal to the supplied literal. This method returns the supplied literal itself
 	 * if it is already a NativeLiteral that has been created by this ValueStore, which prevents unnecessary object
 	 * creations.
-	 * 
+	 *
 	 * @return A NativeLiteral for the specified literal.
 	 */
 	public NativeLiteral getNativeLiteral(Literal l) {

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.evaluation.iterator;
 
@@ -23,7 +26,7 @@ import org.eclipse.rdf4j.query.algebra.evaluation.QueryBindingSet;
 
 /**
  * Inserts original bindings into the result.
- * 
+ *
  * @author Andreas Schwarte
  */
 public class IndependentJoingroupBindingsIteration3 extends LookAheadIteration<BindingSet, QueryEvaluationException> {
@@ -49,8 +52,9 @@ public class IndependentJoingroupBindingsIteration3 extends LookAheadIteration<B
 			result = computeResult();
 		}
 
-		if (currentIdx >= result.size())
+		if (currentIdx >= result.size()) {
 			return null;
+		}
 
 		return result.get(currentIdx++);
 	}
@@ -60,14 +64,14 @@ public class IndependentJoingroupBindingsIteration3 extends LookAheadIteration<B
 		// underlying arraylist serves as map, index corresponds to bindings index (i.e. at most bindings.size() - 1)
 		// a_res[0] = { v_0#0-1; v_0#0-2; ... }
 		// a_res[1] = { v_0#1-1; v_0#1-2; ... }
-		ArrayList<LinkedList<BindingInfo>> a_res = new ArrayList<LinkedList<BindingInfo>>(bindings.size());
-		ArrayList<LinkedList<BindingInfo>> b_res = new ArrayList<LinkedList<BindingInfo>>(bindings.size());
+		ArrayList<LinkedList<BindingInfo>> a_res = new ArrayList<>(bindings.size());
+		ArrayList<LinkedList<BindingInfo>> b_res = new ArrayList<>(bindings.size());
 
 		// we assume that each binding returns at least one result for each statement
 		// => create lists in advance to avoid checking later on
 		for (int i = 0; i < bindings.size(); i++) {
-			a_res.add(new LinkedList<BindingInfo>());
-			b_res.add(new LinkedList<BindingInfo>());
+			a_res.add(new LinkedList<>());
+			b_res.add(new LinkedList<>());
 		}
 
 		// assumes that bindingset of iteration has exactly one binding
@@ -75,17 +79,19 @@ public class IndependentJoingroupBindingsIteration3 extends LookAheadIteration<B
 
 			BindingSet bIn = iter.next();
 
-			if (bIn.size() != 1)
+			if (bIn.size() != 1) {
 				throw new RuntimeException(
 						"For this optimization a bindingset needs to have exactly one binding, it has " + bIn.size()
 								+ ": " + bIn);
+			}
 
 			Binding b = bIn.getBinding(bIn.getBindingNames().iterator().next());
 
 			// name is something like myVar_%outerID%_bindingId, e.g. name_0_0
 			Matcher m = pattern.matcher(b.getName());
-			if (!m.find())
+			if (!m.find()) {
 				throw new QueryEvaluationException("Unexpected pattern for binding name: " + b.getName());
+			}
 
 			BindingInfo bInfo = new BindingInfo(m.group(1), Integer.parseInt(m.group(3)), b.getValue());
 			int bIndex = Integer.parseInt(m.group(2));
@@ -93,7 +99,7 @@ public class IndependentJoingroupBindingsIteration3 extends LookAheadIteration<B
 //			int tmp = b.getName().indexOf("_");
 //			String pattern = b.getName().substring(tmp+1);
 //			String split[] = pattern.split("_");
-//			
+//
 //			int bIndex = Integer.parseInt(split[0]);
 //			int bindingsIdx = Integer.parseInt(split[1]);
 //			BindingInfo bInfo = new BindingInfo(b.getName().substring(0, tmp), bindingsIdx, b.getValue());
@@ -101,14 +107,15 @@ public class IndependentJoingroupBindingsIteration3 extends LookAheadIteration<B
 			// add a new binding info to the correct result list
 			if (bIndex == 0) {
 				a_res.get(bInfo.bindingsIdx).add(bInfo);
-			} else if (bIndex == 1)
+			} else if (bIndex == 1) {
 				b_res.get(bInfo.bindingsIdx).add(bInfo);
-			else
+			} else {
 				throw new RuntimeException("Unexpected binding value.");
+			}
 		}
 
 		// TODO think about a better upper bound or use linked list
-		ArrayList<BindingSet> res = new ArrayList<BindingSet>(2 * bindings.size());
+		ArrayList<BindingSet> res = new ArrayList<>(2 * bindings.size());
 
 		for (int a_idx = 0; a_idx < a_res.size(); a_idx++) {
 			LinkedList<BindingInfo> a_list = a_res.get(a_idx);
@@ -126,6 +133,15 @@ public class IndependentJoingroupBindingsIteration3 extends LookAheadIteration<B
 		return res;
 	}
 
+	@Override
+	protected void handleClose() throws QueryEvaluationException {
+		try {
+			super.handleClose();
+		} finally {
+			iter.close();
+		}
+	}
+
 	protected class BindingInfo {
 		public final String name;
 		public final int bindingsIdx;
@@ -138,6 +154,7 @@ public class IndependentJoingroupBindingsIteration3 extends LookAheadIteration<B
 			this.value = value;
 		}
 
+		@Override
 		public String toString() {
 			return name + ":" + value.stringValue();
 		}

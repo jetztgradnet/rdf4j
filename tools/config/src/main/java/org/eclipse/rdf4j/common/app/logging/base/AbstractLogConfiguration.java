@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.common.app.logging.base;
 
@@ -22,7 +25,7 @@ import org.eclipse.rdf4j.common.app.util.ConfigurationUtil;
 
 /**
  * Base implementation of LogConfiguration.
- * 
+ *
  * @author Herko ter Horst
  */
 public abstract class AbstractLogConfiguration implements LogConfiguration {
@@ -37,13 +40,13 @@ public abstract class AbstractLogConfiguration implements LogConfiguration {
 
 	private boolean debugLoggingEnabled;
 
-	private Set<String> packages;
+	private final Set<String> packages;
 
 	private AppConfiguration config;
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * @throws IOException
 	 */
 	protected AbstractLogConfiguration() throws IOException {
@@ -79,7 +82,7 @@ public abstract class AbstractLogConfiguration implements LogConfiguration {
 
 	/**
 	 * Initialize logging, setting log levels and handlers.
-	 * 
+	 *
 	 * @throws IOException
 	 */
 	private void initBase() throws IOException {
@@ -123,7 +126,7 @@ public abstract class AbstractLogConfiguration implements LogConfiguration {
 
 	/**
 	 * Get packages as a set
-	 * 
+	 *
 	 * @return packages as set of string
 	 */
 	protected Set<String> getPackages() {

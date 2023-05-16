@@ -1,20 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <assembly>
 	<id>sdk</id>
-
 	<formats>
 		<format>tar.gz</format>
 		<format>zip</format>
 	</formats>
-
 	<baseDirectory>eclipse-rdf4j-${project.version}</baseDirectory>
-
 	<dependencySets>
-	    <dependencySet>
-		<useProjectArtifact>false</useProjectArtifact>
-		<outputDirectory>lib</outputDirectory>
-	    </dependencySet>
+		<dependencySet>
+			<useProjectArtifact>false</useProjectArtifact>
+			<outputDirectory>lib</outputDirectory>
+		</dependencySet>
 	</dependencySets>
-
 	<fileSets>
 		<fileSet>
 			<directory>..</directory>
@@ -23,23 +20,20 @@
 				<include>*.txt</include>
 			</includes>
 		</fileSet>
-
 		<fileSet>
-			<directory>target/site/apidocs</directory>
+			<directory>../target/site/apidocs</directory>
 			<outputDirectory>docs/apidocs</outputDirectory>
 		</fileSet>
 	</fileSets>
-
 	<files>
 		<file>
-                  <source>../tools/server/target/rdf4j-server.war</source>
+			<source>../tools/server/target/rdf4j-server.war</source>
 			<outputDirectory>war</outputDirectory>
 		</file>
 		<file>
-                  <source>../tools/workbench/target/rdf4j-workbench.war</source>
+			<source>../tools/workbench/target/rdf4j-workbench.war</source>
 			<outputDirectory>war</outputDirectory>
 		</file>
-
 		<file>
 			<source>src/main/dist/console.bat</source>
 			<outputDirectory>bin</outputDirectory>
@@ -66,5 +60,4 @@
 			<outputDirectory/>
 		</file>
 	</files>
-
 </assembly>

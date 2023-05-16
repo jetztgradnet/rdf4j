@@ -1,11 +1,17 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.Arrays;
 
@@ -14,13 +20,9 @@ import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.sail.SailRepository;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
-
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Bart Hanssens
@@ -28,13 +30,12 @@ import static org.junit.Assert.fail;
 public class UtilTest {
 	private static Repository repo;
 
-	@BeforeClass
+	@BeforeAll
 	public static void setupClass() {
 		repo = new SailRepository(new MemoryStore());
-		repo.initialize();
 	}
 
-	@AfterClass
+	@AfterAll
 	public static void tearDownClass() {
 		repo.shutDown();
 	}
@@ -50,7 +51,7 @@ public class UtilTest {
 		String[] tokens = { "command", ONE, TWO };
 		Resource[] ctxs = Util.getContexts(tokens, 1, repo);
 
-		assertTrue("Not equal", Arrays.equals(check, ctxs));
+		assertTrue(Arrays.equals(check, ctxs), "Not equal");
 	}
 
 	@Test
@@ -58,7 +59,7 @@ public class UtilTest {
 		String[] tokens = { "command", "command2", "NULL" };
 
 		Resource[] ctxs = Util.getContexts(tokens, 2, repo);
-		assertTrue("Not null", ctxs[0] == null);
+		assertTrue(ctxs[0] == null, "Not null");
 	}
 
 	@Test
@@ -78,7 +79,6 @@ public class UtilTest {
 
 		String expect = " one, two\n" + " three\n" + " four\n" + " five, six\n" + " seven\n" + " eight";
 		String fmt = Util.formatToWidth(10, " ", str, ", ");
-		System.err.println(fmt);
-		assertTrue("Format not OK", expect.equals(fmt));
+		assertTrue(expect.equals(fmt), "Format not OK");
 	}
 }

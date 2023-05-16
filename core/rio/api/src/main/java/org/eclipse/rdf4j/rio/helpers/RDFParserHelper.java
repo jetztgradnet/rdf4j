@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.helpers;
 
@@ -12,9 +15,9 @@ import java.util.Optional;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.model.base.CoreDatatype;
 import org.eclipse.rdf4j.model.util.LiteralUtilException;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
 import org.eclipse.rdf4j.rio.DatatypeHandler;
 import org.eclipse.rdf4j.rio.LanguageHandler;
 import org.eclipse.rdf4j.rio.ParseErrorListener;
@@ -28,7 +31,7 @@ import org.eclipse.rdf4j.rio.RioSetting;
  * <p>
  * This class contains reference implementations of the workflows for {@link ParseErrorListener},
  * {@link RDFParseException}, {@link ParserConfig}, {@link DatatypeHandler} and {@link LanguageHandler} related methods
- * 
+ *
  * @author Peter Ansell
  */
 public class RDFParserHelper {
@@ -36,7 +39,7 @@ public class RDFParserHelper {
 	/**
 	 * Create a literal using the given parameters, including iterative verification and normalization by any
 	 * {@link DatatypeHandler} or {@link LanguageHandler} implementations that are found in the {@link ParserConfig}.
-	 * 
+	 *
 	 * @param label        The value for {@link Literal#getLabel()}, which may be iteratively normalized.
 	 * @param lang         If this is not null, and the datatype is either not null, or is equal to
 	 *                     {@link RDF#LANGSTRING}, then a language literal will be created.
@@ -62,7 +65,7 @@ public class RDFParserHelper {
 	/**
 	 * Create a literal using the given parameters, including iterative verification and normalization by any
 	 * {@link DatatypeHandler} or {@link LanguageHandler} implementations that are found in the {@link ParserConfig}.
-	 * 
+	 *
 	 * @param label        The value for {@link Literal#getLabel()}, which may be iteratively normalized.
 	 * @param lang         If this is not null, and the datatype is either not null, or is equal to
 	 *                     {@link RDF#LANGSTRING}, then a language literal will be created.
@@ -86,7 +89,7 @@ public class RDFParserHelper {
 	 * @throws RDFParseException If there was an error during the process that could not be recovered from, based on
 	 *                           settings in the given parser config.
 	 */
-	public static final Literal createLiteral(String label, String lang, IRI datatype, ParserConfig parserConfig,
+	public static Literal createLiteral(String label, String lang, IRI datatype, ParserConfig parserConfig,
 			ParseErrorListener errListener, ValueFactory valueFactory, long lineNo, long columnNo)
 			throws RDFParseException {
 		if (label == null) {
@@ -185,15 +188,26 @@ public class RDFParserHelper {
 
 		if (result == null) {
 			try {
+				// Removes datatype for langString datatype with no language tag when VERIFY_DATATYPE_VALUES is False.
+				if ((workingDatatype == null || RDF.LANGSTRING.equals(workingDatatype))
+						&& (!workingLang.isPresent() || workingLang.get().isEmpty())
+						&& !parserConfig.get(BasicParserSettings.VERIFY_DATATYPE_VALUES)) {
+					workingLang = Optional.ofNullable(null);
+					workingDatatype = null;
+				}
 				// Backup for unnormalised language literal creation
 				if (workingLang.isPresent() && (workingDatatype == null || RDF.LANGSTRING.equals(workingDatatype))) {
 					result = valueFactory.createLiteral(workingLabel, workingLang.get().intern());
 				}
 				// Backup for unnormalised datatype literal creation
 				else if (workingDatatype != null) {
-					result = valueFactory.createLiteral(workingLabel, workingDatatype);
+					CoreDatatype coreDatatype = CoreDatatype.from(workingDatatype);
+
+					result = valueFactory.createLiteral(workingLabel,
+							coreDatatype != CoreDatatype.NONE ? coreDatatype.getIri() : workingDatatype, coreDatatype);
+
 				} else {
-					result = valueFactory.createLiteral(workingLabel, XMLSchema.STRING);
+					result = valueFactory.createLiteral(workingLabel, CoreDatatype.XSD.STRING);
 				}
 			} catch (Exception e) {
 				reportFatalError(e, lineNo, columnNo, errListener);
@@ -207,9 +221,9 @@ public class RDFParserHelper {
 	 * Reports an error with associated line- and column number to the registered ParseErrorListener, if the given
 	 * setting has been set to true.
 	 * <p>
-	 * This method also throws an {@link RDFParseException} when the given setting has been set to <tt>true</tt> and it
-	 * is not a nonFatalError.
-	 * 
+	 * This method also throws an {@link RDFParseException} when the given setting has been set to <var>true</var> and
+	 * it is not a nonFatalError.
+	 *
 	 * @param msg             The message to use for {@link ParseErrorListener#error(String, long, long)} and for
 	 *                        {@link RDFParseException#RDFParseException(String, long, long)}.
 	 * @param relevantSetting The boolean setting that will be checked to determine if this is an issue that we need to
@@ -232,9 +246,9 @@ public class RDFParserHelper {
 	 * Reports an error with associated line- and column number to the registered ParseErrorListener, if the given
 	 * setting has been set to true.
 	 * <p>
-	 * This method also throws an {@link RDFParseException} when the given setting has been set to <tt>true</tt> and it
-	 * is not a nonFatalError.
-	 * 
+	 * This method also throws an {@link RDFParseException} when the given setting has been set to <var>true</var> and
+	 * it is not a nonFatalError.
+	 *
 	 * @param msg             The message to use for {@link ParseErrorListener#error(String, long, long)} and for
 	 *                        {@link RDFParseException#RDFParseException(String, long, long)}.
 	 * @param lineNo          Optional line number, should default to setting this as -1 if not known. Used for
@@ -271,9 +285,9 @@ public class RDFParserHelper {
 	 * Reports an error with associated line- and column number to the registered ParseErrorListener, if the given
 	 * setting has been set to true.
 	 * <p>
-	 * This method also throws an {@link RDFParseException} when the given setting has been set to <tt>true</tt> and it
-	 * is not a nonFatalError.
-	 * 
+	 * This method also throws an {@link RDFParseException} when the given setting has been set to <var>true</var> and
+	 * it is not a nonFatalError.
+	 *
 	 * @param e               The exception whose message to use for
 	 *                        {@link ParseErrorListener#error(String, long, long)} and for
 	 *                        {@link RDFParseException#RDFParseException(String, long, long)}.
@@ -312,9 +326,9 @@ public class RDFParserHelper {
 	}
 
 	/**
-	 * Reports a fatal error to the registered ParseErrorListener, if any, and throws a <tt>ParseException</tt>
+	 * Reports a fatal error to the registered ParseErrorListener, if any, and throws a <var>ParseException</var>
 	 * afterwards. This method simply calls {@link #reportFatalError(String, long, long, ParseErrorListener)} supplying
-	 * <tt>-1</tt> for the line- and column number.
+	 * <var>-1</var> for the line- and column number.
 	 */
 	public static void reportFatalError(String msg, ParseErrorListener errListener) throws RDFParseException {
 		reportFatalError(msg, -1, -1, errListener);
@@ -322,7 +336,7 @@ public class RDFParserHelper {
 
 	/**
 	 * Reports a fatal error with associated line- and column number to the registered ParseErrorListener, if any, and
-	 * throws a <tt>ParseException</tt> afterwards.
+	 * throws a <var>ParseException</var> afterwards.
 	 */
 	public static void reportFatalError(String msg, long lineNo, long columnNo, ParseErrorListener errListener)
 			throws RDFParseException {
@@ -334,14 +348,14 @@ public class RDFParserHelper {
 	}
 
 	/**
-	 * Reports a fatal error to the registered ParseErrorListener, if any, and throws a <tt>ParseException</tt>
+	 * Reports a fatal error to the registered ParseErrorListener, if any, and throws a <var>ParseException</var>
 	 * afterwards. An exception is made for the case where the supplied exception is a {@link RDFParseException}; in
 	 * that case the supplied exception is not wrapped in another ParseException and the error message is not reported
 	 * to the ParseErrorListener, assuming that it has already been reported when the original ParseException was
 	 * thrown.
 	 * <p>
 	 * This method simply calls {@link #reportFatalError(Exception, long, long, ParseErrorListener)} supplying
-	 * <tt>-1</tt> for the line- and column number.
+	 * <var>-1</var> for the line- and column number.
 	 */
 	public static void reportFatalError(Exception e, ParseErrorListener errListener) throws RDFParseException {
 		reportFatalError(e, -1, -1, errListener);
@@ -349,7 +363,7 @@ public class RDFParserHelper {
 
 	/**
 	 * Reports a fatal error with associated line- and column number to the registered ParseErrorListener, if any, and
-	 * throws a <tt>ParseException</tt> wrapped the supplied exception afterwards. An exception is made for the case
+	 * throws a <var>ParseException</var> wrapped the supplied exception afterwards. An exception is made for the case
 	 * where the supplied exception is a {@link RDFParseException}; in that case the supplied exception is not wrapped
 	 * in another ParseException and the error message is not reported to the ParseErrorListener, assuming that it has
 	 * already been reported when the original ParseException was thrown.
@@ -369,7 +383,7 @@ public class RDFParserHelper {
 
 	/**
 	 * Reports a fatal error with associated line- and column number to the registered ParseErrorListener, if any, and
-	 * throws a <tt>ParseException</tt> wrapped the supplied exception afterwards. An exception is made for the case
+	 * throws a <var>ParseException</var> wrapped the supplied exception afterwards. An exception is made for the case
 	 * where the supplied exception is a {@link RDFParseException}; in that case the supplied exception is not wrapped
 	 * in another ParseException and the error message is not reported to the ParseErrorListener, assuming that it has
 	 * already been reported when the original ParseException was thrown.

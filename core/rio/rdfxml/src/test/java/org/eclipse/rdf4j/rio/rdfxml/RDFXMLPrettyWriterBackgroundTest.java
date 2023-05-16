@@ -1,13 +1,16 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.rdfxml;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,15 +31,15 @@ import org.eclipse.rdf4j.query.QueryResults;
 import org.eclipse.rdf4j.rio.RDFHandlerException;
 import org.eclipse.rdf4j.rio.RDFParseException;
 import org.eclipse.rdf4j.rio.RDFWriter;
-import org.eclipse.rdf4j.rio.RDFWriterTest;
+import org.eclipse.rdf4j.rio.RioSetting;
 import org.eclipse.rdf4j.rio.WriterConfig;
 import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
 import org.eclipse.rdf4j.rio.rdfxml.util.RDFXMLPrettyWriterFactory;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class RDFXMLPrettyWriterBackgroundTest extends RDFWriterTest {
+public class RDFXMLPrettyWriterBackgroundTest extends AbstractRDFXMLWriterTest {
 
-	private static ValueFactory vf = SimpleValueFactory.getInstance();
+	private static final ValueFactory vf = SimpleValueFactory.getInstance();
 
 	public RDFXMLPrettyWriterBackgroundTest() {
 		super(new RDFXMLPrettyWriterFactory(), new RDFXMLParserFactory());
@@ -51,7 +54,8 @@ public class RDFXMLPrettyWriterBackgroundTest extends RDFWriterTest {
 	protected Model parse(InputStream reader, String baseURI)
 			throws RDFParseException, RDFHandlerException, IOException {
 		return QueryResults
-				.asModel(QueryResults.parseGraphBackground(reader, baseURI, rdfParserFactory.getRDFFormat()));
+				.asModel(QueryResults.parseGraphBackground(reader, baseURI, rdfParserFactory.getRDFFormat(),
+						null));
 	}
 
 	/**
@@ -140,4 +144,11 @@ public class RDFXMLPrettyWriterBackgroundTest extends RDFWriterTest {
 
 		assertEquals(Arrays.asList("<rdf:RDF", "<rdf:Bag", "<rdf:_2", "<rdf:li", "<rdf:_3", "<rdf:li"), rdfLines);
 	}
+
+	protected RioSetting<?>[] getExpectedSupportedSettings() {
+		List<RioSetting<?>> inherited = new ArrayList<>(Arrays.asList(super.getExpectedSupportedSettings()));
+		inherited.add(BasicWriterSettings.INLINE_BLANK_NODES);
+		return inherited.toArray(new RioSetting<?>[] {});
+	}
+
 }

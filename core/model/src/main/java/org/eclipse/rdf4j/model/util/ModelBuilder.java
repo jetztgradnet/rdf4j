@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2016 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.model.util;
 
@@ -19,6 +22,7 @@ import org.eclipse.rdf4j.model.Namespace;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.model.base.CoreDatatype;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.impl.SimpleNamespace;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
@@ -29,37 +33,37 @@ import org.eclipse.rdf4j.model.vocabulary.OWL;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.eclipse.rdf4j.model.vocabulary.SKOS;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 
 /**
  * Builder to facilitate easier creation of new RDF {@link Model} objects via a fluent interface. All methods returning
  * a {@link ModelBuilder} return an immutable reference to the current object, allowing method chaining.
  * <p>
  * Usage example:
- * 
+ *
  * <pre>
  * <code>
  *    ModelBuilder builder = new ModelBuilder();
- *    
- *    // set some namespaces 
+ *
+ *    // set some namespaces
  *    builder.setNamespace("ex", "http://example.org/").setNamespace(FOAF.NS);
- *    
+ *
  *    // add a new named graph to the model
  *    builder.namedGraph("ex:graph1")
  *               // add statements about resource ex:john
- *              .subject("ex:john")                      
+ *              .subject("ex:john")
  *           	  .add(FOAF.NAME, "John") // add the triple (ex:john, foaf:name "John") to the named graph
  *           	  .add(FOAF.AGE, 42)
  *           	  .add(FOAF.MBOX, "john@example.org");
- *           
+ *
  *     // add a triple to the default graph
  *    builder.defaultGraph().subject("ex:graph1").add(RDF.TYPE, "ex:Graph");
- *    
+ *
  *    // return the Model object
  *    Model m = builder.build();
  * </code>
  * </pre>
- * 
+ *
  * @author Jeen Broekstra
  */
 public class ModelBuilder {
@@ -79,6 +83,8 @@ public class ModelBuilder {
 
 	/**
 	 * Create a new {@link ModelBuilder} which will append to the supplied {@link Model}.
+	 *
+	 * @param model
 	 */
 	public ModelBuilder(Model model) {
 		this.model = model;
@@ -86,7 +92,7 @@ public class ModelBuilder {
 
 	/**
 	 * Set the supplied {@link Namespace} mapping.
-	 * 
+	 *
 	 * @param ns a {@link Namespace} to add to the model
 	 * @return the {@link ModelBuilder}
 	 */
@@ -97,7 +103,7 @@ public class ModelBuilder {
 
 	/**
 	 * Set the namespace mapping defined by the supplied prefix and name
-	 * 
+	 *
 	 * @param prefix    prefix of the namespace to add to the model.
 	 * @param namespace namespace name to add to the model.
 	 * @return the {@link ModelBuilder}
@@ -109,7 +115,7 @@ public class ModelBuilder {
 
 	/**
 	 * Set the subject resource about which statements are to be added to the model.
-	 * 
+	 *
 	 * @param subject the subject resource about which statements are to be added.
 	 * @return the {@link ModelBuilder}
 	 */
@@ -121,11 +127,11 @@ public class ModelBuilder {
 	/**
 	 * Set the subject about which statements are to be added to the model, defined by a prefixed name or an IRI
 	 * reference.
-	 * 
-	 * @param subject the subject resource about which statements are to be added. This can be defined either as a
-	 *                prefixed name string (e.g. "ex:john"), or as a full IRI (e.g. "http://example.org/john"). If
-	 *                supplied as a prefixed name, the {@link ModelBuilder} will need to have a namespace mapping for
-	 *                the prefix.
+	 *
+	 * @param prefixedNameOrIri the subject resource about which statements are to be added. This can be defined either
+	 *                          as a prefixed name string (e.g. "ex:john"), or as a full IRI (e.g.
+	 *                          "http://example.org/john"). If supplied as a prefixed name, the {@link ModelBuilder}
+	 *                          will need to have a namespace mapping for the prefix.
 	 * @return the {@link ModelBuilder}
 	 */
 	public ModelBuilder subject(String prefixedNameOrIri) {
@@ -135,7 +141,7 @@ public class ModelBuilder {
 	/**
 	 * Set the current graph in which to add new statements to the supplied named graph. This method resets the current
 	 * subject.
-	 * 
+	 *
 	 * @param namedGraph a named graph identifier
 	 * @return this {@link ModelBuilder}
 	 */
@@ -148,10 +154,10 @@ public class ModelBuilder {
 	/**
 	 * Set the current graph in which to add new statements to the supplied named graph. This method clears the current
 	 * subject.
-	 * 
-	 * @param namedGraph a named graph identifier. This can be defined either as a prefixed name string (e.g.
-	 *                   "ex:john"), or as a full IRI (e.g. "http://example.org/john"). If supplied as a prefixed name,
-	 *                   the {@link ModelBuilder} will need to have a namespace mapping for the prefix.
+	 *
+	 * @param prefixedNameOrIRI a named graph identifier. This can be defined either as a prefixed name string (e.g.
+	 *                          "ex:john"), or as a full IRI (e.g. "http://example.org/john"). If supplied as a prefixed
+	 *                          name, the {@link ModelBuilder} will need to have a namespace mapping for the prefix.
 	 * @return this {@link ModelBuilder}
 	 */
 	public ModelBuilder namedGraph(String prefixedNameOrIRI) {
@@ -161,7 +167,7 @@ public class ModelBuilder {
 	/**
 	 * Set the current graph in which to add new statements to the default graph. This method clears the current
 	 * subject.
-	 * 
+	 *
 	 * @return this {@link ModelBuilder}
 	 */
 	public ModelBuilder defaultGraph() {
@@ -173,7 +179,7 @@ public class ModelBuilder {
 	/**
 	 * Add an RDF statement with the given subject, predicate and object to the model, using the current graph (either
 	 * named or default).
-	 * 
+	 *
 	 * @param subject   the statement's subject
 	 * @param predicate the statement's predicate
 	 * @param object    the statement's object. If the supplied object is a {@link BNode}, {@link IRI}, or
@@ -181,8 +187,8 @@ public class ModelBuilder {
 	 *                  prefix, it is mapped to an IRI. Otherwise a typed {@link Literal} is created out of the supplied
 	 *                  object, mapping the runtime type of the object to the appropriate XML Schema type. If no mapping
 	 *                  is available, the method creates a literal with the string representation of the supplied object
-	 *                  as the value, and {@link XMLSchema#STRING} as the datatype. Recognized types are {@link Boolean}
-	 *                  , {@link Byte}, {@link Double}, {@link Float}, {@link Integer}, {@link Long}, {@link Short},
+	 *                  as the value, and {@link XSD#STRING} as the datatype. Recognized types are {@link Boolean} ,
+	 *                  {@link Byte}, {@link Double}, {@link Float}, {@link Integer}, {@link Long}, {@link Short},
 	 *                  {@link XMLGregorianCalendar } , and {@link Date}.
 	 * @return this {@link ModelBuilder}
 	 * @see #namedGraph(Resource)
@@ -199,8 +205,11 @@ public class ModelBuilder {
 		}
 
 		if (objectValue == null) {
-			model.setNamespace(XMLSchema.NS);
-			objectValue = Literals.createLiteral(SimpleValueFactory.getInstance(), object);
+			Literal literal = Values.literal(object);
+			if (literal.getCoreDatatype() != CoreDatatype.XSD.STRING) {
+				model.setNamespace(XSD.NS);
+			}
+			objectValue = literal;
 		}
 
 		if (currentNamedGraph != null) {
@@ -214,7 +223,7 @@ public class ModelBuilder {
 	/**
 	 * Add an RDF statement with the given subject, predicate and object to the model, using the current graph (either
 	 * named or default).
-	 * 
+	 *
 	 * @param subject   the statement's subject. This can be defined either as a prefixed name string (e.g. "ex:john"),
 	 *                  or as a full IRI (e.g. "http://example.org/john"). If supplied as a prefixed name, the
 	 *                  {@link ModelBuilder} will need to have a namespace mapping for the prefix.
@@ -224,8 +233,8 @@ public class ModelBuilder {
 	 *                  prefix, it is mapped to an IRI. Otherwise a typed {@link Literal} is created out of the supplied
 	 *                  object, mapping the runtime type of the object to the appropriate XML Schema type. If no mapping
 	 *                  is available, the method creates a literal with the string representation of the supplied object
-	 *                  as the value, and {@link XMLSchema#STRING} as the datatype. Recognized types are {@link Boolean}
-	 *                  , {@link Byte}, {@link Double}, {@link Float}, {@link Integer}, {@link Long}, {@link Short},
+	 *                  as the value, and {@link XSD#STRING} as the datatype. Recognized types are {@link Boolean} ,
+	 *                  {@link Byte}, {@link Double}, {@link Float}, {@link Integer}, {@link Long}, {@link Short},
 	 *                  {@link XMLGregorianCalendar } , and {@link Date}.
 	 * @return this {@link ModelBuilder}
 	 * @see #namedGraph(Resource)
@@ -239,7 +248,7 @@ public class ModelBuilder {
 	/**
 	 * Add an RDF statement with the given subject, predicate and object to the model, using the current graph (either
 	 * named or default).
-	 * 
+	 *
 	 * @param subject   the statement's subject. This can be defined either as a prefixed name string (e.g. "ex:john"),
 	 *                  or as a full IRI (e.g. "http://example.org/john"). If supplied as a prefixed name, the
 	 *                  {@link ModelBuilder} will need to have a namespace mapping for the prefix.
@@ -251,8 +260,8 @@ public class ModelBuilder {
 	 *                  prefix, it is mapped to an IRI. Otherwise a typed {@link Literal} is created out of the supplied
 	 *                  object, mapping the runtime type of the object to the appropriate XML Schema type. If no mapping
 	 *                  is available, the method creates a literal with the string representation of the supplied object
-	 *                  as the value, and {@link XMLSchema#STRING} as the datatype. Recognized types are {@link Boolean}
-	 *                  , {@link Byte}, {@link Double}, {@link Float}, {@link Integer}, {@link Long}, {@link Short},
+	 *                  as the value, and {@link XSD#STRING} as the datatype. Recognized types are {@link Boolean} ,
+	 *                  {@link Byte}, {@link Double}, {@link Float}, {@link Integer}, {@link Long}, {@link Short},
 	 *                  {@link XMLGregorianCalendar } , and {@link Date}.
 	 * @return this {@link ModelBuilder}
 	 * @see #namedGraph(Resource)
@@ -266,15 +275,15 @@ public class ModelBuilder {
 	/**
 	 * Add an RDF statement with the predicate and object to the model, using the current subject and graph (either
 	 * named or default).
-	 * 
+	 *
 	 * @param predicate the statement's predicate.
 	 * @param object    the statement's object. If the supplied object is a {@link BNode}, {@link IRI}, or
 	 *                  {@link Literal}, the object is used directly. If it is a prefixed name String with a known
 	 *                  prefix, it is mapped to an IRI. Otherwise a typed {@link Literal} is created out of the supplied
 	 *                  object, mapping the runtime type of the object to the appropriate XML Schema type. If no mapping
 	 *                  is available, the method creates a literal with the string representation of the supplied object
-	 *                  as the value, and {@link XMLSchema#STRING} as the datatype. Recognized types are {@link Boolean}
-	 *                  , {@link Byte}, {@link Double}, {@link Float}, {@link Integer}, {@link Long}, {@link Short},
+	 *                  as the value, and {@link XSD#STRING} as the datatype. Recognized types are {@link Boolean} ,
+	 *                  {@link Byte}, {@link Double}, {@link Float}, {@link Integer}, {@link Long}, {@link Short},
 	 *                  {@link XMLGregorianCalendar } , and {@link Date}.
 	 * @return this {@link ModelBuilder}
 	 * @throws ModelException if the current subject is not set using {@link #subject(Resource)} or
@@ -290,7 +299,7 @@ public class ModelBuilder {
 	/**
 	 * Add an RDF statement with the predicate and object to the model, using the current subject and graph (either
 	 * named or default).
-	 * 
+	 *
 	 * @param predicate the statement's predicate. This can be defined either as a prefixed name string (e.g.
 	 *                  "ex:john"), or as a full IRI (e.g. "http://example.org/john"). If supplied as a prefixed name,
 	 *                  the {@link ModelBuilder} will need to have a namespace mapping for the prefix.
@@ -299,8 +308,8 @@ public class ModelBuilder {
 	 *                  prefix, it is mapped to an IRI. Otherwise a typed {@link Literal} is created out of the supplied
 	 *                  object, mapping the runtime type of the object to the appropriate XML Schema type. If no mapping
 	 *                  is available, the method creates a literal with the string representation of the supplied object
-	 *                  as the value, and {@link XMLSchema#STRING} as the datatype. Recognized types are {@link Boolean}
-	 *                  , {@link Byte}, {@link Double}, {@link Float}, {@link Integer}, {@link Long}, {@link Short},
+	 *                  as the value, and {@link XSD#STRING} as the datatype. Recognized types are {@link Boolean} ,
+	 *                  {@link Byte}, {@link Double}, {@link Float}, {@link Integer}, {@link Long}, {@link Short},
 	 *                  {@link XMLGregorianCalendar } , and {@link Date}.
 	 * @return this {@link ModelBuilder}
 	 * @throws ModelException if the current subject is not set using {@link #subject(Resource)} or
@@ -312,7 +321,7 @@ public class ModelBuilder {
 
 	/**
 	 * Return the created {@link Model}
-	 * 
+	 *
 	 * @return the {@link Model}
 	 */
 	public Model build() {
@@ -321,7 +330,7 @@ public class ModelBuilder {
 
 	/**
 	 * Convert the given prefixed name string to an IRI if possible.
-	 * 
+	 *
 	 * @param prefixedName a prefixed name string, e.g. "rdf:type"
 	 * @return the IRI corresponding to the prefixed name, or {@code null} if the supplied string couldn't be converted.
 	 */
@@ -363,7 +372,7 @@ public class ModelBuilder {
 	}
 
 	private Namespace[] getDefaultNamespaces() {
-		return new Namespace[] { RDF.NS, RDFS.NS, OWL.NS, XMLSchema.NS, DCTERMS.NS, DC.NS, FOAF.NS, SKOS.NS };
+		return new Namespace[] { RDF.NS, RDFS.NS, OWL.NS, XSD.NS, DCTERMS.NS, DC.NS, FOAF.NS, SKOS.NS };
 	}
 
 }

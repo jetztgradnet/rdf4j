@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.inferencer;
 
@@ -23,7 +26,7 @@ public interface InferencerConnection extends NotifyingSailConnection {
 
 	/**
 	 * Adds an inferred statement to a specific context.
-	 * 
+	 *
 	 * @param subj     The subject of the statement to add.
 	 * @param pred     The predicate of the statement to add.
 	 * @param obj      The object of the statement to add.
@@ -33,11 +36,11 @@ public interface InferencerConnection extends NotifyingSailConnection {
 	 * @throws IllegalStateException If the connection has been closed.
 	 */
 	// FIXME: remove boolean result value to enable batch-wise processing
-	public boolean addInferredStatement(Resource subj, IRI pred, Value obj, Resource... contexts) throws SailException;
+	boolean addInferredStatement(Resource subj, IRI pred, Value obj, Resource... contexts) throws SailException;
 
 	/**
 	 * Removes an inferred statement from a specific context.
-	 * 
+	 *
 	 * @param subj     The subject of the statement that should be removed.
 	 * @param pred     The predicate of the statement that should be removed.
 	 * @param obj      The object of the statement that should be removed.
@@ -47,26 +50,26 @@ public interface InferencerConnection extends NotifyingSailConnection {
 	 * @throws IllegalStateException If the connection has been closed.
 	 */
 	// FIXME: remove boolean result value to enable batch-wise processing
-	public boolean removeInferredStatement(Resource subj, IRI pred, Value obj, Resource... contexts)
+	boolean removeInferredStatement(Resource subj, IRI pred, Value obj, Resource... contexts)
 			throws SailException;
 
 	/**
 	 * Removes all inferred statements from the specified/all contexts. If no contexts are specified the method operates
 	 * on the entire repository.
-	 * 
+	 *
 	 * @param contexts The context(s) from which to remove the statements. Note that this parameter is a vararg and as
 	 *                 such is optional. If no contexts are supplied the method operates on the entire repository.
 	 * @throws SailException         If the statements could not be removed.
 	 * @throws IllegalStateException If the connection has been closed.
 	 */
-	public void clearInferred(Resource... contexts) throws SailException;
+	void clearInferred(Resource... contexts) throws SailException;
 
 	/**
 	 * Flushes any pending updates to be processed and the resulting changes to be reported to registered
 	 * {@link SailConnectionListener}s.
-	 * 
+	 *
 	 * @throws SailException         If the updates could not be processed.
 	 * @throws IllegalStateException If the connection has been closed.
 	 */
-	public void flushUpdates() throws SailException;
+	void flushUpdates() throws SailException;
 }

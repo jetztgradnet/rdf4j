@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.sparql.query;
 
@@ -13,13 +16,13 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.rdf4j.common.iterator.ConvertingIterator;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.query.AbstractBindingSet;
 import org.eclipse.rdf4j.query.Binding;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.impl.MapBindingSet;
 import org.eclipse.rdf4j.query.impl.SimpleBinding;
-import org.eclipse.rdf4j.util.iterators.ConvertingIterator;
 
 /**
  * An implementation of the {@link BindingSet} interface that is used to evaluate query object models. This
@@ -61,7 +64,7 @@ public class SPARQLQueryBindingSet extends AbstractBindingSet {
 
 	/**
 	 * Adds a new binding to the binding set. The binding's name must not already be part of this binding set.
-	 * 
+	 *
 	 * @param binding The binding to add this this BindingSet.
 	 */
 	public void addBinding(Binding binding) {
@@ -70,7 +73,7 @@ public class SPARQLQueryBindingSet extends AbstractBindingSet {
 
 	/**
 	 * Adds a new binding to the binding set. The binding's name must not already be part of this binding set.
-	 * 
+	 *
 	 * @param name  The binding's name, must not be bound in this binding set already.
 	 * @param value The binding's value.
 	 */
@@ -129,7 +132,7 @@ public class SPARQLQueryBindingSet extends AbstractBindingSet {
 	public Iterator<Binding> iterator() {
 		Iterator<Map.Entry<String, Value>> entries = bindings.entrySet().iterator();
 
-		return new ConvertingIterator<Map.Entry<String, Value>, Binding>(entries) {
+		return new ConvertingIterator<>(entries) {
 
 			@Override
 			protected Binding convert(Map.Entry<String, Value> entry) {

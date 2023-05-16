@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.workbench.proxy;
 
@@ -74,7 +77,7 @@ public class WorkbenchGateway extends AbstractServlet {
 	/**
 	 * Returns the value of the default-server configuration variable. Often, this is simply a relative path on the same
 	 * HTTP server.
-	 * 
+	 *
 	 * @return the path to the default Sesame server instance
 	 */
 	public String getDefaultServerPath() {
@@ -83,7 +86,7 @@ public class WorkbenchGateway extends AbstractServlet {
 
 	/**
 	 * Whether the server path is fixed, which is when the change-server-path configuration value is not set.
-	 * 
+	 *
 	 * @return true, if the change-server-path configuration variable is not set, meaning that changing the server is
 	 *         blocked
 	 */
@@ -125,7 +128,7 @@ public class WorkbenchGateway extends AbstractServlet {
 
 	/**
 	 * Handles requests to the "change server" page.
-	 * 
+	 *
 	 * @param req  the servlet request object
 	 * @param resp the servlet response object
 	 * @throws IOException                 if an issue occurs writing to the response
@@ -191,7 +194,7 @@ public class WorkbenchGateway extends AbstractServlet {
 
 	/**
 	 * Returns the user requested server, if valid, or the default server.
-	 * 
+	 *
 	 * @param req  the request
 	 * @param resp the response
 	 * @return the user's requested server, if valid, or the default server
@@ -213,7 +216,7 @@ public class WorkbenchGateway extends AbstractServlet {
 
 	/**
 	 * Returns a WorkbenchServlet instance allocated for the requested server.
-	 * 
+	 *
 	 * @param req  the current request
 	 * @param resp the current response
 	 * @return a WorkbenchServlet instance allocated for the requested server
@@ -251,7 +254,7 @@ public class WorkbenchGateway extends AbstractServlet {
 
 	/**
 	 * Returns the full URL to the default server on the same server as the given request.
-	 * 
+	 *
 	 * @param req the request to find the default server relative to
 	 * @return the full URL to the default server on the same server as the given request
 	 */
@@ -268,7 +271,7 @@ public class WorkbenchGateway extends AbstractServlet {
 
 	/**
 	 * Returns the full path for the given request.
-	 * 
+	 *
 	 * @param req the request for which the path is sought
 	 * @return the full path for the given request
 	 */

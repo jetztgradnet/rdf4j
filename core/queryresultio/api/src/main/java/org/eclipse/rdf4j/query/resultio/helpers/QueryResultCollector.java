@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.resultio.helpers;
 
@@ -23,10 +26,10 @@ import org.eclipse.rdf4j.query.TupleQueryResultHandlerException;
  * Boolean or Tuple results simultaneously.
  * <p>
  * The {@link List}s that are returned by this interface are immutable.
- * 
+ *
  * @author Peter Ansell
  */
-public class QueryResultCollector implements QueryResultHandler, TupleQueryResultHandler, BooleanQueryResultHandler {
+public class QueryResultCollector implements TupleQueryResultHandler, BooleanQueryResultHandler {
 
 	private boolean hasBooleanSet = false;
 
@@ -38,7 +41,7 @@ public class QueryResultCollector implements QueryResultHandler, TupleQueryResul
 
 	private List<BindingSet> bindingSets = Collections.emptyList();
 
-	private List<String> links = new ArrayList<>();
+	private final List<String> links = new ArrayList<>();
 
 	public QueryResultCollector() {
 	}
@@ -78,7 +81,7 @@ public class QueryResultCollector implements QueryResultHandler, TupleQueryResul
 
 	/**
 	 * Determines whether {@link #handleBoolean(boolean)} was called for this collector.
-	 * 
+	 *
 	 * @return True if there was a boolean handled by this collector.
 	 */
 	public boolean getHandledBoolean() {
@@ -91,7 +94,7 @@ public class QueryResultCollector implements QueryResultHandler, TupleQueryResul
 	 * <p>
 	 * If {@link #getHandledBoolean()} returns false this method throws a {@link QueryResultHandlerException} indicating
 	 * that a response could not be provided.
-	 * 
+	 *
 	 * @return The boolean value that was collected.
 	 * @throws QueryResultHandlerException If there was no boolean value collected.
 	 */
@@ -106,7 +109,7 @@ public class QueryResultCollector implements QueryResultHandler, TupleQueryResul
 	/**
 	 * Determines whether {@link #endQueryResult()} was called after the last calls to {@link #startQueryResult(List)}
 	 * and optionally calls to {@link #handleSolution(BindingSet)}.
-	 * 
+	 *
 	 * @return True if there was a call to {@link #endQueryResult()} after the last calls to
 	 *         {@link #startQueryResult(List)} and {@link #handleSolution(BindingSet)}.
 	 */
@@ -116,7 +119,7 @@ public class QueryResultCollector implements QueryResultHandler, TupleQueryResul
 
 	/**
 	 * Returns a collection of binding names collected.
-	 * 
+	 *
 	 * @return An immutable list of {@link String}s that were collected as the binding names.
 	 * @throws QueryResultHandlerException If the tuple results set was not successfully collected, as signalled by a
 	 *                                     call to {@link #endQueryResult()}.

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.evaluation.join;
 
@@ -16,30 +19,35 @@ import java.util.Set;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.federated.evaluation.FederationEvalStrategy;
 import org.eclipse.rdf4j.federated.evaluation.iterator.LazyMutableClosableIteration;
-import org.eclipse.rdf4j.federated.optimizer.JoinOrderOptimizer;
 import org.eclipse.rdf4j.federated.structures.QueryInfo;
+import org.eclipse.rdf4j.federated.util.QueryAlgebraUtil;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.query.Binding;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.QueryEvaluationException;
 import org.eclipse.rdf4j.query.algebra.TupleExpr;
+import org.eclipse.rdf4j.query.algebra.evaluation.QueryEvaluationStep;
 import org.eclipse.rdf4j.query.impl.MapBindingSet;
 import org.eclipse.rdf4j.repository.sparql.federation.CollectionIteration;
 
 /**
  * Operator for a hash join of tuple expressions.
- * 
+ *
  * @author Andreas Schwarte
  * @since 6.0
  */
 public class HashJoin extends JoinExecutorBase<BindingSet> {
 
+	private final QueryEvaluationStep rightPrepared;
+
 	public HashJoin(FederationEvalStrategy strategy,
 			CloseableIteration<BindingSet, QueryEvaluationException> leftIter,
-			TupleExpr rightArg, Set<String> joinVars, BindingSet bindings, QueryInfo queryInfo)
+			TupleExpr rightArg, QueryEvaluationStep rightPrepared, Set<String> joinVars, BindingSet bindings,
+			QueryInfo queryInfo)
 			throws QueryEvaluationException {
 		super(strategy, leftIter, rightArg, bindings, queryInfo);
 		setJoinVars(joinVars);
+		this.rightPrepared = rightPrepared;
 	}
 
 	@Override
@@ -48,15 +56,15 @@ public class HashJoin extends JoinExecutorBase<BindingSet> {
 		// the total number of bindings
 		int totalBindingsLeft = 0;
 		int totalBindingsRight = 0;
-		Collection<String> rightFreeVars = JoinOrderOptimizer.getFreeVars(rightArg);
+		Collection<String> rightFreeVars = QueryAlgebraUtil.getFreeVars(rightArg);
 		Set<String> joinVars = getJoinVars();
 
 		// evaluate the right join argument
 		// Note: wrapped in lazy mutable iteration for repetitive reading
 		try (LazyMutableClosableIteration rightArgIter = new LazyMutableClosableIteration(
-				strategy.evaluate(rightArg, bindings))) {
+				rightPrepared.evaluate(bindings))) {
 
-			while (!closed && leftIter.hasNext()) {
+			while (!isClosed() && leftIter.hasNext()) {
 
 				int blockSizeL = 10;
 				if (totalBindingsLeft > 20) {
@@ -69,7 +77,7 @@ public class HashJoin extends JoinExecutorBase<BindingSet> {
 				}
 
 				int blockSizeR = 10;
-				while (!closed && rightArgIter.hasNext()) {
+				while (!isClosed() && rightArgIter.hasNext()) {
 					if (totalBindingsRight > 20) {
 						blockSizeR = 100;
 					}
@@ -96,7 +104,7 @@ public class HashJoin extends JoinExecutorBase<BindingSet> {
 	 * <p>
 	 * See {@link #join(Collection, Collection, Set, Collection)} and {@link #addResult(CloseableIteration)}.
 	 * </p>
-	 * 
+	 *
 	 * @param leftBlock
 	 * @param rightBlock
 	 * @param joinVariables
@@ -113,7 +121,7 @@ public class HashJoin extends JoinExecutorBase<BindingSet> {
 	 * This method keeps the merged bindings in the results, if the join variables match and if all previously resolved
 	 * bindings hold.
 	 * </p>
-	 * 
+	 *
 	 * @param leftBlock
 	 * @param rightBlock
 	 * @param joinVariables
@@ -158,10 +166,10 @@ public class HashJoin extends JoinExecutorBase<BindingSet> {
 					// emit a merged binding set
 					MapBindingSet mergedBindings = new MapBindingSet();
 					for (Binding b : left) {
-						mergedBindings.addBinding(b);
+						mergedBindings.setBinding(b);
 					}
 					for (Binding b : right) {
-						mergedBindings.addBinding(b);
+						mergedBindings.setBinding(b);
 					}
 					res.add(mergedBindings);
 				}

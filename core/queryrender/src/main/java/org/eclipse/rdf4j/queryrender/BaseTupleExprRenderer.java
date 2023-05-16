@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.queryrender;
 
@@ -32,7 +35,7 @@ import org.eclipse.rdf4j.query.parser.ParsedQuery;
  * <p>
  * Base class for rendering RDF4J query API objects into strings.
  * </p>
- * 
+ *
  * @author Michael Grove
  */
 public abstract class BaseTupleExprRenderer extends AbstractQueryModelVisitor<Exception> {
@@ -114,9 +117,9 @@ public abstract class BaseTupleExprRenderer extends AbstractQueryModelVisitor<Ex
 
 	/**
 	 * Render the ParsedQuery as a query string
-	 * 
+	 *
 	 * @param theQuery the parsed query to render
-	 * @return the query object rendered in the serql syntax
+	 * @return the query object rendered in the query language syntax
 	 * @throws Exception if there is an error while rendering
 	 */
 	public String render(ParsedQuery theQuery) throws Exception {
@@ -125,16 +128,16 @@ public abstract class BaseTupleExprRenderer extends AbstractQueryModelVisitor<Ex
 
 	/**
 	 * Render the TupleExpr as a query or query fragment depending on what kind of TupleExpr it is
-	 * 
+	 *
 	 * @param theExpr the expression to render
-	 * @return the TupleExpr rendered in the serql syntax
+	 * @return the TupleExpr rendered in the query language syntax
 	 * @throws Exception if there is an error while rendering
 	 */
 	public abstract String render(TupleExpr theExpr) throws Exception;
 
 	/**
 	 * Render the given ValueExpr
-	 * 
+	 *
 	 * @param theExpr the expr to render
 	 * @return the rendered expression
 	 * @throws Exception if there is an error while rendering
@@ -144,7 +147,7 @@ public abstract class BaseTupleExprRenderer extends AbstractQueryModelVisitor<Ex
 	/**
 	 * Turn a ProjectionElemList for a construct query projection (three elements aliased as 'subject', 'predicate' and
 	 * 'object' in that order) into a StatementPattern.
-	 * 
+	 *
 	 * @param theList the elem list to render
 	 * @return the elem list for a construct projection as a statement pattern
 	 * @throws Exception if there is an exception while rendering
@@ -155,30 +158,30 @@ public abstract class BaseTupleExprRenderer extends AbstractQueryModelVisitor<Ex
 		ProjectionElem aObj = theList.getElements().get(2);
 
 		return new StatementPattern(
-				mExtensions.containsKey(aSubj.getSourceName())
-						? new Var(scrubVarName(aSubj.getSourceName()), asValue(mExtensions.get(aSubj.getSourceName())))
-						: new Var(scrubVarName(aSubj.getSourceName())),
-				mExtensions.containsKey(aPred.getSourceName())
-						? new Var(scrubVarName(aPred.getSourceName()), asValue(mExtensions.get(aPred.getSourceName())))
-						: new Var(scrubVarName(aPred.getSourceName())),
-				mExtensions.containsKey(aObj.getSourceName())
-						? new Var(scrubVarName(aObj.getSourceName()), asValue(mExtensions.get(aObj.getSourceName())))
-						: new Var(scrubVarName(aObj.getSourceName())));
+				mExtensions.containsKey(aSubj.getName())
+						? new Var(scrubVarName(aSubj.getName()), asValue(mExtensions.get(aSubj.getName())))
+						: new Var(scrubVarName(aSubj.getName())),
+				mExtensions.containsKey(aPred.getName())
+						? new Var(scrubVarName(aPred.getName()), asValue(mExtensions.get(aPred.getName())))
+						: new Var(scrubVarName(aPred.getName())),
+				mExtensions.containsKey(aObj.getName())
+						? new Var(scrubVarName(aObj.getName()), asValue(mExtensions.get(aObj.getName())))
+						: new Var(scrubVarName(aObj.getName())));
 	}
 
 	/**
 	 * Scrub any illegal characters out of the variable name
-	 * 
+	 *
 	 * @param theName the potential variable name
 	 * @return the name scrubbed of any illegal characters
 	 */
 	public static String scrubVarName(String theName) {
-		return theName.replaceAll("-", "");
+		return theName.replace("-", "");
 	}
 
 	/**
 	 * Return the {@link ValueExpr} as a {@link Value} if possible.
-	 * 
+	 *
 	 * @param theValue the ValueExpr to convert
 	 * @return the expression as a Value, or null if it cannot be converted
 	 * @throws Exception if there is an error converting to a Value
@@ -200,7 +203,7 @@ public abstract class BaseTupleExprRenderer extends AbstractQueryModelVisitor<Ex
 
 	/**
 	 * Returns whether or not the results of scanning the query model indicates that this represents a select query
-	 * 
+	 *
 	 * @return true if its a select query, false if its a construct query
 	 */
 	protected boolean isSelect() {
@@ -218,19 +221,19 @@ public abstract class BaseTupleExprRenderer extends AbstractQueryModelVisitor<Ex
 
 	/**
 	 * Return whether or not this projection looks like an spo binding for a construct query
-	 * 
+	 *
 	 * @param theList the projection element list to inspect
 	 * @return true if it has the format of a spo construct projection element, false otherwise
 	 */
 	public static boolean isSPOElemList(ProjectionElemList theList) {
 		return theList.getElements().size() == 3
-				&& theList.getElements().get(0).getTargetName().equalsIgnoreCase("subject")
-				&& theList.getElements().get(1).getTargetName().equalsIgnoreCase("predicate")
-				&& theList.getElements().get(2).getTargetName().equalsIgnoreCase("object");
+				&& theList.getElements().get(0).getProjectionAlias().get().equalsIgnoreCase("subject")
+				&& theList.getElements().get(1).getProjectionAlias().get().equalsIgnoreCase("predicate")
+				&& theList.getElements().get(2).getProjectionAlias().get().equalsIgnoreCase("object");
 	}
 
 	/**
-	 * @inheritDoc
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void meet(final StatementPattern theStatementPattern) throws Exception {
@@ -238,7 +241,7 @@ public abstract class BaseTupleExprRenderer extends AbstractQueryModelVisitor<Ex
 	}
 
 	/**
-	 * @inheritDoc
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void meet(final Slice theSlice) throws Exception {
@@ -254,7 +257,7 @@ public abstract class BaseTupleExprRenderer extends AbstractQueryModelVisitor<Ex
 	}
 
 	/**
-	 * @inheritDoc
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void meet(final ExtensionElem theExtensionElem) throws Exception {
@@ -262,7 +265,7 @@ public abstract class BaseTupleExprRenderer extends AbstractQueryModelVisitor<Ex
 	}
 
 	/**
-	 * @inheritDoc
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void meet(final ProjectionElemList theProjectionElemList) throws Exception {
@@ -274,7 +277,7 @@ public abstract class BaseTupleExprRenderer extends AbstractQueryModelVisitor<Ex
 	}
 
 	/**
-	 * @inheritDoc
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void meet(final OrderElem theOrderElem) throws Exception {
@@ -282,7 +285,7 @@ public abstract class BaseTupleExprRenderer extends AbstractQueryModelVisitor<Ex
 	}
 
 	/**
-	 * @inheritDoc
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void meet(final Distinct theDistinct) throws Exception {
@@ -292,7 +295,7 @@ public abstract class BaseTupleExprRenderer extends AbstractQueryModelVisitor<Ex
 	}
 
 	/**
-	 * @inheritDoc
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void meet(final Reduced theReduced) throws Exception {

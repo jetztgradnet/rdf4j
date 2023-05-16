@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.helpers;
 
@@ -26,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Used to create a lock in a directory.
- * 
+ *
  * @author James Leigh
  * @author Arjohn Kampman
  */
@@ -57,7 +60,7 @@ public class DirectoryLockManager implements LockManager {
 
 	/**
 	 * Determines if the directory is locked.
-	 * 
+	 *
 	 * @return <code>true</code> if the directory is already locked.
 	 */
 	@Override
@@ -67,7 +70,7 @@ public class DirectoryLockManager implements LockManager {
 
 	/**
 	 * Creates a lock in a directory if it does not yet exist.
-	 * 
+	 *
 	 * @return a newly acquired lock or null if the directory is already locked.
 	 */
 	@Override
@@ -111,7 +114,7 @@ public class DirectoryLockManager implements LockManager {
 
 	/**
 	 * Creates a lock in a directory if it does not yet exist.
-	 * 
+	 *
 	 * @return a newly acquired lock.
 	 * @throws SailLockedException if the directory is already locked.
 	 */
@@ -140,7 +143,7 @@ public class DirectoryLockManager implements LockManager {
 
 	/**
 	 * Revokes a lock owned by another process.
-	 * 
+	 *
 	 * @return <code>true</code> if a lock was successfully revoked.
 	 */
 	@Override
@@ -195,15 +198,10 @@ public class DirectoryLockManager implements LockManager {
 		return new Lock() {
 
 			private Thread hook;
+
 			{
 				try {
-					Thread hook = new Thread(new Runnable() {
-
-						@Override
-						public void run() {
-							delete();
-						}
-					});
+					Thread hook = new Thread(this::delete);
 					Runtime.getRuntime().addShutdownHook(hook);
 					this.hook = hook;
 				} catch (AccessControlException e) {

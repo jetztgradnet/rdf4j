@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.workbench.commands;
 
@@ -11,14 +14,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 
-import org.eclipse.rdf4j.RDF4JException;
+import org.eclipse.rdf4j.common.exception.RDF4JException;
 import org.eclipse.rdf4j.common.io.IOUtil;
+import org.eclipse.rdf4j.federated.repository.FedXRepositoryConfigBuilder;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
@@ -31,24 +37,19 @@ import org.eclipse.rdf4j.repository.config.ConfigTemplate;
 import org.eclipse.rdf4j.repository.config.RepositoryConfig;
 import org.eclipse.rdf4j.repository.config.RepositoryConfigSchema;
 import org.eclipse.rdf4j.repository.manager.RepositoryInfo;
-import org.eclipse.rdf4j.repository.manager.SystemRepository;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.RDFParser;
 import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.rio.helpers.StatementCollector;
-import org.eclipse.rdf4j.runtime.RepositoryManagerFederator;
 import org.eclipse.rdf4j.workbench.base.TransformationServlet;
 import org.eclipse.rdf4j.workbench.util.TupleResultBuilder;
 import org.eclipse.rdf4j.workbench.util.WorkbenchRequest;
 
 public class CreateServlet extends TransformationServlet {
 
-	private RepositoryManagerFederator rmf;
-
 	@Override
 	public void init(final ServletConfig config) throws ServletException {
 		super.init(config);
-		this.rmf = new RepositoryManagerFederator(manager);
 	}
 
 	/**
@@ -66,7 +67,7 @@ public class CreateServlet extends TransformationServlet {
 
 	/**
 	 * GET requests to this servlet come from the Workbench side bar or from create.xsl form submissions.
-	 * 
+	 *
 	 * @throws RepositoryException
 	 * @throws QueryResultHandlerException
 	 */
@@ -84,13 +85,11 @@ public class CreateServlet extends TransformationServlet {
 			builder.transform(xslPath, "create.xsl");
 		}
 		builder.start(federate ? new String[] { "id", "description", "location" } : new String[] {});
-		builder.link(Arrays.asList(INFO));
+		builder.link(List.of(INFO));
 		if (federate) {
 			for (RepositoryInfo info : manager.getAllRepositoryInfos()) {
 				String identity = info.getId();
-				if (!SystemRepository.ID.equals(identity)) {
-					builder.result(identity, info.getDescription(), info.getLocation());
-				}
+				builder.result(identity, info.getDescription(), info.getLocation());
 			}
 		}
 		builder.end();
@@ -101,9 +100,8 @@ public class CreateServlet extends TransformationServlet {
 		String newID;
 		if ("federate".equals(type)) {
 			newID = req.getParameter("Local repository ID");
-			rmf.addFed(newID, req.getParameter("Repository title"), Arrays.asList(req.getParameterValues("memberID")),
-					Boolean.parseBoolean(req.getParameter("readonly")),
-					Boolean.parseBoolean(req.getParameter("distinct")));
+			addFederated(newID, req.getParameter("Repository title"),
+					Arrays.asList(req.getParameterValues("memberID")));
 		} else {
 			newID = updateRepositoryConfig(getConfigTemplate(type).render(req.getSingleParameterMap())).getID();
 		}
@@ -116,7 +114,7 @@ public class CreateServlet extends TransformationServlet {
 		rdfParser.setRDFHandler(new StatementCollector(graph));
 		rdfParser.parse(new StringReader(configString), RepositoryConfigSchema.NAMESPACE);
 
-		Resource res = Models.subject(graph.filter(null, RDF.TYPE, RepositoryConfigSchema.REPOSITORY))
+		Resource res = Models.subject(graph.getStatements(null, RDF.TYPE, RepositoryConfigSchema.REPOSITORY))
 				.orElseThrow(() -> new RepositoryException("could not find instance of Repository class in config"));
 		final RepositoryConfig repConfig = RepositoryConfig.create(graph, res);
 		repConfig.validate();
@@ -124,9 +122,18 @@ public class CreateServlet extends TransformationServlet {
 		return repConfig;
 	}
 
+	private void addFederated(String repositoryId, String repositoryTitle, List<String> memberIds) {
+
+		RepositoryConfig repoConfig = FedXRepositoryConfigBuilder.create()
+				.withResolvableEndpoint(memberIds)
+				.build(repositoryId, repositoryTitle);
+		repoConfig.validate();
+		manager.addRepositoryConfig(repoConfig);
+	}
+
 	static ConfigTemplate getConfigTemplate(final String type) throws IOException {
 		try (InputStream ttlInput = RepositoryConfig.class.getResourceAsStream(type + ".ttl")) {
-			final String template = IOUtil.readString(new InputStreamReader(ttlInput, "UTF-8"));
+			final String template = IOUtil.readString(new InputStreamReader(ttlInput, StandardCharsets.UTF_8));
 			return new ConfigTemplate(template);
 		}
 	}

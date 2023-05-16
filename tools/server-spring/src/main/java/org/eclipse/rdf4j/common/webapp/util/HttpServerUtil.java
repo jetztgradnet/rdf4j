@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.common.webapp.util;
 
@@ -20,10 +23,10 @@ public class HttpServerUtil {
 	/**
 	 * Extracts the MIME type from the specified content type string. This method parses the content type string and
 	 * returns just the MIME type, ignoring any parameters that are included.
-	 * 
-	 * @param contentType A content type string, e.g. <tt>application/xml; charset=utf-8</tt> .
-	 * @return The MIME type part of the specified content type string, or <tt>null</tt> if the specified content type
-	 *         string was <tt>null</tt>.
+	 *
+	 * @param contentType A content type string, e.g. <var>application/xml; charset=utf-8</var> .
+	 * @return The MIME type part of the specified content type string, or <var>null</var> if the specified content type
+	 *         string was <var>null</var>.
 	 */
 	public static String getMIMEType(String contentType) {
 		if (contentType == null) {
@@ -36,10 +39,10 @@ public class HttpServerUtil {
 	/**
 	 * Selects from a set of MIME types, the MIME type that has the highest quality score when matched with the Accept
 	 * headers in the supplied request.
-	 * 
+	 *
 	 * @param mimeTypes The set of available MIME types.
 	 * @param request   The request to match the MIME types against.
-	 * @return The MIME type that best matches the types that the client finds acceptable, or <tt>null</tt> in case no
+	 * @return The MIME type that best matches the types that the client finds acceptable, or <var>null</var> in case no
 	 *         acceptable MIME type could be found.
 	 */
 	public static String selectPreferredMIMEType(Iterator<String> mimeTypes, HttpServletRequest request) {
@@ -99,7 +102,7 @@ public class HttpServerUtil {
 
 	/**
 	 * Checks if the first supplied MIME type is more specific than the second supplied MIME type.
-	 * 
+	 *
 	 * @param leftMimeTypeElem
 	 * @param rightMimeTypeElem
 	 * @return true iff leftMimeTypeElem is a more specific MIME type spec than rightMimeTypeElem, false otherwise.
@@ -141,7 +144,7 @@ public class HttpServerUtil {
 
 	/**
 	 * Gets the elements of the request header with the specified name.
-	 * 
+	 *
 	 * @param request    The request to get the header from.
 	 * @param headerName The name of the header to get the elements of.
 	 * @return A List of {@link HeaderElement} objects.
@@ -171,10 +174,10 @@ public class HttpServerUtil {
 	/**
 	 * Splits the supplied string into sub parts using the specified splitChar as a separator, ignoring occurrences of
 	 * this character inside quoted strings.
-	 * 
+	 *
 	 * @param s         The header string to split into sub parts.
 	 * @param splitChar The character to use as separator.
-	 * @return A <tt>List</tt> of <tt>String</tt>s.
+	 * @return A <var>List</var> of <var>String</var>s.
 	 */
 	public static List<String> splitHeaderString(String s, char splitChar) {
 		List<String> result = new ArrayList<>(8);
@@ -203,11 +206,11 @@ public class HttpServerUtil {
 	/**
 	 * Tries to match the specified MIME type spec against the list of Accept header elements, returning the applicable
 	 * header element if available.
-	 * 
+	 *
 	 * @param mimeTypeSpec   The MIME type to determine the quality for, e.g. "text/plain" or "application/xml;
 	 *                       charset=utf-8".
 	 * @param acceptElements A List of {@link HeaderElement} objects.
-	 * @return The Accept header element that matches the MIME type spec most closely, or <tt>null</tt> if no such
+	 * @return The Accept header element that matches the MIME type spec most closely, or <var>null</var> if no such
 	 *         header element could be found.
 	 */
 	public static HeaderElement matchAcceptHeader(String mimeTypeSpec, List<HeaderElement> acceptElements) {
@@ -252,7 +255,7 @@ public class HttpServerUtil {
 	 * <li>If the MIME type element has one or more parameters, the last parameter is removed.
 	 * <li>Otherwise, if the MIME type element's subtype is not equal to '*' then it is set to this value.
 	 * <li>Otherwise, if the MIME type element's type is not equal to '*' then it is set to this value.
-	 * <li>Otherwise, the MIME type is equal to "*&slash;*" and cannot be generalized any further; <tt>null</tt> is
+	 * <li>Otherwise, the MIME type is equal to "*&slash;*" and cannot be generalized any further; <var>null</var> is
 	 * returned.
 	 * </ul>
 	 * <p>
@@ -277,12 +280,12 @@ public class HttpServerUtil {
 	 * </tr>
 	 * <tr>
 	 * <td>&slash;*</td>
-	 * <td><tt>null</tt></td>
+	 * <td><var>null</var></td>
 	 * </tr>
 	 * </table>
-	 * 
+	 *
 	 * @param mimeTypeElem The MIME type element that should be generalized.
-	 * @return The generalized MIME type element, or <tt>null</tt> if it could not be generalized any further.
+	 * @return The generalized MIME type element, or <var>null</var> if it could not be generalized any further.
 	 */
 	private static HeaderElement generalizeMIMEType(HeaderElement mimeTypeElem) {
 		int parameterCount = mimeTypeElem.getParameterCount();
@@ -318,7 +321,7 @@ public class HttpServerUtil {
 
 	/**
 	 * Gets the trimmed value of a request parameter as a String.
-	 * 
+	 *
 	 * @return The trimmed value, or null if the parameter does not exist.
 	 */
 	public static String getPostDataParameter(Map<String, Object> formData, String name) {
@@ -350,7 +353,7 @@ public class HttpServerUtil {
 	 */
 	public static boolean isEmpty(String string) {
 		boolean result = false;
-		if (string == null || string.trim().equals("")) {
+		if (string == null || string.trim().isEmpty()) {
 			result = true;
 		}
 		return result;

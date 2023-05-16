@@ -1,29 +1,33 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console.setting;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 
-import org.slf4j.LoggerFactory;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 
 /**
  * Console log level setting.
- * 
+ *
  * @author Bart Hanssens
  */
 public class LogLevel extends ConsoleSetting<String> {
 	public final static String NAME = "log";
 
 	private static final BiMap<String, Level> LOG_LEVELS;
+
 	static {
 		ImmutableBiMap.Builder<String, Level> logLevels = ImmutableBiMap.<String, Level>builder();
 

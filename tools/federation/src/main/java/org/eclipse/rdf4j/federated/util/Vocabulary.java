@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.util;
 
@@ -13,7 +16,7 @@ import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 
 /**
  * Vocabulary used in FedX to describe endpoints and services
- * 
+ *
  * @author Andreas Schwarte
  *
  */
@@ -23,7 +26,7 @@ public class Vocabulary {
 
 	/**
 	 * FedX specific vocabulary
-	 * 
+	 *
 	 * @author Andreas Schwarte
 	 *
 	 */
@@ -44,13 +47,15 @@ public class Vocabulary {
 		public static final IRI REPOSITORY_SERVER = vf.createIRI(NAMESPACE, "repositoryServer");
 
 		public static final IRI REPOSITORY_NAME = vf.createIRI(NAMESPACE, "repositoryName");
+
+		public static final IRI WRITABLE = vf.createIRI(NAMESPACE, "writable");
 	}
 
 	/**
 	 * Vocabulary from the SPARQL 1.1. service description
-	 * 
+	 *
 	 * See https://www.w3.org/TR/sparql11-service-description/
-	 * 
+	 *
 	 * @author Andreas Schwarte
 	 *
 	 */

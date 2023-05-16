@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.workbench.util;
 
@@ -11,8 +14,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 
-import org.eclipse.rdf4j.RDF4JException;
 import org.eclipse.rdf4j.common.app.AppConfiguration;
+import org.eclipse.rdf4j.common.exception.RDF4JException;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.query.MalformedQueryException;
 import org.eclipse.rdf4j.query.QueryEvaluationException;
@@ -33,7 +36,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Provides an interface to the private repository with the saved queries.
- * 
+ *
  * @author Dale Visser
  */
 public class QueryStorage {
@@ -113,14 +116,14 @@ public class QueryStorage {
 
 	/**
 	 * Create a new object for accessing the store of user queries.
-	 * 
+	 *
 	 * @param appConfig the application configuration, for obtaining the data directory
 	 * @throws RepositoryException if there is an issue creating the object to access the repository
 	 * @throws IOException
 	 */
-	protected QueryStorage(final AppConfiguration appConfig) throws RepositoryException, IOException {
+	private QueryStorage(final AppConfiguration appConfig) throws RepositoryException, IOException {
 		queries = new SailRepository(new NativeStore(new File(appConfig.getDataDir(), "queries")));
-		queries.initialize();
+		queries.init();
 	}
 
 	public void shutdown() {
@@ -135,7 +138,7 @@ public class QueryStorage {
 
 	/**
 	 * Checks whether the current user/password credentials can really access the current repository.
-	 * 
+	 *
 	 * @param repository the current repository
 	 * @return true, if it is possible to request a statement from the repository with the given credentials
 	 * @throws RepositoryException if there is an issue closing the connection
@@ -156,12 +159,12 @@ public class QueryStorage {
 	/**
 	 * Save a query. UNSAFE from an injection point of view. It is the responsibility of the calling code to call
 	 * checkAccess() with the full credentials first.
-	 * 
+	 *
 	 * @param repository    the repository the query is associated with
 	 * @param queryName     the name for the query
 	 * @param userName      the user saving the query
 	 * @param shared        whether the query is to be shared with other users
-	 * @param queryLanguage the language, SeRQL or SPARQL, of the query
+	 * @param queryLanguage the language of the query (only SPARQL is currently supported)
 	 * @param queryText     the actual query text
 	 * @param infer
 	 * @param rowsPerPage   rows to display per page, may be 0 (all), 10, 50, 100, or 200)
@@ -170,8 +173,8 @@ public class QueryStorage {
 	public void saveQuery(final HTTPRepository repository, final String queryName, final String userName,
 			final boolean shared, final QueryLanguage queryLanguage, final String queryText, final boolean infer,
 			final int rowsPerPage) throws RDF4JException {
-		if (QueryLanguage.SPARQL != queryLanguage && QueryLanguage.SERQL != queryLanguage) {
-			throw new RepositoryException("May only save SPARQL or SeRQL queries, not" + queryLanguage.toString());
+		if (QueryLanguage.SPARQL != queryLanguage) {
+			throw new RepositoryException("May only save SPARQL queries, not" + queryLanguage.toString());
 		}
 		if (0 != rowsPerPage && 10 != rowsPerPage && 20 != rowsPerPage && 50 != rowsPerPage && 100 != rowsPerPage
 				&& 200 != rowsPerPage) {
@@ -188,10 +191,10 @@ public class QueryStorage {
 
 	/**
 	 * Determines whether the user with the given userName is allowed to update or delete the given query.
-	 * 
+	 *
 	 * @param query       the node identifying the query of interest
 	 * @param currentUser the user to check access for
-	 * @return <tt>true</tt> if the given query was saved by the given user or the anonymous user
+	 * @return <var>true</var> if the given query was saved by the given user or the anonymous user
 	 */
 	public boolean canChange(final IRI query, final String currentUser)
 			throws RepositoryException, QueryEvaluationException, MalformedQueryException {
@@ -200,10 +203,10 @@ public class QueryStorage {
 
 	/**
 	 * Determines whether the user with the given userName is allowed to read the given query.
-	 * 
+	 *
 	 * @param query       the node identifying the query of interest
 	 * @param currentUser the user to check access for
-	 * @return <tt>true</tt> if the given query was saved by either the given user or the anonymous user, or is shared
+	 * @return <var>true</var> if the given query was saved by either the given user or the anonymous user, or is shared
 	 */
 	public boolean canRead(IRI query, String currentUser)
 			throws RepositoryException, QueryEvaluationException, MalformedQueryException {
@@ -213,7 +216,7 @@ public class QueryStorage {
 	private boolean performAccessQuery(String accessSPARQL, IRI query, String currentUser)
 			throws RepositoryException, QueryEvaluationException, MalformedQueryException {
 		final QueryStringBuilder canDelete = new QueryStringBuilder(accessSPARQL);
-		canDelete.replaceURI(QUERY, query.toString());
+		canDelete.replaceURI(QUERY, query.stringValue());
 		canDelete.replaceQuote(USER_NAME, currentUser);
 		LOGGER.info("{}", canDelete);
 		try (RepositoryConnection connection = this.queries.getConnection()) {
@@ -236,7 +239,7 @@ public class QueryStorage {
 	/**
 	 * Delete the given query for the given user. It is the responsibility of the calling code to call checkAccess() and
 	 * canDelete() with the full credentials first.
-	 * 
+	 *
 	 * @param query
 	 * @param userName
 	 * @throws RepositoryException
@@ -247,14 +250,14 @@ public class QueryStorage {
 			throws RepositoryException, UpdateExecutionException, MalformedQueryException {
 		final QueryStringBuilder delete = new QueryStringBuilder(DELETE);
 		delete.replaceQuote(QueryStorage.USER_NAME, userName);
-		delete.replaceURI(QUERY, query.toString());
+		delete.replaceURI(QUERY, query.stringValue());
 		updateQueryRepository(delete.toString());
 	}
 
 	/**
 	 * Update the entry for the given query. It is the responsibility of the calling code to call checkAccess() with the
 	 * full credentials first.
-	 * 
+	 *
 	 * @param query         the query to update
 	 * @param userName      the user name
 	 * @param shared        whether to share with other users
@@ -279,7 +282,7 @@ public class QueryStorage {
 	 * Prepares a query to retrieve the queries accessible to the given user in the given repository. When evaluated,
 	 * the query result will have the following binding names: query, user, queryName, shared, queryLn, queryText,
 	 * rowsPerPage. It is the responsibility of the calling code to call checkAccess() with the full credentials first.
-	 * 
+	 *
 	 * @param repository that the saved queries run against
 	 * @param userName   that is requesting the saved queries
 	 * @param builder    receives a list of all the saved queries against the given repository and accessible to the
@@ -302,7 +305,7 @@ public class QueryStorage {
 
 	/**
 	 * Returns the URI for the saved query in the given repository with the given name, owned by the given owner.
-	 * 
+	 *
 	 * @param repository The repository the query is associated with.
 	 * @param owner      The user that saved the query.
 	 * @param queryName  The name given to the query.
@@ -316,24 +319,23 @@ public class QueryStorage {
 		select.replaceQuote(QueryStorage.USER_NAME, owner);
 		select.replaceURI(REPOSITORY, repository.getRepositoryURL());
 		select.replaceQuote(QUERY_NAME, queryName);
-		final RepositoryConnection connection = this.queries.getConnection();
-		final TupleQuery query = connection.prepareTupleQuery(QueryLanguage.SPARQL, select.toString());
-		try {
-			final TupleQueryResult result = query.evaluate();
-			if (result.hasNext()) {
-				return (IRI) (result.next().getValue("query"));
-			} else {
-				throw new BadRequestException("Could not find query entry in storage.");
+		try (RepositoryConnection connection = this.queries.getConnection()) {
+			TupleQuery query = connection.prepareTupleQuery(QueryLanguage.SPARQL, select.toString());
+			try (TupleQueryResult result = query.evaluate()) {
+				if (result.hasNext()) {
+					return (IRI) (result.next().getValue("query"));
+				} else {
+					throw new BadRequestException("Could not find query entry in storage.");
+				}
 			}
-		} finally {
-			connection.close();
+
 		}
 	}
 
 	/**
 	 * Retrieves the specified query text. No security checks are done here. If the saved query exists, its text is
 	 * returned.
-	 * 
+	 *
 	 * @param repository Repository that the saved query is associated with.
 	 * @param owner      The user that saved the query.
 	 * @param queryName  The name given to the saved query.
@@ -347,17 +349,16 @@ public class QueryStorage {
 		select.replaceQuote(QueryStorage.USER_NAME, owner);
 		select.replaceURI(REPOSITORY, repository.getRepositoryURL());
 		select.replaceQuote(QUERY_NAME, queryName);
-		final RepositoryConnection connection = this.queries.getConnection();
-		final TupleQuery query = connection.prepareTupleQuery(QueryLanguage.SPARQL, select.toString());
-		try {
-			final TupleQueryResult result = query.evaluate();
-			if (result.hasNext()) {
-				return result.next().getValue("queryText").stringValue();
-			} else {
-				throw new BadRequestException("Could not find query entry in storage.");
+		try (RepositoryConnection connection = this.queries.getConnection()) {
+			TupleQuery query = connection.prepareTupleQuery(QueryLanguage.SPARQL, select.toString());
+			try (TupleQueryResult result = query.evaluate()) {
+				if (result.hasNext()) {
+					return result.next().getValue("queryText").stringValue();
+				} else {
+					throw new BadRequestException("Could not find query entry in storage.");
+				}
 			}
-		} finally {
-			connection.close();
+
 		}
 	}
 
@@ -371,7 +372,7 @@ public class QueryStorage {
 
 	/**
 	 * Perform replacement on several common fields for update operations.
-	 * 
+	 *
 	 * @param userName      the name of the current user
 	 * @param shared        whether the saved query is to be shared with other users
 	 * @param queryLanguage the language of the saved query
@@ -394,7 +395,7 @@ public class QueryStorage {
 	 * Imposes the rule that the query may not contain '''-quoted string, since that is how we'll be quoting it in our
 	 * SPARQL/Update statements. Quoting the query with ''' assuming all string literals in the query are of the
 	 * STRING_LITERAL1, STRING_LITERAL2 or STRING_LITERAL_LONG2 types.
-	 * 
+	 *
 	 * @param queryText the query text
 	 */
 	private void checkQueryText(final String queryText) {

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.solr;
 
@@ -22,7 +25,6 @@ import org.eclipse.rdf4j.sail.lucene.DocumentScore;
 import org.eclipse.rdf4j.sail.lucene.SearchFields;
 import org.eclipse.rdf4j.sail.lucene.SearchQuery;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 
 /**
@@ -33,7 +35,7 @@ public class SolrSearchQuery implements SearchQuery {
 
 	private final SolrQuery query;
 
-	private SolrIndex index;
+	private final SolrIndex index;
 
 	public SolrSearchQuery(SolrQuery q, SolrIndex index) {
 		this.query = q;
@@ -60,15 +62,11 @@ public class SolrSearchQuery implements SearchQuery {
 		}
 		SolrDocumentList results = response.getResults();
 		final Map<String, Map<String, List<String>>> highlighting = response.getHighlighting();
-		return Iterables.transform(results, new Function<SolrDocument, DocumentScore>() {
-
-			@Override
-			public DocumentScore apply(SolrDocument document) {
-				SolrSearchDocument doc = new SolrSearchDocument(document);
-				Map<String, List<String>> docHighlighting = (highlighting != null) ? highlighting.get(doc.getId())
-						: null;
-				return new SolrDocumentScore(doc, docHighlighting);
-			}
+		return Iterables.transform(results, (SolrDocument document) -> {
+			SolrSearchDocument doc = new SolrSearchDocument(document);
+			Map<String, List<String>> docHighlighting = (highlighting != null) ? highlighting.get(doc.getId())
+					: null;
+			return new SolrDocumentScore(doc, docHighlighting);
 		});
 	}
 

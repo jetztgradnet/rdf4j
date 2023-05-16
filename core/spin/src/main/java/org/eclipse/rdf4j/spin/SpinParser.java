@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.spin;
 
@@ -11,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -22,10 +24,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import org.eclipse.rdf4j.RDF4JException;
+import org.eclipse.rdf4j.common.exception.RDF4JException;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.common.iteration.Iteration;
 import org.eclipse.rdf4j.common.iteration.Iterations;
@@ -40,12 +43,13 @@ import org.eclipse.rdf4j.model.vocabulary.AFN;
 import org.eclipse.rdf4j.model.vocabulary.FN;
 import org.eclipse.rdf4j.model.vocabulary.OWL;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
+import org.eclipse.rdf4j.model.vocabulary.RDF4J;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.eclipse.rdf4j.model.vocabulary.SESAME;
 import org.eclipse.rdf4j.model.vocabulary.SP;
 import org.eclipse.rdf4j.model.vocabulary.SPIN;
 import org.eclipse.rdf4j.model.vocabulary.SPL;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.QueryEvaluationException;
 import org.eclipse.rdf4j.query.QueryLanguage;
@@ -207,19 +211,7 @@ public class SpinParser {
 	}
 
 	public SpinParser(Input input) {
-		this(input, new Function<IRI, String>() {
-
-			@Override
-			public String apply(IRI IRI) {
-				return SpinWellKnownVars.INSTANCE.getName(IRI);
-			}
-		}, new Function<IRI, String>() {
-
-			@Override
-			public String apply(IRI IRI) {
-				return SpinWellKnownFunctions.INSTANCE.getName(IRI);
-			}
-		});
+		this(input, SpinWellKnownVars.INSTANCE::getName, SpinWellKnownFunctions.INSTANCE::getName);
 	}
 
 	public SpinParser(Input input, Function<IRI, String> wellKnownVarsMapper,
@@ -261,9 +253,9 @@ public class SpinParser {
 
 	public Map<IRI, RuleProperty> parseRuleProperties(TripleSource store) throws RDF4JException {
 		Map<IRI, RuleProperty> rules = new HashMap<>();
-		CloseableIteration<? extends IRI, ? extends RDF4JException> rulePropIter = TripleSources
-				.getSubjectURIs(RDFS.SUBPROPERTYOF, SPIN.RULE_PROPERTY, store);
-		try {
+		try (CloseableIteration<IRI, QueryEvaluationException> rulePropIter = TripleSources
+				.getSubjectURIs(RDFS.SUBPROPERTYOF, SPIN.RULE_PROPERTY, store)) {
+
 			while (rulePropIter.hasNext()) {
 				IRI ruleProp = rulePropIter.next();
 				RuleProperty ruleProperty = new RuleProperty(ruleProp);
@@ -276,24 +268,13 @@ public class SpinParser {
 
 				rules.put(ruleProp, ruleProperty);
 			}
-		} finally {
-			rulePropIter.close();
 		}
 		return rules;
 	}
 
 	private List<IRI> getNextRules(Resource ruleProp, TripleSource store) throws RDF4JException {
-		List<IRI> nextRules = new ArrayList<>();
-		CloseableIteration<? extends IRI, ? extends RDF4JException> iter = TripleSources.getObjectURIs(ruleProp,
-				SPIN.NEXT_RULE_PROPERTY_PROPERTY, store);
-		try {
-			while (iter.hasNext()) {
-				nextRules.add(iter.next());
-			}
-		} finally {
-			iter.close();
-		}
-		return nextRules;
+		return Iterations.asList((TripleSources.getObjectURIs(ruleProp,
+				SPIN.NEXT_RULE_PROPERTY_PROPERTY, store)));
 	}
 
 	private int getMaxIterationCount(Resource ruleProp, TripleSource store) throws RDF4JException {
@@ -305,7 +286,7 @@ public class SpinParser {
 				return ((Literal) v).intValue();
 			} catch (NumberFormatException e) {
 				throw new MalformedSpinException("Value for " + SPIN.RULE_PROPERTY_MAX_ITERATION_COUNT_PROPERTY
-						+ " must be of datatype " + XMLSchema.INTEGER + ": " + ruleProp);
+						+ " must be of datatype " + XSD.INTEGER + ": " + ruleProp);
 			}
 		} else {
 			throw new MalformedSpinException(
@@ -372,9 +353,8 @@ public class SpinParser {
 		Boolean isQueryElseTemplate = null;
 		Set<IRI> possibleQueryTypes = new HashSet<>();
 		Set<IRI> possibleTemplates = new HashSet<>();
-		CloseableIteration<? extends IRI, ? extends RDF4JException> typeIter = TripleSources
-				.getObjectURIs(queryResource, RDF.TYPE, store);
-		try {
+		try (CloseableIteration<IRI, QueryEvaluationException> typeIter = TripleSources
+				.getObjectURIs(queryResource, RDF.TYPE, store)) {
 			while (typeIter.hasNext()) {
 				IRI type = typeIter.next();
 				if (isQueryElseTemplate == null && SPIN.TEMPLATES_CLASS.equals(type)) {
@@ -388,8 +368,6 @@ public class SpinParser {
 					possibleTemplates.add(type);
 				}
 			}
-		} finally {
-			typeIter.close();
 		}
 
 		ParsedOperation parsedOp;
@@ -461,13 +439,7 @@ public class SpinParser {
 	private Template getTemplate(final IRI tmplUri, final IRI queryType, final Set<IRI> abstractTmpls,
 			final TripleSource store) throws RDF4JException {
 		try {
-			return templateCache.get(tmplUri, new Callable<Template>() {
-
-				@Override
-				public Template call() throws RDF4JException {
-					return parseTemplateInternal(tmplUri, queryType, abstractTmpls, store);
-				}
-			});
+			return templateCache.get(tmplUri, () -> parseTemplateInternal(tmplUri, queryType, abstractTmpls, store));
 		} catch (ExecutionException e) {
 			if (e.getCause() instanceof RDF4JException) {
 				throw (RDF4JException) e.getCause();
@@ -481,18 +453,11 @@ public class SpinParser {
 
 	private Template parseTemplateInternal(IRI tmplUri, IRI queryType, Set<IRI> abstractTmpls, TripleSource store)
 			throws RDF4JException {
-		Set<IRI> possibleTmplTypes = new HashSet<>();
-		CloseableIteration<? extends IRI, ? extends RDF4JException> typeIter = TripleSources.getObjectURIs(tmplUri,
-				RDF.TYPE, store);
-		try {
-			while (typeIter.hasNext()) {
-				IRI type = typeIter.next();
-				if (TEMPLATE_TYPES.contains(type)) {
-					possibleTmplTypes.add(type);
-				}
-			}
-		} finally {
-			typeIter.close();
+		Set<IRI> possibleTmplTypes;
+		try (Stream<IRI> stream = TripleSources.getObjectURIs(tmplUri, RDF.TYPE, store).stream()) {
+			possibleTmplTypes = stream
+					.filter(TEMPLATE_TYPES::contains)
+					.collect(Collectors.toSet());
 		}
 
 		if (possibleTmplTypes.isEmpty()) {
@@ -581,14 +546,10 @@ public class SpinParser {
 
 	public Map<IRI, Argument> parseArguments(final IRI moduleUri, final TripleSource store) throws RDF4JException {
 		try {
-			return argumentCache.get(moduleUri, new Callable<Map<IRI, Argument>>() {
-
-				@Override
-				public Map<IRI, Argument> call() throws RDF4JException {
-					Map<IRI, Argument> args = new HashMap<>();
-					parseArguments(moduleUri, store, args);
-					return Collections.unmodifiableMap(args);
-				}
+			return argumentCache.get(moduleUri, () -> {
+				Map<IRI, Argument> args = new HashMap<>();
+				parseArguments(moduleUri, store, args);
+				return Collections.unmodifiableMap(args);
 			});
 		} catch (ExecutionException e) {
 			if (e.getCause() instanceof RDF4JException) {
@@ -602,9 +563,9 @@ public class SpinParser {
 	}
 
 	private void parseArguments(IRI moduleUri, TripleSource store, Map<IRI, Argument> args) throws RDF4JException {
-		CloseableIteration<? extends Resource, ? extends RDF4JException> argIter = TripleSources
-				.getObjectResources(moduleUri, SPIN.CONSTRAINT_PROPERTY, store);
-		try {
+		try (CloseableIteration<Resource, QueryEvaluationException> argIter = TripleSources
+				.getObjectResources(moduleUri, SPIN.CONSTRAINT_PROPERTY, store)) {
+
 			while (argIter.hasNext()) {
 				Resource possibleArg = argIter.next();
 				Statement argTmpl = TripleSources.single(possibleArg, RDF.TYPE, SPL.ARGUMENT_TEMPLATE, store);
@@ -617,8 +578,7 @@ public class SpinParser {
 					args.put(argUri, new Argument(argUri, (IRI) valueType, optional, defaultValue));
 				}
 			}
-		} finally {
-			argIter.close();
+
 		}
 	}
 
@@ -641,19 +601,20 @@ public class SpinParser {
 		if (SP.CONSTRUCT_CLASS.equals(queryType)) {
 			SpinVisitor visitor = new SpinVisitor(store);
 			visitor.visitConstruct(queryResource);
-			return new ParsedGraphQuery(visitor.getTupleExpr());
+			TupleExpr tupleExpr = makeQueryRootIfNeeded(visitor.getTupleExpr());
+			return new ParsedGraphQuery(tupleExpr);
 		} else if (SP.SELECT_CLASS.equals(queryType)) {
 			SpinVisitor visitor = new SpinVisitor(store);
 			visitor.visitSelect(queryResource);
-			return new ParsedTupleQuery(visitor.getTupleExpr());
+			return new ParsedTupleQuery(makeQueryRootIfNeeded(visitor.getTupleExpr()));
 		} else if (SP.ASK_CLASS.equals(queryType)) {
 			SpinVisitor visitor = new SpinVisitor(store);
 			visitor.visitAsk(queryResource);
-			return new ParsedBooleanQuery(visitor.getTupleExpr());
+			return new ParsedBooleanQuery(makeQueryRootIfNeeded(visitor.getTupleExpr()));
 		} else if (SP.DESCRIBE_CLASS.equals(queryType)) {
 			SpinVisitor visitor = new SpinVisitor(store);
 			visitor.visitDescribe(queryResource);
-			return new ParsedDescribeQuery(visitor.getTupleExpr());
+			return new ParsedDescribeQuery(makeQueryRootIfNeeded(visitor.getTupleExpr()));
 		} else if (SP.MODIFY_CLASS.equals(queryType)) {
 			SpinVisitor visitor = new SpinVisitor(store);
 			visitor.visitModify(queryResource);
@@ -701,6 +662,14 @@ public class SpinParser {
 		}
 	}
 
+	private TupleExpr makeQueryRootIfNeeded(TupleExpr tupleExpr) {
+		if (!(tupleExpr instanceof QueryRoot)) {
+			return new QueryRoot(tupleExpr);
+		} else {
+			return tupleExpr;
+		}
+	}
+
 	public ValueExpr parseExpression(Value expr, TripleSource store) throws RDF4JException {
 		SpinVisitor visitor = new SpinVisitor(store);
 		return visitor.visitExpression(expr);
@@ -708,7 +677,7 @@ public class SpinParser {
 
 	/**
 	 * Resets/clears any cached information about the given URIs.
-	 * 
+	 *
 	 * @param uris if none are specified all cached information is cleared.
 	 */
 	public void reset(IRI... uris) {
@@ -723,13 +692,8 @@ public class SpinParser {
 	}
 
 	public static List<IRI> orderArguments(Set<IRI> args) {
-		SortedSet<IRI> sortedArgs = new TreeSet<IRI>(new Comparator<IRI>() {
-
-			@Override
-			public int compare(IRI uri1, IRI uri2) {
-				return uri1.getLocalName().compareTo(uri2.getLocalName());
-			}
-		});
+		SortedSet<IRI> sortedArgs = new TreeSet<>(
+				(IRI uri1, IRI uri2) -> uri1.getLocalName().compareTo(uri2.getLocalName()));
 		sortedArgs.addAll(args);
 
 		int numArgs = sortedArgs.size();
@@ -907,7 +871,7 @@ public class SpinParser {
 
 		private UnaryTupleOperator visitTemplates(Resource templates) throws RDF4JException {
 			List<ProjectionElemList> projElemLists = new ArrayList<>();
-			Iteration<? extends Resource, QueryEvaluationException> iter = TripleSources.listResources(templates,
+			Iteration<Resource, QueryEvaluationException> iter = TripleSources.listResources(templates,
 					store);
 			while (iter.hasNext()) {
 				Resource r = iter.next();
@@ -945,7 +909,7 @@ public class SpinParser {
 
 		private Projection visitResultNodes(Resource resultNodes) throws RDF4JException {
 			ProjectionElemList projElemList = new ProjectionElemList();
-			Iteration<? extends Resource, QueryEvaluationException> iter = TripleSources.listResources(resultNodes,
+			Iteration<Resource, QueryEvaluationException> iter = TripleSources.listResources(resultNodes,
 					store);
 			while (iter.hasNext()) {
 				Resource r = iter.next();
@@ -967,7 +931,7 @@ public class SpinParser {
 		private Projection visitResultVariables(Resource resultVars, Map<String, ProjectionElem> previousProjElems)
 				throws RDF4JException {
 			ProjectionElemList projElemList = new ProjectionElemList();
-			Iteration<? extends Resource, QueryEvaluationException> iter = TripleSources.listResources(resultVars,
+			Iteration<Resource, QueryEvaluationException> iter = TripleSources.listResources(resultVars,
 					store);
 			while (iter.hasNext()) {
 				Resource r = iter.next();
@@ -991,7 +955,7 @@ public class SpinParser {
 			if (group == null) {
 				group = new Group();
 			}
-			Iteration<? extends Resource, QueryEvaluationException> iter = TripleSources.listResources(groupby, store);
+			Iteration<Resource, QueryEvaluationException> iter = TripleSources.listResources(groupby, store);
 			while (iter.hasNext()) {
 				Resource r = iter.next();
 				ValueExpr groupByExpr = visitExpression(r);
@@ -1008,7 +972,7 @@ public class SpinParser {
 		private TupleExpr visitHaving(Resource having) throws RDF4JException {
 			UnaryTupleOperator op = (UnaryTupleOperator) group.getParentNode();
 			op.setArg(new Extension(group));
-			Iteration<? extends Resource, QueryEvaluationException> iter = TripleSources.listResources(having, store);
+			Iteration<Resource, QueryEvaluationException> iter = TripleSources.listResources(having, store);
 			while (iter.hasNext()) {
 				Resource r = iter.next();
 				ValueExpr havingExpr = visitExpression(r);
@@ -1021,7 +985,7 @@ public class SpinParser {
 
 		private Order visitOrderBy(Resource orderby) throws RDF4JException {
 			Order order = new Order();
-			Iteration<? extends Resource, QueryEvaluationException> iter = TripleSources.listResources(orderby, store);
+			Iteration<Resource, QueryEvaluationException> iter = TripleSources.listResources(orderby, store);
 			while (iter.hasNext()) {
 				Resource r = iter.next();
 				OrderElem orderElem = visitOrderByCondition(r);
@@ -1063,9 +1027,6 @@ public class SpinParser {
 					} else {
 						valueExpr = new Var(varName);
 					}
-					if (projName == null) {
-						projName = varName;
-					}
 				} else {
 					// resource
 					if (projName == null) {
@@ -1077,14 +1038,16 @@ public class SpinParser {
 			}
 
 			ProjectionElem projElem = new ProjectionElem(varName, projName);
-			projElem.setSourceExpression(new ExtensionElem(valueExpr, varName));
+			if (!(valueExpr instanceof Var && ((Var) valueExpr).getName().equals(varName))) {
+				projElem.setSourceExpression(new ExtensionElem(valueExpr, varName));
+			}
 			if (!aggregates.isEmpty()) {
 				projElem.setAggregateOperatorInExpression(true);
 				if (group == null) {
 					group = new Group();
 				}
 				for (AggregateOperator op : aggregates) {
-					group.addGroupElement(new GroupElem(projName, op));
+					group.addGroupElement(new GroupElem(projElem.getProjectionAlias().orElse(varName), op));
 				}
 			}
 			aggregates = oldAggregates;
@@ -1219,7 +1182,7 @@ public class SpinParser {
 			QueryRoot groupRoot = new QueryRoot(tupleNode);
 
 			Map<Resource, Set<IRI>> patternTypes = new LinkedHashMap<>();
-			Iteration<? extends Resource, QueryEvaluationException> groupIter = TripleSources.listResources(group,
+			Iteration<Resource, QueryEvaluationException> groupIter = TripleSources.listResources(group,
 					store);
 			while (groupIter.hasNext()) {
 				Resource r = groupIter.next();
@@ -1266,7 +1229,7 @@ public class SpinParser {
 		}
 
 		private void visitInsert(Resource insert) throws RDF4JException {
-			Iteration<? extends Resource, QueryEvaluationException> groupIter = TripleSources.listResources(insert,
+			Iteration<Resource, QueryEvaluationException> groupIter = TripleSources.listResources(insert,
 					store);
 			while (groupIter.hasNext()) {
 				Resource r = groupIter.next();
@@ -1276,7 +1239,7 @@ public class SpinParser {
 		}
 
 		private void visitDelete(Resource delete) throws RDF4JException {
-			Iteration<? extends Resource, QueryEvaluationException> groupIter = TripleSources.listResources(delete,
+			Iteration<Resource, QueryEvaluationException> groupIter = TripleSources.listResources(delete,
 					store);
 			while (groupIter.hasNext()) {
 				Resource r = groupIter.next();
@@ -1313,7 +1276,7 @@ public class SpinParser {
 								String.format("Value of %s is not a resource", SP.ELEMENTS_PROPERTY));
 					}
 
-					Iteration<? extends Resource, QueryEvaluationException> iter = TripleSources
+					Iteration<Resource, QueryEvaluationException> iter = TripleSources
 							.listResources((Resource) elements, store);
 					TupleExpr prev = null;
 					while (iter.hasNext()) {
@@ -1361,7 +1324,7 @@ public class SpinParser {
 					BindingSetAssignment bsa = new BindingSetAssignment();
 					Set<String> varNames = new LinkedHashSet<>();
 					Value varNameList = TripleSources.singleValue(r, SP.VAR_NAMES_PROPERTY, store);
-					Iteration<? extends Value, QueryEvaluationException> varNameIter = TripleSources
+					Iteration<Value, QueryEvaluationException> varNameIter = TripleSources
 							.list((Resource) varNameList, store);
 					while (varNameIter.hasNext()) {
 						Value v = varNameIter.next();
@@ -1372,18 +1335,20 @@ public class SpinParser {
 					bsa.setBindingNames(varNames);
 					List<BindingSet> bindingSets = new ArrayList<>();
 					Value bindingsList = TripleSources.singleValue(r, SP.BINDINGS_PROPERTY, store);
-					Iteration<? extends Value, QueryEvaluationException> bindingsIter = TripleSources
+					Iteration<Value, QueryEvaluationException> bindingsIter = TripleSources
 							.list((Resource) bindingsList, store);
 					while (bindingsIter.hasNext()) {
 						Value valueList = bindingsIter.next();
 						QueryBindingSet bs = new QueryBindingSet();
 						Iterator<String> nameIter = varNames.iterator();
-						Iteration<? extends Value, QueryEvaluationException> valueIter = TripleSources
+						Iteration<Value, QueryEvaluationException> valueIter = TripleSources
 								.list((Resource) valueList, store);
 						while (nameIter.hasNext() && valueIter.hasNext()) {
 							String name = nameIter.next();
 							Value value = valueIter.next();
-							bs.addBinding(name, value);
+							if (!SP.UNDEF.equals(value)) {
+								bs.addBinding(name, value);
+							}
 						}
 						bindingSets.add(bs);
 					}
@@ -1875,9 +1840,10 @@ public class SpinParser {
 		DataVisitor() {
 			appendPrefix(RDF.PREFIX, RDF.NAMESPACE);
 			appendPrefix(RDFS.PREFIX, RDFS.NAMESPACE);
+			appendPrefix(RDF4J.PREFIX, RDF4J.NAMESPACE);
 			appendPrefix(SESAME.PREFIX, SESAME.NAMESPACE);
 			appendPrefix(OWL.PREFIX, OWL.NAMESPACE);
-			appendPrefix(XMLSchema.PREFIX, XMLSchema.NAMESPACE);
+			appendPrefix(XSD.PREFIX, XSD.NAMESPACE);
 			appendPrefix(FN.PREFIX, FN.NAMESPACE);
 			buf.append(" ");
 		}

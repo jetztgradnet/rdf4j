@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.http.client;
 
@@ -21,7 +24,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.HashMap;
@@ -29,51 +31,46 @@ import java.util.HashMap;
 import org.apache.http.Header;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.message.BasicHeader;
-import org.eclipse.rdf4j.IsolationLevels;
+import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.http.protocol.Protocol;
 import org.eclipse.rdf4j.query.resultio.TupleQueryResultFormat;
 import org.eclipse.rdf4j.repository.config.RepositoryConfig;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.helpers.StatementCollector;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
 
 /**
  * Unit tests for {@link RDF4JProtocolSession}
  *
  * @author Jeen Broekstra
  */
-public class RDF4JProtocolSessionTest {
+public class RDF4JProtocolSessionTest extends SPARQLProtocolSessionTest {
 
-	@ClassRule
-	public static WireMockRule wireMockRule = new WireMockRule(wireMockConfig().dynamicPort());
+	private final String testHeader = "X-testing-header";
+	private final String testValue = "foobar";
 
-	private RDF4JProtocolSession subject;
+	private final String serverURL = "http://localhost:" + wireMockServer.port() + "/rdf4j-server";
+	private final String repositoryID = "test";
 
-	private String testHeader = "X-testing-header";
-	private String testValue = "foobar";
+	RDF4JProtocolSession getRDF4JSession() {
+		return (RDF4JProtocolSession) sparqlSession;
+	}
 
-	private String serverURL = "http://localhost:" + wireMockRule.port() + "/rdf4j-server";
-	private String repositoryID = "test";
-
-	@Before
-	public void setUp() throws Exception {
-		subject = new SharedHttpClientSessionManager().createRDF4JProtocolSession(serverURL);
-		subject.setRepository(Protocol.getRepositoryLocation(serverURL, repositoryID));
+	RDF4JProtocolSession createProtocolSession() {
+		RDF4JProtocolSession session = new SharedHttpClientSessionManager().createRDF4JProtocolSession(serverURL);
+		session.setRepository(Protocol.getRepositoryLocation(serverURL, repositoryID));
 		HashMap<String, String> additionalHeaders = new HashMap<>();
 		additionalHeaders.put(testHeader, testValue);
-		subject.setAdditionalHttpHeaders(additionalHeaders);
+		session.setAdditionalHttpHeaders(additionalHeaders);
+		return session;
 	}
 
 	@Test
 	public void testCreateRepositoryExecutesPut() throws Exception {
 		stubFor(put(urlEqualTo("/rdf4j-server/repositories/test")).willReturn(aResponse().withStatus(200)));
 		RepositoryConfig config = new RepositoryConfig("test");
-		subject.createRepository(config);
+		getRDF4JSession().createRepository(config);
 		verify(putRequestedFor(urlEqualTo("/rdf4j-server/repositories/test")));
 		verifyHeader("/rdf4j-server/repositories/test");
 	}
@@ -84,7 +81,7 @@ public class RDF4JProtocolSessionTest {
 
 		stubFor(post(urlEqualTo("/rdf4j-server/repositories/test/config")).willReturn(aResponse().withStatus(200)));
 
-		subject.updateRepository(config);
+		getRDF4JSession().updateRepository(config);
 
 		verify(postRequestedFor(urlEqualTo("/rdf4j-server/repositories/test/config")));
 		verifyHeader("/rdf4j-server/repositories/test/config");
@@ -95,7 +92,7 @@ public class RDF4JProtocolSessionTest {
 		stubFor(get(urlEqualTo("/rdf4j-server/repositories/test/size"))
 				.willReturn(aResponse().withStatus(200).withBody("8")));
 
-		assertThat(subject.size()).isEqualTo(8);
+		assertThat(getRDF4JSession().size()).isEqualTo(8);
 		verifyHeader("/rdf4j-server/repositories/test/size");
 	}
 
@@ -109,7 +106,7 @@ public class RDF4JProtocolSessionTest {
 						.withHeader("Content-Type", RDFFormat.NTRIPLES.getDefaultMIMEType())
 						.withBodyFile("repository-config.nt")));
 
-		subject.getRepositoryConfig(new StatementCollector());
+		getRDF4JSession().getRepositoryConfig(new StatementCollector());
 
 		verify(getRequestedFor(urlEqualTo("/rdf4j-server/repositories/test/config")));
 
@@ -123,30 +120,31 @@ public class RDF4JProtocolSessionTest {
 						.withHeader("Content-Type", TupleQueryResultFormat.SPARQL.getDefaultMIMEType())
 						.withBodyFile("repository-list.xml")));
 
-		assertThat(subject.getRepositoryList().getBindingNames()).contains("id");
+		assertThat(getRDF4JSession().getRepositoryList().getBindingNames()).contains("id");
 		verifyHeader("/rdf4j-server/repositories");
 	}
 
 	@Test
 	public void testClose() throws Exception {
+		// re-init protocol session with cache-timeout set
+		sparqlSession.close();
 		System.setProperty(Protocol.CACHE_TIMEOUT_PROPERTY, "1");
-		subject = new SharedHttpClientSessionManager().createRDF4JProtocolSession(serverURL);
-		subject.setRepository(Protocol.getRepositoryLocation(serverURL, repositoryID));
+		sparqlSession = createProtocolSession();
 
-		String transactionStartUrl = Protocol.getTransactionsLocation(subject.getRepositoryURL());
+		String transactionStartUrl = Protocol.getTransactionsLocation(getRDF4JSession().getRepositoryURL());
 
 		stubFor(post(urlEqualTo("/rdf4j-server/repositories/test/transactions"))
 				.willReturn(aResponse().withStatus(201).withHeader("Location", transactionStartUrl + "/1")));
 		stubFor(post("/rdf4j-server/repositories/test/transactions/1?action=PING")
 				.willReturn(aResponse().withStatus(200).withBody("2000")));
 
-		subject.beginTransaction(IsolationLevels.SERIALIZABLE);
+		getRDF4JSession().beginTransaction(IsolationLevels.SERIALIZABLE);
 		Thread.sleep(2000);
 
 		verify(moreThanOrExactly(2),
 				postRequestedFor(urlEqualTo("/rdf4j-server/repositories/test/transactions/1?action=PING")));
 
-		subject.close();
+		getRDF4JSession().close();
 		Thread.sleep(1000);
 
 		// we should not have received any further pings after the session was closed.

@@ -1,14 +1,21 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 
 package org.eclipse.rdf4j.sail.shacl.benchmark;
 
-import ch.qos.logback.classic.Logger;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
@@ -29,21 +36,20 @@ import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import ch.qos.logback.classic.Logger;
 
 /**
  * @author Håvard Ottestad
  */
 @State(Scope.Benchmark)
-@Warmup(iterations = 20)
+@Warmup(iterations = 5)
 @BenchmarkMode({ Mode.AverageTime })
-@Fork(value = 1, jvmArgs = { "-Xms8G", "-Xmx8G", "-Xmn4G", "-XX:+UseSerialGC" })
-@Measurement(iterations = 10)
+@Fork(value = 1, jvmArgs = { "-Xms8G", "-Xmx8G" })
+@Measurement(iterations = 5)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class MinCountPrefilledVsEmptyBenchmark {
 
@@ -75,16 +81,24 @@ public class MinCountPrefilledVsEmptyBenchmark {
 			allStatements2.add(vf.createStatement(iri, RDFS.LABEL, vf.createLiteral("label" + i)));
 		}
 
-		ShaclSail shaclRepo = Utils.getInitializedShaclSail("shacl.ttl");
+		ShaclSail shaclRepo = Utils.getInitializedShaclSail("shacl.trig");
 		this.shaclRepo = new SailRepository(shaclRepo);
 
-		shaclRepo.disableValidation();
 		try (SailRepositoryConnection connection = this.shaclRepo.getConnection()) {
+			connection.begin(IsolationLevels.NONE, ShaclSail.TransactionSettings.ValidationApproach.Disabled);
 			connection.add(allStatements2);
+			connection.commit();
 		}
-		shaclRepo.enableValidation();
-		System.gc();
 
+		System.gc();
+		Thread.sleep(100);
+	}
+
+	@TearDown(Level.Invocation)
+	public void tearDown() {
+		if (shaclRepo != null) {
+			shaclRepo.shutDown();
+		}
 	}
 
 	@Benchmark
@@ -108,13 +122,8 @@ public class MinCountPrefilledVsEmptyBenchmark {
 	@Benchmark
 	public void shaclEmpty() throws Exception {
 
-		ShaclSail shaclRepo = Utils.getInitializedShaclSail("shacl.ttl");
+		ShaclSail shaclRepo = Utils.getInitializedShaclSail("shacl.trig");
 		SailRepository repository = new SailRepository(shaclRepo);
-
-		try (SailRepositoryConnection connection = repository.getConnection()) {
-			connection.begin();
-			connection.commit();
-		}
 
 		try (SailRepositoryConnection connection = repository.getConnection()) {
 			for (List<Statement> statements : allStatements) {
@@ -124,26 +133,31 @@ public class MinCountPrefilledVsEmptyBenchmark {
 			}
 		}
 
+		repository.shutDown();
+
 	}
 
 	@Benchmark
 	public void shaclEmptyJustinit() throws Exception {
 
-		ShaclSail shaclRepo = Utils.getInitializedShaclSail("shacl.ttl");
+		ShaclSail shaclRepo = Utils.getInitializedShaclSail("shacl.trig");
 		SailRepository repository = new SailRepository(shaclRepo);
+		repository.shutDown();
 
 	}
 
 	@Benchmark
 	public void shaclEmptyJustInitializeAndEmptyTransaction() throws Exception {
 
-		ShaclSail shaclRepo = Utils.getInitializedShaclSail("shacl.ttl");
+		ShaclSail shaclRepo = Utils.getInitializedShaclSail("shacl.trig");
 		SailRepository repository = new SailRepository(shaclRepo);
 
 		try (SailRepositoryConnection connection = repository.getConnection()) {
 			connection.begin();
 			connection.commit();
 		}
+
+		repository.shutDown();
 
 	}
 

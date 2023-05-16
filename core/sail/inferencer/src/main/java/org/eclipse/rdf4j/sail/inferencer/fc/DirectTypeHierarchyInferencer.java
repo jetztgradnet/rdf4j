@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.inferencer.fc;
 
@@ -42,20 +45,20 @@ import org.slf4j.LoggerFactory;
  * sesame:directType}.
  * <p>
  * The semantics of this inferencer are defined as follows:
- * 
+ *
  * <pre>
  *    Class A is a direct subclass of B iff:
  *       1. A is a subclass of B and;
  *       2. A and B are not equa and;
- *       3. there is no class C (unequal A and B) such that 
+ *       3. there is no class C (unequal A and B) such that
  *          A is a subclass of C and C of B.
- *   
+ *
  *    Property P is a direct subproperty of Q iff:
  *       1. P is a subproperty of Q and;
  *       2. P and Q are not equal and;
  *       3. there is no property R (unequal P and Q) such that
  *          P is a subproperty of R and R of Q.
- *   
+ *
  *    Resource I is of direct type T iff:
  *       1. I is of type T and
  *       2. There is no class U (unequal T) such that:
@@ -68,7 +71,7 @@ public class DirectTypeHierarchyInferencer extends NotifyingSailWrapper {
 	private static final Logger logger = LoggerFactory.getLogger(DirectTypeHierarchyInferencer.class);
 
 	/*-----------*
-	 * Constants * 
+	 * Constants *
 	 *-----------*/
 
 	private static final ParsedGraphQuery DIRECT_SUBCLASSOF_MATCHER;
@@ -85,29 +88,32 @@ public class DirectTypeHierarchyInferencer extends NotifyingSailWrapper {
 
 	static {
 		try {
-			DIRECT_SUBCLASSOF_MATCHER = QueryParserUtil.parseGraphQuery(QueryLanguage.SERQL,
-					"CONSTRUCT * FROM {X} sesame:directSubClassOf {Y} ", null);
+			DIRECT_SUBCLASSOF_MATCHER = QueryParserUtil.parseGraphQuery(QueryLanguage.SPARQL,
+					"CONSTRUCT WHERE { ?X sesame:directSubClassOf ?Y } ", null);
 
-			DIRECT_SUBPROPERTYOF_MATCHER = QueryParserUtil.parseGraphQuery(QueryLanguage.SERQL,
-					"CONSTRUCT * FROM {X} sesame:directType {Y}", null);
+			DIRECT_SUBPROPERTYOF_MATCHER = QueryParserUtil.parseGraphQuery(QueryLanguage.SPARQL,
+					"CONSTRUCT WHERE { ?X sesame:directType ?Y }", null);
 
-			DIRECT_TYPE_MATCHER = QueryParserUtil.parseGraphQuery(QueryLanguage.SERQL,
-					"CONSTRUCT * FROM {X} sesame:directSubPropertyOf {Y}", null);
+			DIRECT_TYPE_MATCHER = QueryParserUtil.parseGraphQuery(QueryLanguage.SPARQL,
+					"CONSTRUCT WHERE { ?X sesame:directSubPropertyOf ?Y}", null);
 
-			DIRECT_SUBCLASSOF_QUERY = QueryParserUtil.parseGraphQuery(QueryLanguage.SERQL,
-					"CONSTRUCT {X} sesame:directSubClassOf {Y} " + "FROM {X} rdfs:subClassOf {Y} " + "WHERE X != Y AND "
-							+ "NOT EXISTS (SELECT Z FROM {X} rdfs:subClassOf {Z} rdfs:subClassOf {Y} WHERE X != Z AND Z != Y)",
+			DIRECT_SUBCLASSOF_QUERY = QueryParserUtil.parseGraphQuery(QueryLanguage.SPARQL,
+					"CONSTRUCT { ?X sesame:directSubClassOf ?Y } "
+							+ "WHERE { ?X rdfs:subClassOf ?Y . "
+							+ "FILTER X != Y AND "
+							+ "NOT EXISTS { SELECT ?Z WHERE { ?X rdfs:subClassOf ?Z. ?Z rdfs:subClassOf ?Y . FILTER ?X != ?Z AND ?Z != ?Y }}}",
 					null);
 
-			DIRECT_SUBPROPERTYOF_QUERY = QueryParserUtil.parseGraphQuery(QueryLanguage.SERQL,
-					"CONSTRUCT {X} sesame:directSubPropertyOf {Y} " + "FROM {X} rdfs:subPropertyOf {Y} "
-							+ "WHERE X != Y AND "
-							+ "NOT EXISTS (SELECT Z FROM {X} rdfs:subPropertyOf {Z} rdfs:subPropertyOf {Y} WHERE X != Z AND Z != Y)",
+			DIRECT_SUBPROPERTYOF_QUERY = QueryParserUtil.parseGraphQuery(QueryLanguage.SPARQL,
+					"CONSTRUCT { ?X sesame:directSubPropertyOf ?Y } "
+							+ "WHERE { ?X rdfs:subPropertyOf ?Y . "
+							+ "FILTER X != Y AND "
+							+ "NOT EXISTS { SELECT ?Z WHERE { ?X rdfs:subPropertyOf ?Z. ?Z rdfs:subPropertyOf ?Y . FILTER ?X != ?Z AND ?Z != ?Y }}}",
 					null);
 
-			DIRECT_TYPE_QUERY = QueryParserUtil.parseGraphQuery(QueryLanguage.SERQL,
-					"CONSTRUCT {X} sesame:directType {Y} FROM {X} rdf:type {Y} "
-							+ "WHERE NOT EXISTS (SELECT Z FROM {X} rdf:type {Z} rdfs:subClassOf {Y} WHERE Z != Y)",
+			DIRECT_TYPE_QUERY = QueryParserUtil.parseGraphQuery(QueryLanguage.SPARQL,
+					"CONSTRUCT { ?X sesame:directType ?Y } WHERE { ?X rdf:type ?Y . \n "
+							+ "FILTER NOT EXISTS { SELECT ?Z WHERE { ?X rdf:type ?Z. ?Z rdfs:subClassOf ?Y . FILTER ?Z != ?Y }}}",
 					null);
 		} catch (MalformedQueryException e) {
 			// Can only occur due to a bug in this code
@@ -116,7 +122,7 @@ public class DirectTypeHierarchyInferencer extends NotifyingSailWrapper {
 	}
 
 	/*--------------*
-	 * Constructors * 
+	 * Constructors *
 	 *--------------*/
 
 	public DirectTypeHierarchyInferencer() {
@@ -128,7 +134,7 @@ public class DirectTypeHierarchyInferencer extends NotifyingSailWrapper {
 	}
 
 	/*---------*
-	 * Methods * 
+	 * Methods *
 	 *---------*/
 
 	@Override
@@ -142,8 +148,8 @@ public class DirectTypeHierarchyInferencer extends NotifyingSailWrapper {
 	}
 
 	@Override
-	public void initialize() throws SailException {
-		super.initialize();
+	public void init() throws SailException {
+		super.init();
 
 		try (InferencerConnection con = getConnection()) {
 			con.begin();

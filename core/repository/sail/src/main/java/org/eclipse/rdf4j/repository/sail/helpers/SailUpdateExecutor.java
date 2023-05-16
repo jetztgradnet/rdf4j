@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.sail.helpers;
 
@@ -23,6 +26,7 @@ import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.model.vocabulary.RDF4J;
 import org.eclipse.rdf4j.model.vocabulary.SESAME;
 import org.eclipse.rdf4j.query.Binding;
 import org.eclipse.rdf4j.query.BindingSet;
@@ -46,9 +50,10 @@ import org.eclipse.rdf4j.query.algebra.TupleExpr;
 import org.eclipse.rdf4j.query.algebra.UpdateExpr;
 import org.eclipse.rdf4j.query.algebra.ValueConstant;
 import org.eclipse.rdf4j.query.algebra.Var;
-import org.eclipse.rdf4j.query.algebra.helpers.StatementPatternCollector;
+import org.eclipse.rdf4j.query.algebra.helpers.collectors.StatementPatternCollector;
 import org.eclipse.rdf4j.query.impl.EmptyBindingSet;
 import org.eclipse.rdf4j.query.impl.MapBindingSet;
+import org.eclipse.rdf4j.query.parser.sparql.SPARQLUpdateDataBlockParser;
 import org.eclipse.rdf4j.repository.sail.SailUpdate;
 import org.eclipse.rdf4j.repository.util.RDFLoader;
 import org.eclipse.rdf4j.rio.ParserConfig;
@@ -67,10 +72,9 @@ import org.slf4j.LoggerFactory;
  * Implementation of {@link SailUpdate#execute()} using
  * {@link SailConnection#evaluate(TupleExpr, Dataset, BindingSet, boolean)} and other {@link SailConnection} methods.
  * LOAD is handled at the Repository API level because it requires access to the Rio parser.
- * 
+ *
  * @author jeen
  * @author James Leigh
- * @param <E>
  * @see SailConnection#startUpdate(UpdateContext)
  * @see SailConnection#endUpdate(UpdateContext)
  * @see SailConnection#addStatement(UpdateContext, Resource, IRI, Value, Resource...)
@@ -94,7 +98,7 @@ public class SailUpdateExecutor {
 	 * Implementation of {@link SailUpdate#execute()} using
 	 * {@link SailConnection#evaluate(TupleExpr, Dataset, BindingSet, boolean)} and other {@link SailConnection}
 	 * methods.
-	 * 
+	 *
 	 * @param con        Used to read data from and write data to.
 	 * @param vf         Used to create {@link BNode}s
 	 * @param loadConfig
@@ -401,11 +405,7 @@ public class SailUpdateExecutor {
 		try {
 			// TODO process update context somehow? dataset, base URI, etc.
 			parser.parse(new StringReader(insertDataExpr.getDataBlock()), "");
-		} catch (RDFParseException e) {
-			throw new SailException(e);
-		} catch (RDFHandlerException e) {
-			throw new SailException(e);
-		} catch (IOException e) {
+		} catch (RDFParseException | RDFHandlerException | IOException e) {
 			throw new SailException(e);
 		}
 	}
@@ -430,11 +430,7 @@ public class SailUpdateExecutor {
 		try {
 			// TODO process update context somehow? dataset, base URI, etc.
 			parser.parse(new StringReader(deleteDataExpr.getDataBlock()), "");
-		} catch (RDFParseException e) {
-			throw new SailException(e);
-		} catch (RDFHandlerException e) {
-			throw new SailException(e);
-		} catch (IOException e) {
+		} catch (RDFParseException | RDFHandlerException | IOException e) {
 			throw new SailException(e);
 		}
 	}
@@ -469,7 +465,8 @@ public class SailUpdateExecutor {
 		if (set.isEmpty()) {
 			return new IRI[0];
 		}
-		if (set.remove(SESAME.NIL)) {
+
+		if (set.remove(SESAME.NIL) | set.remove(RDF4J.NIL)) {
 			set.add(null);
 		}
 
@@ -505,23 +502,27 @@ public class SailUpdateExecutor {
 				protected BindingSet convert(BindingSet sourceBinding) throws QueryEvaluationException {
 					if (whereClause instanceof SingletonSet && sourceBinding instanceof EmptyBindingSet
 							&& uc.getBindingSet() != null) {
-						// in the case of an empty WHERE clause, we use the
-						// supplied
-						// bindings to produce triples to DELETE/INSERT
+						// in the case of an empty WHERE clause, we use the supplied bindings to produce triples to
+						// DELETE/INSERT
 						return uc.getBindingSet();
 					} else {
-						// check if any supplied bindings do not occur in the
-						// bindingset
-						// produced by the WHERE clause. If so, merge.
+						// check if any supplied bindings do not occur in the bindingset produced by the WHERE clause.
+						// If so, merge.
 						Set<String> uniqueBindings = new HashSet<>(uc.getBindingSet().getBindingNames());
 						uniqueBindings.removeAll(sourceBinding.getBindingNames());
 						if (uniqueBindings.size() > 0) {
 							MapBindingSet mergedSet = new MapBindingSet();
 							for (String bindingName : sourceBinding.getBindingNames()) {
-								mergedSet.addBinding(sourceBinding.getBinding(bindingName));
+								final Binding binding = sourceBinding.getBinding(bindingName);
+								if (binding != null) {
+									mergedSet.addBinding(binding);
+								}
 							}
 							for (String bindingName : uniqueBindings) {
-								mergedSet.addBinding(uc.getBindingSet().getBinding(bindingName));
+								final Binding binding = uc.getBindingSet().getBinding(bindingName);
+								if (binding != null) {
+									mergedSet.addBinding(binding);
+								}
 							}
 							return mergedSet;
 						}
@@ -588,7 +589,7 @@ public class SailUpdateExecutor {
 				}
 
 				if (context != null) {
-					if (SESAME.NIL.equals(context)) {
+					if (RDF4J.NIL.equals(context) || SESAME.NIL.equals(context)) {
 						con.removeStatement(uc, subject, predicate, object, (Resource) null);
 					} else {
 						con.removeStatement(uc, subject, predicate, object, context);
@@ -639,7 +640,7 @@ public class SailUpdateExecutor {
 
 		Resource subject = null;
 		IRI predicate = null;
-		Value object = null;
+		Value object;
 		Resource context = null;
 
 		Value patternValue;
@@ -739,7 +740,7 @@ public class SailUpdateExecutor {
 	}
 
 	private Value getValueForVar(Var var, BindingSet bindings) throws SailException {
-		Value value = null;
+		Value value;
 		if (var.hasValue()) {
 			value = var.getValue();
 		} else {

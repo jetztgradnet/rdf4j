@@ -1,11 +1,22 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.turtle;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,29 +25,27 @@ import java.io.StringReader;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Iterator;
-import org.assertj.core.api.AbstractBooleanAssert;
 
+import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
+import org.eclipse.rdf4j.model.Triple;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.vocabulary.DC;
+import org.eclipse.rdf4j.model.vocabulary.DCTERMS;
+import org.eclipse.rdf4j.model.vocabulary.FOAF;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.rio.RDFParseException;
 import org.eclipse.rdf4j.rio.RDFParser;
 import org.eclipse.rdf4j.rio.helpers.BasicParserSettings;
 import org.eclipse.rdf4j.rio.helpers.ParseErrorCollector;
 import org.eclipse.rdf4j.rio.helpers.SimpleParseLocationListener;
 import org.eclipse.rdf4j.rio.helpers.StatementCollector;
-
-import org.junit.Before;
-import org.junit.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.eclipse.rdf4j.rio.helpers.TurtleParserSettings;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author jeen
@@ -45,7 +54,7 @@ public class TurtleParserTest {
 
 	private TurtleParser parser;
 
-	private ValueFactory vf = SimpleValueFactory.getInstance();
+	private final ValueFactory vf = SimpleValueFactory.getInstance();
 
 	private final ParseErrorCollector errorCollector = new ParseErrorCollector();
 
@@ -55,12 +64,9 @@ public class TurtleParserTest {
 
 	private final String baseURI = "http://example.org/";
 
-	private SimpleParseLocationListener locationListener = new SimpleParseLocationListener();
+	private final SimpleParseLocationListener locationListener = new SimpleParseLocationListener();
 
-	/**
-	 * @throws java.lang.Exception
-	 */
-	@Before
+	@BeforeEach
 	public void setUp() {
 		parser = new TurtleParser();
 		parser.setParseErrorListener(errorCollector);
@@ -81,9 +87,6 @@ public class TurtleParserTest {
 		assertFalse(statementCollector.getStatements().isEmpty());
 		assertEquals(1, statementCollector.getStatements().size());
 
-		for (Statement st : statementCollector.getStatements()) {
-			System.out.println(st);
-		}
 	}
 
 	@Test
@@ -258,9 +261,6 @@ public class TurtleParserTest {
 		assertFalse(statementCollector.getStatements().isEmpty());
 		assertEquals(2, statementCollector.getStatements().size());
 
-		for (Statement st : statementCollector.getStatements()) {
-			System.out.println(st);
-		}
 	}
 
 	@Test
@@ -361,6 +361,16 @@ public class TurtleParserTest {
 	}
 
 	@Test
+	public void testLineNumberReportingInLongStringLiterals() throws IOException {
+		assertEquals(0, locationListener.getLineNo());
+		assertEquals(0, locationListener.getColumnNo());
+		Reader in = new StringReader("<urn:a> <urn:b> \"\"\"is\nallowed\nin\na very long string\"\"\" .");
+		parser.parse(in, baseURI);
+		assertEquals(4, locationListener.getLineNo());
+		assertEquals(-1, locationListener.getColumnNo());
+	}
+
+	@Test
 	public void testParseBooleanLiteralComma() throws IOException {
 		String data = "<urn:a> <urn:b> true, false .";
 		Reader r = new StringReader(data);
@@ -416,7 +426,7 @@ public class TurtleParserTest {
 	public void rdfXmlLoadedFromInsideAJarResolvesRelativeUris() throws IOException {
 		URL zipfileUrl = TurtleParserTest.class.getResource("sample-with-turtle-data.zip");
 
-		assertNotNull("The sample-with-turtle-data.zip file must be present for this test", zipfileUrl);
+		assertNotNull(zipfileUrl, "The sample-with-turtle-data.zip file must be present for this test");
 
 		String url = "jar:" + zipfileUrl + "!/index.ttl";
 
@@ -450,7 +460,7 @@ public class TurtleParserTest {
 		assertEquals("jar", javaUrl.getProtocol());
 
 		try (InputStream uc = javaUrl.openStream()) {
-			assertEquals("The resource stream should be empty", -1, uc.read());
+			assertEquals(-1, uc.read(), "The resource stream should be empty");
 		}
 
 		assertEquals(res, stmt2.getSubject());
@@ -481,6 +491,92 @@ public class TurtleParserTest {
 			assertTrue(statementCollector.getStatements().size() == 1);
 		} catch (RDFParseException e) {
 			fail("New line is legal inside triple quoted literal");
+		}
+	}
+
+	@Test
+	public void testLegalUnicodeInTripleSubject() throws IOException {
+		String data = "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n<r:\uD804\uDC9D> a xsd:string .";
+		Reader r = new StringReader(data);
+
+		try {
+			parser.parse(r, baseURI);
+			assertTrue(statementCollector.getStatements().size() == 1);
+		} catch (RDFParseException e) {
+			fail("Complex unicode characters should be parsed correctly (" + e.getMessage() + ")");
+		}
+	}
+
+	@Test
+	public void testOverflowingUnicodeInTripleSubject() throws IOException {
+		String data = "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n<r:\uD800\uDF32\uD800\uDF3F\uD800\uDF44\uD800\uDF39\uD800\uDF43\uD800\uDF3A> a xsd:string .";
+		Reader r = new StringReader(data);
+
+		try {
+			parser.parse(r, baseURI);
+			assertTrue(statementCollector.getStatements().size() == 1);
+		} catch (RDFParseException e) {
+			fail("Complex unicode characters should be parsed correctly (" + e.getMessage() + ")");
+		}
+	}
+
+	/**
+	 * Extend standard Turtle parser to also accept RDF-star data (see GH-2511)
+	 */
+	@Test
+	public void testParseRDFStarData() throws IOException {
+		IRI bob = vf.createIRI("http://example.com/bob");
+		IRI alice = vf.createIRI("http://example.com/alice");
+		IRI book = vf.createIRI("http://example.com/book");
+		IRI otherbook = vf.createIRI("http://example.com/otherbook");
+		IRI bobshomepage = vf.createIRI("http://example.com/bobshomepage");
+		IRI a = vf.createIRI("http://example.org/a");
+		IRI b = vf.createIRI("http://example.com/b");
+		IRI c = vf.createIRI("http://example.com/c");
+		IRI valid = vf.createIRI("http://example.com/valid");
+		Literal abcDate = vf.createLiteral("1999-08-16", XSD.DATE);
+		Literal birthDate = vf.createLiteral("1908-03-18", XSD.DATE);
+		Literal titleEn = vf.createLiteral("Example book", "en");
+		Literal titleDe = vf.createLiteral("Beispielbuch", "de");
+		Literal titleEnUs = vf.createLiteral("Example Book", "en-US");
+
+		Triple bobCreatedBook = vf.createTriple(bob, DCTERMS.CREATED, book);
+		Triple aliceKnowsBobCreatedBook = vf.createTriple(alice, FOAF.KNOWS, bobCreatedBook);
+		Triple bobCreatedBookKnowsAlice = vf.createTriple(bobCreatedBook, FOAF.KNOWS, alice);
+		Triple bookCreatorAlice = vf.createTriple(book, DCTERMS.CREATOR, alice);
+		Triple aliceCreatedBook = vf.createTriple(alice, DCTERMS.CREATED, book);
+		Triple abc = vf.createTriple(a, b, c);
+		Triple bobBirthdayDate = vf.createTriple(bob, FOAF.BIRTHDAY, birthDate);
+		Triple bookTitleEn = vf.createTriple(book, DCTERMS.TITLE, titleEn);
+		Triple bookTitleDe = vf.createTriple(book, DCTERMS.TITLE, titleDe);
+		Triple bookTitleEnUs = vf.createTriple(book, DCTERMS.TITLE, titleEnUs);
+
+		try (InputStream in = this.getClass().getResourceAsStream("/test-rdfstar.ttls")) {
+			parser.parse(in, baseURI);
+
+			Collection<Statement> stmts = statementCollector.getStatements();
+
+			assertEquals(10, stmts.size());
+
+			assertTrue(stmts.contains(vf.createStatement(bob, FOAF.KNOWS, aliceKnowsBobCreatedBook)));
+			assertTrue(stmts.contains(vf.createStatement(bobCreatedBookKnowsAlice, DCTERMS.SOURCE, otherbook)));
+			assertTrue(stmts.contains(vf.createStatement(bobshomepage, DCTERMS.SOURCE, bookCreatorAlice)));
+			assertTrue(stmts.contains(vf.createStatement(bookCreatorAlice, DCTERMS.SOURCE, bobshomepage)));
+			assertTrue(stmts.contains(vf.createStatement(bookCreatorAlice, DCTERMS.REQUIRES, aliceCreatedBook)));
+			assertTrue(stmts.contains(vf.createStatement(abc, valid, abcDate)));
+			assertTrue(stmts.contains(vf.createStatement(bobBirthdayDate, DCTERMS.SOURCE, bobshomepage)));
+			assertTrue(stmts.contains(vf.createStatement(bookTitleEn, DCTERMS.SOURCE, bobshomepage)));
+			assertTrue(stmts.contains(vf.createStatement(bookTitleDe, DCTERMS.SOURCE, bobshomepage)));
+			assertTrue(stmts.contains(vf.createStatement(bookTitleEnUs, DCTERMS.SOURCE, bobshomepage)));
+		}
+	}
+
+	@Test
+	public void testParseRDFStar_TurtleStarDisabled() throws IOException {
+		parser.getParserConfig().set(TurtleParserSettings.ACCEPT_TURTLESTAR, false);
+
+		try (InputStream in = this.getClass().getResourceAsStream("/test-rdfstar.ttls")) {
+			assertThrows(RDFParseException.class, () -> parser.parse(in, baseURI));
 		}
 	}
 

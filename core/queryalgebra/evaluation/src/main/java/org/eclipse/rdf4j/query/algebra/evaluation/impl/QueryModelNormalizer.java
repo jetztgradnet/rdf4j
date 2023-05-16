@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.impl;
 
@@ -28,17 +31,17 @@ import org.eclipse.rdf4j.query.algebra.Union;
 import org.eclipse.rdf4j.query.algebra.ValueConstant;
 import org.eclipse.rdf4j.query.algebra.ValueExpr;
 import org.eclipse.rdf4j.query.algebra.evaluation.QueryOptimizer;
-import org.eclipse.rdf4j.query.algebra.evaluation.ValueExprEvaluationException;
-import org.eclipse.rdf4j.query.algebra.evaluation.util.QueryEvaluationUtil;
+import org.eclipse.rdf4j.query.algebra.evaluation.util.QueryEvaluationUtility;
 import org.eclipse.rdf4j.query.algebra.helpers.AbstractQueryModelVisitor;
 import org.eclipse.rdf4j.query.algebra.helpers.VarNameCollector;
 
 /**
  * A query optimizer that (partially) normalizes query models to a canonical form. Note: this implementation does not
  * yet cover all query node types.
- * 
+ *
  * @author Arjohn Kampman
  */
+@Deprecated(forRemoval = true, since = "4.1.0")
 public class QueryModelNormalizer extends AbstractQueryModelVisitor<RuntimeException> implements QueryOptimizer {
 
 	public QueryModelNormalizer() {
@@ -68,6 +71,7 @@ public class QueryModelNormalizer extends AbstractQueryModelVisitor<RuntimeExcep
 			Join leftJoin = new Join(union.getLeftArg(), rightArg.clone());
 			Join rightJoin = new Join(union.getRightArg(), rightArg.clone());
 			Union newUnion = new Union(leftJoin, rightJoin);
+			newUnion.setVariableScopeChange(union.isVariableScopeChange());
 			join.replaceWith(newUnion);
 			newUnion.visit(this);
 		} else if (rightArg instanceof Union) {
@@ -76,6 +80,7 @@ public class QueryModelNormalizer extends AbstractQueryModelVisitor<RuntimeExcep
 			Join leftJoin = new Join(leftArg.clone(), union.getLeftArg());
 			Join rightJoin = new Join(leftArg.clone(), union.getRightArg());
 			Union newUnion = new Union(leftJoin, rightJoin);
+			newUnion.setVariableScopeChange(union.isVariableScopeChange());
 			join.replaceWith(newUnion);
 			newUnion.visit(this);
 		} else if (leftArg instanceof LeftJoin && isWellDesigned(((LeftJoin) leftArg))) {
@@ -110,14 +115,11 @@ public class QueryModelNormalizer extends AbstractQueryModelVisitor<RuntimeExcep
 		} else if (rightArg instanceof SingletonSet) {
 			leftJoin.replaceWith(leftArg);
 		} else if (condition instanceof ValueConstant) {
-			boolean conditionValue;
-			try {
-				conditionValue = QueryEvaluationUtil.getEffectiveBooleanValue(((ValueConstant) condition).getValue());
-			} catch (ValueExprEvaluationException e) {
-				conditionValue = false;
-			}
+			boolean conditionValue = QueryEvaluationUtility
+					.getEffectiveBooleanValue(((ValueConstant) condition).getValue())
+					.orElse(false);
 
-			if (conditionValue == false) {
+			if (!conditionValue) {
 				// Constraint is always false
 				leftJoin.replaceWith(leftArg);
 			} else {
@@ -187,14 +189,11 @@ public class QueryModelNormalizer extends AbstractQueryModelVisitor<RuntimeExcep
 		if (arg instanceof EmptySet) {
 			// see #meetUnaryTupleOperator
 		} else if (condition instanceof ValueConstant) {
-			boolean conditionValue;
-			try {
-				conditionValue = QueryEvaluationUtil.getEffectiveBooleanValue(((ValueConstant) condition).getValue());
-			} catch (ValueExprEvaluationException e) {
-				conditionValue = false;
-			}
+			boolean conditionValue = QueryEvaluationUtility
+					.getEffectiveBooleanValue(((ValueConstant) condition).getValue())
+					.orElse(false);
 
-			if (conditionValue == false) {
+			if (!conditionValue) {
 				// Constraint is always false
 				node.replaceWith(new EmptySet());
 			} else {

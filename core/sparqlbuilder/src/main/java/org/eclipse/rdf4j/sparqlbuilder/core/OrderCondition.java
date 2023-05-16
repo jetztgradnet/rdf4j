@@ -1,10 +1,13 @@
 /*******************************************************************************
-Copyright (c) 2018 Eclipse RDF4J contributors.
-All rights reserved. This program and the accompanying materials
-are made available under the terms of the Eclipse Distribution License v1.0
-which accompanies this distribution, and is available at
-http://www.eclipse.org/org/documents/edl-v10.php.
-*******************************************************************************/
+ * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Distribution License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *******************************************************************************/
 
 package org.eclipse.rdf4j.sparqlbuilder.core;
 
@@ -12,13 +15,13 @@ import org.eclipse.rdf4j.sparqlbuilder.util.SparqlBuilderUtils;
 
 /**
  * An ascending or descending order condition
- * 
+ *
  * @see <a href="http://www.w3.org/TR/2013/REC-sparql11-query-20130321/#modOrderBy"> SPARQL Order By Clause</a>
  */
 public class OrderCondition implements Orderable {
 	private static final String ASC = "ASC";
 	private static final String DESC = "DESC";
-	private Orderable orderOn;
+	private final Orderable orderOn;
 	private boolean isAscending;
 
 	OrderCondition(Orderable orderOn) {
@@ -36,7 +39,7 @@ public class OrderCondition implements Orderable {
 
 	/**
 	 * Set this order condition to be ascending
-	 * 
+	 *
 	 * @return this
 	 */
 	@Override
@@ -48,7 +51,7 @@ public class OrderCondition implements Orderable {
 
 	/**
 	 * Set this order condition to be descending
-	 * 
+	 *
 	 * @return this
 	 */
 	@Override

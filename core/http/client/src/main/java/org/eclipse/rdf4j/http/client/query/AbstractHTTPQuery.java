@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.http.client.query;
 
@@ -18,7 +21,7 @@ import org.eclipse.rdf4j.query.impl.AbstractQuery;
 
 /**
  * Base class for any {@link Query} operation over HTTP.
- * 
+ *
  * @author Andreas Schwarte
  */
 public abstract class AbstractHTTPQuery extends AbstractQuery {
@@ -65,8 +68,8 @@ public abstract class AbstractHTTPQuery extends AbstractQuery {
 	}
 
 	@Override
-	public void setMaxExecutionTime(int maxExecutionTime) {
-		super.setMaxExecutionTime(maxExecutionTime);
+	public void setMaxExecutionTime(int maxExecutionTimeSeconds) {
+		super.setMaxExecutionTime(maxExecutionTimeSeconds);
 		this.httpClient.setConnectionTimeout(1000L * this.getMaxExecutionTime());
 	}
 

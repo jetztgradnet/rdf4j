@@ -1,11 +1,16 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.lucene;
+
+import java.util.function.Supplier;
 
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
@@ -13,8 +18,6 @@ import org.eclipse.rdf4j.query.algebra.QueryModelNode;
 import org.eclipse.rdf4j.query.algebra.SingletonSet;
 import org.eclipse.rdf4j.query.algebra.StatementPattern;
 import org.eclipse.rdf4j.query.algebra.Var;
-
-import java.util.function.Supplier;
 
 /**
  * A QuerySpec holds information extracted from a TupleExpr corresponding with a single Lucene query. Access the
@@ -34,6 +37,8 @@ public class QuerySpec extends AbstractSearchQueryEvaluator {
 
 	private final StatementPattern typePattern;
 
+	private final StatementPattern idPattern;
+
 	private final Resource subject;
 
 	private final String queryString;
@@ -51,12 +56,20 @@ public class QuerySpec extends AbstractSearchQueryEvaluator {
 	public QuerySpec(StatementPattern matchesPattern, StatementPattern queryPattern, StatementPattern propertyPattern,
 			StatementPattern scorePattern, StatementPattern snippetPattern, StatementPattern typePattern,
 			Resource subject, String queryString, IRI propertyURI) {
+		this(matchesPattern, queryPattern, propertyPattern, scorePattern, snippetPattern, typePattern,
+				null, subject, queryString, propertyURI);
+	}
+
+	public QuerySpec(StatementPattern matchesPattern, StatementPattern queryPattern, StatementPattern propertyPattern,
+			StatementPattern scorePattern, StatementPattern snippetPattern, StatementPattern typePattern,
+			StatementPattern idPattern, Resource subject, String queryString, IRI propertyURI) {
 		this.matchesPattern = matchesPattern;
 		this.queryPattern = queryPattern;
 		this.propertyPattern = propertyPattern;
 		this.scorePattern = scorePattern;
 		this.snippetPattern = snippetPattern;
 		this.typePattern = typePattern;
+		this.idPattern = idPattern;
 		this.subject = subject;
 		this.queryString = queryString;
 		this.propertyURI = propertyURI;
@@ -94,6 +107,7 @@ public class QuerySpec extends AbstractSearchQueryEvaluator {
 		this.snippetPattern = null;
 		this.typePattern = null;
 		this.queryPattern = null;
+		this.idPattern = null;
 		this.subject = subject;
 		this.queryString = queryString;
 		this.propertyURI = propertyURI;
@@ -113,6 +127,7 @@ public class QuerySpec extends AbstractSearchQueryEvaluator {
 		replace(getPropertyPattern(), replacement);
 		replace(getSnippetPattern(), replacement);
 		replace(getTypePattern(), replacement);
+		replace(getIdPattern(), replacement);
 
 		final QueryModelNode placeholder = new SingletonSet();
 
@@ -123,7 +138,7 @@ public class QuerySpec extends AbstractSearchQueryEvaluator {
 
 	/**
 	 * Replace the given pattern with a new instance of the given replacement type.
-	 * 
+	 *
 	 * @param pattern     the pattern to remove
 	 * @param replacement the replacement type
 	 */
@@ -139,7 +154,7 @@ public class QuerySpec extends AbstractSearchQueryEvaluator {
 
 	/**
 	 * return the name of the bound variable that should match the query
-	 * 
+	 *
 	 * @return the name of the variable or null, if no name set
 	 */
 	public String getMatchesVariableName() {
@@ -154,6 +169,10 @@ public class QuerySpec extends AbstractSearchQueryEvaluator {
 		return propertyPattern;
 	}
 
+	public StatementPattern getIdPattern() {
+		return idPattern;
+	}
+
 	public String getPropertyVariableName() {
 		return propertyVarName;
 	}
@@ -164,7 +183,7 @@ public class QuerySpec extends AbstractSearchQueryEvaluator {
 
 	/**
 	 * The variable name associated with the query score
-	 * 
+	 *
 	 * @return the name or null, if no score is queried in the pattern
 	 */
 	public String getScoreVariableName() {
@@ -185,14 +204,15 @@ public class QuerySpec extends AbstractSearchQueryEvaluator {
 
 	/**
 	 * the type of query, must equal {@link LuceneSailSchema#LUCENE_QUERY}. A null type is possible, but not valid.
-	 * 
+	 *
 	 * @return the type of the Query or null, if no type assigned.
 	 */
 	public IRI getQueryType() {
-		if (typePattern != null)
+		if (typePattern != null) {
 			return (IRI) typePattern.getObjectVar().getValue();
-		else
+		} else {
 			return null;
+		}
 	}
 
 	public Resource getSubject() {
@@ -201,7 +221,7 @@ public class QuerySpec extends AbstractSearchQueryEvaluator {
 
 	/**
 	 * return the literal expression of the query or null, if none set. (null values are possible, but not valid).
-	 * 
+	 *
 	 * @return the query or null
 	 */
 	public String getQueryString() {
@@ -238,8 +258,9 @@ public class QuerySpec extends AbstractSearchQueryEvaluator {
 	}
 
 	private void append(StatementPattern pattern, StringBuilder buffer) {
-		if (pattern == null)
+		if (pattern == null) {
 			return;
+		}
 
 		buffer.append("   ");
 		buffer.append("StatementPattern\n");

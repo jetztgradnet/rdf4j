@@ -1,22 +1,26 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Locale;
 
@@ -24,6 +28,7 @@ import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Statement;
+import org.eclipse.rdf4j.model.Triple;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
@@ -31,19 +36,20 @@ import org.eclipse.rdf4j.model.util.Models;
 import org.eclipse.rdf4j.model.vocabulary.DC;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.rio.helpers.BasicParserSettings;
 import org.eclipse.rdf4j.rio.helpers.ParseErrorCollector;
+import org.eclipse.rdf4j.rio.helpers.RDFStarUtil;
 import org.eclipse.rdf4j.rio.helpers.StatementCollector;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Abstract tests to confirm consistent behaviour for the datatype and language handling settings.
- * 
+ *
  * @author Peter Ansell
  */
 public abstract class AbstractParserHandlingTest {
@@ -76,7 +82,7 @@ public abstract class AbstractParserHandlingTest {
 	 * <p>
 	 * This may be anything, but it must match with the given {@link DatatypeHandler}.
 	 */
-	private static final IRI KNOWN_DATATYPE_URI = XMLSchema.INTEGER;
+	private static final IRI KNOWN_DATATYPE_URI = XSD.INTEGER;
 
 	/**
 	 * Test value used for testing unknown language support.
@@ -98,6 +104,11 @@ public abstract class AbstractParserHandlingTest {
 	 */
 	private static final String KNOWN_LANGUAGE_TAG = "en-AU";
 
+	/**
+	 * Test URI used for testing support for handling RDF langString with no Language tag.
+	 */
+	private static final IRI EMPTY_DATATYPE_URI = null;
+
 	private final ValueFactory vf = SimpleValueFactory.getInstance();
 
 	private RDFParser testParser;
@@ -109,7 +120,7 @@ public abstract class AbstractParserHandlingTest {
 	/**
 	 * Returns an {@link InputStream} containing the given RDF statements in a format that is recognised by the
 	 * RDFParser returned by {@link #getParser()}.
-	 * 
+	 *
 	 * @param unknownDatatypeStatements A {@link Model} containing statements which all contain unknown datatypes.
 	 * @return An InputStream based on the given parameters.
 	 */
@@ -120,7 +131,7 @@ public abstract class AbstractParserHandlingTest {
 	/**
 	 * Returns an {@link InputStream} containing the given RDF statements in a format that is recognised by the
 	 * RDFParser returned by {@link #getParser()}.
-	 * 
+	 *
 	 * @param knownDatatypeStatements A {@link Model} containing statements which all contain known datatypes.
 	 * @return An InputStream based on the given parameters.
 	 */
@@ -131,7 +142,7 @@ public abstract class AbstractParserHandlingTest {
 	/**
 	 * Returns an {@link InputStream} containing the given RDF statements in a format that is recognised by the
 	 * RDFParser returned by {@link #getParser()}.
-	 * 
+	 *
 	 * @param unknownLanguageStatements A {@link Model} containing statements which all contain unknown language tags.
 	 * @return An InputStream based on the given parameters.
 	 */
@@ -142,7 +153,7 @@ public abstract class AbstractParserHandlingTest {
 	/**
 	 * Returns an {@link InputStream} containing the given RDF statements in a format that is recognised by the
 	 * RDFParser returned by {@link #getParser()}.
-	 * 
+	 *
 	 * @param knownLanguageStatements A {@link Model} containing statements which all contain known language tags.
 	 * @return An InputStream based on the given parameters.
 	 */
@@ -151,8 +162,20 @@ public abstract class AbstractParserHandlingTest {
 	}
 
 	/**
+	 * Returns an {@link InputStream} containing the given RDF statements in a format that is recognised by the
+	 * RDFParser returned by {@link #getParser()}.
+	 *
+	 * @param RDFLangStringWithNoLanguageStatements A {@link Model} containing statements which all contain statements
+	 *                                              that have RDF langString with no language tag.
+	 * @return An InputStream based on the given parameters.
+	 */
+	protected InputStream getRDFLangStringWithNoLanguageStream(Model model) throws Exception {
+		return serialize(model);
+	}
+
+	/**
 	 * Concrete test classes can override this to return a new instance of the RDFParser that is being tested.
-	 * 
+	 *
 	 * @return A new instance of the RDFParser that is being tested.
 	 */
 	protected abstract RDFParser getParser();
@@ -190,7 +213,7 @@ public abstract class AbstractParserHandlingTest {
 	/**
 	 * @throws java.lang.Exception
 	 */
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
 		testParser = getParser();
 
@@ -205,7 +228,7 @@ public abstract class AbstractParserHandlingTest {
 	/**
 	 * @throws java.lang.Exception
 	 */
-	@After
+	@AfterEach
 	public void tearDown() throws Exception {
 		testListener.reset();
 		testListener = null;
@@ -868,6 +891,19 @@ public abstract class AbstractParserHandlingTest {
 	}
 
 	@Test
+	public final void testNoLanguageWithRDFLangStringNoFailCase1() throws Exception {
+		Model expectedModel = getTestModel(KNOWN_LANGUAGE_VALUE, EMPTY_DATATYPE_URI);
+		InputStream input = getRDFLangStringWithNoLanguageStream(expectedModel);
+
+		testParser.getParserConfig().set(BasicParserSettings.VERIFY_DATATYPE_VALUES, false);
+
+		testParser.parse(input, BASE_URI);
+
+		assertErrorListener(0, 0, 0);
+		assertModel(expectedModel);
+	}
+
+	@Test
 	public final void testSkolemization() throws Exception {
 		Model expectedModel = new LinkedHashModel();
 		BNode subj = vf.createBNode();
@@ -882,9 +918,50 @@ public abstract class AbstractParserHandlingTest {
 		testParser.parse(input, BASE_URI);
 
 		assertErrorListener(0, 0, 0);
-		assertModel(expectedModel); // isomorphic
+		// assertModel(expectedModel); // GH-2768 isomorphism is not maintained after skolemization
 		assertNotEquals(new HashSet<>(expectedModel), new HashSet<>(testStatements)); // blank nodes not preserved
 		assertTrue(Models.subjectBNodes(testStatements).isEmpty()); // skolemized
+	}
+
+	@Test
+	public final void testRDFStarCompatibility() throws Exception {
+		Model expectedModel = new LinkedHashModel();
+		Triple t1 = vf.createTriple(vf.createIRI("http://example.com/1"), vf.createIRI("http://example.com/2"),
+				vf.createLiteral("example", vf.createIRI("http://example.com/3")));
+		expectedModel.add(vf.createStatement(t1, DC.SOURCE, vf.createIRI("http://example.com/4")));
+		Triple t2 = vf.createTriple(t1, DC.DATE, vf.createLiteral(new Date()));
+		expectedModel.add(vf.createStatement(vf.createIRI("http://example.com/5"), DC.RELATION, t2));
+		Triple t3 = vf.createTriple(vf.createTriple(vf.createTriple(vf.createIRI("urn:a"), RDF.TYPE,
+				vf.createIRI("urn:b")), vf.createIRI("urn:c"), vf.createIRI("urn:d")), vf.createIRI("urn:e"),
+				vf.createIRI("urn:f"));
+		expectedModel.add(vf.createStatement(t3, vf.createIRI("urn:same"), t3));
+
+		// Default: formats with RDF-star support handle it natively and non-RDF-star use a compatibility encoding
+		InputStream input1 = serialize(expectedModel);
+		testParser.parse(input1, BASE_URI);
+		assertErrorListener(0, 0, 0);
+		assertModel(expectedModel);
+
+		testListener.reset();
+		testStatements.clear();
+
+		// Turn off compatibility on parsing: formats with RDF-star support will produce RDF-star triples,
+		// non-RDF-star formats will produce IRIs of the kind urn:rdf4j:triple:xxx
+		InputStream input2 = serialize(expectedModel);
+		testParser.getParserConfig().set(BasicParserSettings.PROCESS_ENCODED_RDF_STAR, false);
+		testParser.parse(input2, BASE_URI);
+		assertErrorListener(0, 0, 0);
+		if (testParser.getRDFFormat().supportsRDFStar()) {
+			assertModel(expectedModel);
+		} else {
+			assertTrue(testStatements.contains(RDFStarUtil.toRDFEncodedValue(t1), DC.SOURCE,
+					vf.createIRI("http://example.com/4")));
+			assertTrue(testStatements.contains(vf.createIRI("http://example.com/5"), DC.RELATION,
+					RDFStarUtil.toRDFEncodedValue(t2)));
+			assertTrue(testStatements.contains(RDFStarUtil.toRDFEncodedValue(t3), vf.createIRI("urn:same"),
+					RDFStarUtil.toRDFEncodedValue(t3)));
+			assertEquals(3, testStatements.size());
+		}
 	}
 
 	private void assertModel(Model expectedModel) {
@@ -892,22 +969,22 @@ public abstract class AbstractParserHandlingTest {
 			logger.trace("Expected: {}", expectedModel);
 			logger.trace("Actual: {}", testStatements);
 		}
-		assertTrue("Did not find expected statements", Models.isomorphic(expectedModel, testStatements));
+		assertTrue(Models.isomorphic(expectedModel, testStatements), "Did not find expected statements");
 	}
 
 	private void assertErrorListener(int expectedWarnings, int expectedErrors, int expectedFatalErrors) {
-		assertEquals("Unexpected number of fatal errors", expectedFatalErrors, testListener.getFatalErrors().size());
-		assertEquals("Unexpected number of errors", expectedErrors, testListener.getErrors().size());
-		assertEquals("Unexpected number of warnings", expectedWarnings, testListener.getWarnings().size());
+		assertEquals(expectedFatalErrors, testListener.getFatalErrors().size(), "Unexpected number of fatal errors");
+		assertEquals(expectedErrors, testListener.getErrors().size(), "Unexpected number of errors");
+		assertEquals(expectedWarnings, testListener.getWarnings().size(), "Unexpected number of warnings");
 	}
 
-	private final Model getTestModel(String datatypeValue, IRI datatypeURI) {
+	private Model getTestModel(String datatypeValue, IRI datatypeURI) {
 		Model result = new LinkedHashModel();
 		result.add(vf.createStatement(vf.createBNode(), DC.DESCRIPTION, vf.createLiteral(datatypeValue, datatypeURI)));
 		return result;
 	}
 
-	private final Model getTestModel(String languageValue, String languageTag) {
+	private Model getTestModel(String languageValue, String languageTag) {
 		Model result = new LinkedHashModel();
 		result.add(vf.createStatement(vf.createBNode(), RDFS.COMMENT, vf.createLiteral(languageValue, languageTag)));
 		return result;

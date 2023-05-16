@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.structures;
 
@@ -23,16 +26,16 @@ import org.eclipse.rdf4j.query.Dataset;
  * <p>
  * Example
  * </p>
- * 
+ *
  * <pre>
- * TupleQuery tq = ...; 
+ * TupleQuery tq = ...;
  * FedXDataset ds = new FedXDataset(tq.getDataset);
  * ds.addEndpoint("myEndpoint");
  * ds.addEndpoint("otherEndpoint");
  * tq.setDataset(ds)
  * TupleQueryResult res = tq.evaluate()
  * </pre>
- * 
+ *
  * @author Andreas Schwarte
  *
  */
@@ -61,21 +64,33 @@ public class FedXDataset implements Dataset {
 
 	@Override
 	public Set<IRI> getDefaultGraphs() {
+		if (delegate == null) {
+			return Collections.emptySet();
+		}
 		return delegate.getDefaultGraphs();
 	}
 
 	@Override
 	public IRI getDefaultInsertGraph() {
+		if (delegate == null) {
+			return null;
+		}
 		return delegate.getDefaultInsertGraph();
 	}
 
 	@Override
 	public Set<IRI> getDefaultRemoveGraphs() {
+		if (delegate == null) {
+			return Collections.emptySet();
+		}
 		return delegate.getDefaultRemoveGraphs();
 	}
 
 	@Override
 	public Set<IRI> getNamedGraphs() {
+		if (delegate == null) {
+			return Collections.emptySet();
+		}
 		return delegate.getNamedGraphs();
 	}
 

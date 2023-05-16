@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.helpers;
 
@@ -13,7 +16,7 @@ import org.eclipse.rdf4j.rio.RioSetting;
  * A selection of parser settings specific to RDFa parsers.
  * <p>
  * Several of these settings can be overridden by means of a system property, but only if specified at JVM startup time.
- * 
+ *
  * @author Peter Ansell
  */
 public class RDFaParserSettings {
@@ -23,7 +26,7 @@ public class RDFaParserSettings {
 	 * <p>
 	 * Defaults to {@link RDFaVersion#RDFA_1_0}.
 	 */
-	public static final RioSetting<RDFaVersion> RDFA_COMPATIBILITY = new RioSettingImpl<RDFaVersion>(
+	public static final RioSetting<RDFaVersion> RDFA_COMPATIBILITY = new RioSettingImpl<>(
 			"org.eclipse.rdf4j.rio.rdfa.version", "RDFa Version Compatibility", RDFaVersion.RDFA_1_0);
 
 	/**
@@ -33,7 +36,7 @@ public class RDFaParserSettings {
 	 * Defaults to false
 	 * <p>
 	 * Can be overridden by setting system property {@code org.eclipse.rdf4j.rio.rdfa.vocab_expansion}.
-	 * 
+	 *
 	 * @see <a href="http://www.w3.org/TR/2012/REC-rdfa-core-20120607/#s_vocab_expansion">RDFa Vocabulary Expansion</a>
 	 */
 	public static final RioSetting<Boolean> VOCAB_EXPANSION_ENABLED = new BooleanRioSetting(

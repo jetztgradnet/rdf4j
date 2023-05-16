@@ -1,14 +1,20 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.lucene;
 
 import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
 import java.text.ParseException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -20,6 +26,7 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.lucene.geo.SimpleWKTShapeParser;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Resource;
@@ -29,6 +36,7 @@ import org.eclipse.rdf4j.model.impl.BooleanLiteral;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.vocabulary.GEO;
 import org.eclipse.rdf4j.model.vocabulary.GEOF;
+import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.MalformedQueryException;
 import org.eclipse.rdf4j.query.algebra.Var;
@@ -51,7 +59,7 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 
 	private final ValueFactory vf = SimpleValueFactory.getInstance();
 
-	private static final Set<String> REJECTED_DATATYPES = new HashSet<String>();
+	private static final Set<String> REJECTED_DATATYPES = new HashSet<>();
 
 	static {
 		REJECTED_DATATYPES.add("http://www.w3.org/2001/XMLSchema#float");
@@ -60,6 +68,10 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 	protected int maxDocs;
 
 	protected Set<String> wktFields = Collections.singleton(SearchFields.getPropertyField(GEO.AS_WKT));
+
+	private Set<String> indexedLangs;
+
+	private Map<IRI, Set<IRI>> indexedTypeMapping;
 
 	@Override
 	public void initialize(Properties parameters) throws Exception {
@@ -70,6 +82,45 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 		if (wktFieldParam != null) {
 			wktFields = Sets.newHashSet(wktFieldParam.split("\\s+"));
 		}
+
+		if (parameters.containsKey(LuceneSail.INDEXEDLANG)) {
+			String indexedlangString = parameters.getProperty(LuceneSail.INDEXEDLANG);
+
+			indexedLangs = new HashSet<>();
+			indexedLangs.addAll(Arrays.asList(indexedlangString.toLowerCase().split("\\s+")));
+		}
+
+		if (parameters.containsKey(LuceneSail.INDEXEDTYPES)) {
+			String indexedtypesString = parameters.getProperty(LuceneSail.INDEXEDTYPES);
+			Properties prop = new Properties();
+			try {
+				try (Reader reader = new StringReader(indexedtypesString)) {
+					prop.load(reader);
+				}
+			} catch (IOException e) {
+				throw new SailException("Could read " + LuceneSail.INDEXEDTYPES + ": " + indexedtypesString, e);
+			}
+
+			indexedTypeMapping = new HashMap<>();
+			for (Object key : prop.keySet()) {
+				String keyStr = key.toString();
+				Set<IRI> objects = new HashSet<>();
+				for (String obj : prop.getProperty(keyStr).split("\\s+")) {
+					objects.add(vf.createIRI(obj));
+				}
+
+				IRI keyIRI;
+
+				// special case to use the rdf:type "a"
+				if (keyStr.equals("a")) {
+					keyIRI = RDF.TYPE;
+				} else {
+					keyIRI = vf.createIRI(keyStr);
+				}
+
+				indexedTypeMapping.put(keyIRI, objects);
+			}
+		}
 	}
 
 	protected abstract SpatialContext getSpatialContext(String property);
@@ -77,19 +128,29 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 	/**
 	 * Returns whether the provided literal is accepted by the LuceneIndex to be indexed. It for instance does not make
 	 * much since to index xsd:float.
-	 * 
+	 *
 	 * @param literal the literal to be accepted
 	 * @return true if the given literal will be indexed by this LuceneIndex
 	 */
 	@Override
 	public boolean accept(Literal literal) {
 		// we reject null literals
-		if (literal == null)
+		if (literal == null) {
 			return false;
+		}
 
 		// we reject literals that are in the list of rejected data types
-		if ((literal.getDatatype() != null) && (REJECTED_DATATYPES.contains(literal.getDatatype().stringValue())))
+		if ((literal.getDatatype() != null) && (REJECTED_DATATYPES.contains(literal.getDatatype().stringValue()))) {
 			return false;
+		}
+
+		// we reject literals that aren't in the list of the indexed lang
+		if (indexedLangs != null
+				&& (!literal.getLanguage().isPresent()
+						|| !indexedLangs.contains(literal.getLanguage().get().toLowerCase()
+						))) {
+			return false;
+		}
 
 		return true;
 	}
@@ -97,6 +158,32 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 	@Override
 	public boolean isGeoField(String fieldName) {
 		return (wktFields != null) && wktFields.contains(fieldName);
+	}
+
+	@Override
+	public boolean isTypeStatement(Statement statement) {
+		return isTypeFilteringEnabled()
+				&& statement.getObject().isIRI()
+				&& indexedTypeMapping.get(statement.getPredicate()) != null;
+	}
+
+	@Override
+	public boolean isTypeFilteringEnabled() {
+		return indexedTypeMapping != null;
+	}
+
+	@Override
+	public boolean isIndexedTypeStatement(Statement statement) {
+		if (!isTypeFilteringEnabled() || !statement.getObject().isIRI()) {
+			return false;
+		}
+		Set<IRI> objects = indexedTypeMapping.get(statement.getPredicate());
+		return objects != null && objects.contains((IRI) statement.getObject());
+	}
+
+	@Override
+	public Map<IRI, Set<IRI>> getIndexedTypeMapping() {
+		return indexedTypeMapping;
 	}
 
 	/**
@@ -184,7 +271,7 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 	/**
 	 * Add many statements at the same time, remove many statements at the same time. Ordering by resource has to be
 	 * done inside this method. The passed added/removed sets are disjunct, no statement can be in both
-	 * 
+	 *
 	 * @param added   all added statements, can have multiple subjects
 	 * @param removed all removed statements, can have multiple subjects
 	 */
@@ -246,10 +333,11 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 					updater.add(document);
 
 					// THERE SHOULD BE NO DELETED TRIPLES ON A NEWLY ADDED RESOURCE
-					if (stmtsToRemove.containsKey(contextId))
+					if (stmtsToRemove.containsKey(contextId)) {
 						logger.info(
 								"Statements are marked to be removed that should not be in the store, for resource {} and context {}. Nothing done.",
 								resource, contextId);
+					}
 				} else {
 					// update the Document
 
@@ -358,7 +446,7 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 	/**
 	 * Add a complete Lucene Document based on these statements. Do not search for an existing document with the same
 	 * subject id. (assume the existing document was deleted)
-	 * 
+	 *
 	 * @param statements the statements that make up the resource
 	 * @throws IOException
 	 */
@@ -395,7 +483,7 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 	/**
 	 * check if the passed statement should be added (is it indexed? is it stored?) and add it as predicate to the
 	 * passed document. No checks whether the predicate was already there.
-	 * 
+	 *
 	 * @param statement the statement to add
 	 * @param document  the document to add to
 	 */
@@ -414,16 +502,6 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 		} else {
 			document.addProperty(field, value);
 		}
-	}
-
-	/**
-	 * To be removed, prefer {@link evaluate(SearchQueryEvaluator query)}.
-	 */
-	@Override
-	@Deprecated
-	public Collection<BindingSet> evaluate(QuerySpec query) throws SailException {
-		Iterable<? extends DocumentScore> result = evaluateQuery(query);
-		return generateBindingSets(query, result);
 	}
 
 	@Override
@@ -449,7 +527,7 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 	/**
 	 * Evaluates one Lucene Query. It distinguishes between two cases, the one where no subject is given and the one
 	 * were it is given.
-	 * 
+	 *
 	 * @param query the Lucene query to evaluate
 	 * @return QueryResult consisting of hits and highlighter
 	 */
@@ -481,7 +559,7 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 
 	/**
 	 * This method generates bindings from the given result of a Lucene query.
-	 * 
+	 *
 	 * @param query the Lucene query
 	 * @return a LinkedHashSet containing generated bindings
 	 * @throws SailException
@@ -522,8 +600,9 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 
 				// get the current hit
 				SearchDocument doc = hit.getDocument();
-				if (doc == null)
+				if (doc == null) {
 					continue;
+				}
 
 				// get the score of the hit
 				float score = hit.getScore();
@@ -534,8 +613,9 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 					derivedBindings.addBinding(matchVar, resource);
 				}
 
-				if ((scoreVar != null) && (score > 0.0f))
+				if ((scoreVar != null) && (score > 0.0f)) {
 					derivedBindings.addBinding(scoreVar, SearchFields.scoreToLiteral(score));
+				}
 
 				if (snippetVar != null || propertyVar != null) {
 					if (hit.isHighlighted()) {
@@ -598,7 +678,7 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 			if (!GEO.WKT_LITERAL.equals(from.getDatatype())) {
 				throw new MalformedQueryException("Unsupported datatype: " + from.getDatatype());
 			}
-			Shape shape = parseQueryShape(SearchFields.getPropertyField(geoProperty), from.getLabel());
+			Shape shape = parseQueryPoint(SearchFields.getPropertyField(geoProperty), from.getLabel());
 			if (!(shape instanceof Point)) {
 				throw new MalformedQueryException("Geometry literal is not a point: " + from.getLabel());
 			}
@@ -654,8 +734,9 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 			for (DocumentDistance hit : hits) {
 				// get the current hit
 				SearchDocument doc = hit.getDocument();
-				if (doc == null)
+				if (doc == null) {
 					continue;
+				}
 
 				List<String> geometries = doc.getProperty(SearchFields.getPropertyField(query.getGeoProperty()));
 				for (String geometry : geometries) {
@@ -710,8 +791,7 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 			if (!GEO.WKT_LITERAL.equals(qgeom.getDatatype())) {
 				throw new MalformedQueryException("Unsupported datatype: " + qgeom.getDatatype());
 			}
-			Shape qshape = parseQueryShape(SearchFields.getPropertyField(geoProperty), qgeom.getLabel());
-			hits = geoRelationQuery(query.getRelation(), geoProperty, qshape, query.getContextVar());
+			hits = geoRelationQuery(query.getRelation(), geoProperty, qgeom.getLabel(), query.getContextVar());
 		} catch (Exception e) {
 			logger.error("There was a problem evaluating spatial relation query '" + query.getRelation() + " "
 					+ qgeom.getLabel() + "'!", e);
@@ -753,8 +833,9 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 			for (DocumentResult hit : hits) {
 				// get the current hit
 				SearchDocument doc = hit.getDocument();
-				if (doc == null)
+				if (doc == null) {
 					continue;
+				}
 
 				List<String> geometries = doc.getProperty(SearchFields.getPropertyField(query.getGeoProperty()));
 				for (String geometry : geometries) {
@@ -785,7 +866,15 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 		return new BindingSetCollection(bindingNames, bindingSets);
 	}
 
+	protected Object parseLuceneQueryShape(String property, String value) throws ParseException, IOException {
+		return SimpleWKTShapeParser.parse(value);
+	}
+
 	protected Shape parseQueryShape(String property, String value) throws ParseException {
+		return getSpatialContext(property).readShapeFromWkt(value);
+	}
+
+	protected Shape parseQueryPoint(String property, String value) throws ParseException {
 		return getSpatialContext(property).readShapeFromWkt(value);
 	}
 
@@ -810,12 +899,6 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 
 	protected abstract void deleteDocument(SearchDocument doc) throws IOException;
 
-	/**
-	 * To be removed.
-	 */
-	@Deprecated
-	protected abstract SearchQuery parseQuery(String q, IRI property) throws MalformedQueryException;
-
 	protected abstract Iterable<? extends DocumentScore> query(Resource subject, String q, IRI property,
 			boolean highlight) throws MalformedQueryException, IOException;
 
@@ -823,7 +906,7 @@ public abstract class AbstractSearchIndex implements SearchIndex {
 			double distance, String distanceVar, Var context) throws MalformedQueryException, IOException;
 
 	protected abstract Iterable<? extends DocumentResult> geoRelationQuery(String relation, IRI geoProperty,
-			Shape shape, Var context) throws MalformedQueryException, IOException;
+			String wkt, Var context) throws MalformedQueryException, IOException;
 
 	protected abstract BulkUpdater newBulkUpdate();
 }

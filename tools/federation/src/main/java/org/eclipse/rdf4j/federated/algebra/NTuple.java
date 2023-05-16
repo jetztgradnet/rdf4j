@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.algebra;
 
@@ -19,9 +22,9 @@ import org.eclipse.rdf4j.query.algebra.TupleExpr;
 
 /**
  * Base class for any nary-tuple expression
- * 
+ *
  * @author Andreas Schwarte
- * 
+ *
  * @see NJoin
  * @see NUnion
  */
@@ -34,15 +37,16 @@ public abstract class NTuple extends AbstractQueryModelNode implements TupleExpr
 
 	/**
 	 * Construct an nary-tuple. Note that the parentNode of all arguments is set to this instance.
-	 * 
+	 *
 	 * @param args
 	 */
 	public NTuple(List<TupleExpr> args, QueryInfo queryInfo) {
 		super();
 		this.queryInfo = queryInfo;
 		this.args = args;
-		for (TupleExpr expr : args)
+		for (TupleExpr expr : args) {
 			expr.setParentNode(this);
+		}
 	}
 
 	public TupleExpr getArg(int i) {
@@ -59,8 +63,9 @@ public abstract class NTuple extends AbstractQueryModelNode implements TupleExpr
 
 	@Override
 	public <X extends Exception> void visitChildren(QueryModelVisitor<X> visitor) throws X {
-		for (TupleExpr expr : args)
+		for (TupleExpr expr : args) {
 			expr.visit(visitor);
+		}
 	}
 
 	@Override
@@ -70,7 +75,7 @@ public abstract class NTuple extends AbstractQueryModelNode implements TupleExpr
 
 	@Override
 	public Set<String> getAssuredBindingNames() {
-		Set<String> res = new LinkedHashSet<String>(16);
+		Set<String> res = new LinkedHashSet<>(16);
 		for (TupleExpr e : args) {
 			res.addAll(e.getAssuredBindingNames());
 		}
@@ -79,7 +84,7 @@ public abstract class NTuple extends AbstractQueryModelNode implements TupleExpr
 
 	@Override
 	public Set<String> getBindingNames() {
-		Set<String> res = new LinkedHashSet<String>(16);
+		Set<String> res = new LinkedHashSet<>(16);
 		for (TupleExpr e : args) {
 			res.addAll(e.getBindingNames());
 		}
@@ -90,10 +95,12 @@ public abstract class NTuple extends AbstractQueryModelNode implements TupleExpr
 	public void replaceChildNode(QueryModelNode current, QueryModelNode replacement) {
 		int index = args.indexOf(current);
 
-		if (index >= 0)
+		if (index >= 0) {
 			args.set(index, (TupleExpr) replacement);
-		else
+			replacement.setParentNode(this);
+		} else {
 			super.replaceChildNode(current, replacement);
+		}
 	}
 
 	@Override

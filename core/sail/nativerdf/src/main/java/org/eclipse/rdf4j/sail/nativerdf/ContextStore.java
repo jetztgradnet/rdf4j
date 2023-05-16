@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.nativerdf;
 
@@ -37,24 +40,23 @@ import org.slf4j.LoggerFactory;
  * An in-memory index for context information that uses a file for persistence.
  * <p>
  * The context index file has an 8-byte header consisting of:
- * 
+ *
  * <pre>
  * 	byte 1-3         : the magic number marker
  *  byte 4           : the file format version
  *  byte 5-8         : the number of mapped contexts contained in the file, as an int.
  * </pre>
- * 
+ * <p>
  * Each context is encoded in the file as a record, as follows:
- * 
+ *
  * <pre>
  *   byte 1 - 8      : the number of statements in the content, as a long.
  *   byte 9          : boolean flag indicating the type of context identifier (1 = IRI, 0 = blank node)
  *   byte 10 - 11    : the length of the encoded context identifier
  *   byte 12 - A     : the UTF-8 encoded the encoded context identifer
  * </pre>
- * 
- * @author Jeen Broekstra
  *
+ * @author Jeen Broekstra
  */
 class ContextStore implements Iterable<Resource> {
 
@@ -117,7 +119,7 @@ class ContextStore implements Iterable<Resource> {
 
 	/**
 	 * Increase the size of the context. If the context was not yet known, it is created with a size of 1.
-	 * 
+	 *
 	 * @param context the context identifier.
 	 */
 	void increment(Resource context) {
@@ -127,7 +129,7 @@ class ContextStore implements Iterable<Resource> {
 
 	/**
 	 * Decrease the size of the context by the given amount. If the size reaches zero, the context is removed.
-	 * 
+	 *
 	 * @param context the context identifier.
 	 * @param amount  the number by which to decrease the size
 	 */

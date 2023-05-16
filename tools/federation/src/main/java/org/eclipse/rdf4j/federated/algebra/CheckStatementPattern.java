@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.algebra;
 
@@ -13,7 +16,6 @@ import java.util.Set;
 
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.common.iteration.EmptyIteration;
-import org.eclipse.rdf4j.federated.EndpointManager;
 import org.eclipse.rdf4j.federated.endpoint.Endpoint;
 import org.eclipse.rdf4j.federated.evaluation.TripleSource;
 import org.eclipse.rdf4j.federated.evaluation.iterator.SingleBindingSetIteration;
@@ -29,9 +31,9 @@ import org.eclipse.rdf4j.repository.RepositoryException;
 /**
  * A statement pattern with no free variables when provided with some particular BindingSet in evaluate. For evaluation
  * a boolean ASK query is performed.
- * 
+ *
  * Wraps a StatementTupleExpr
- * 
+ *
  * @author Andreas Schwarte
  */
 public class CheckStatementPattern implements StatementTupleExpr, BoundJoinTupleExpr {
@@ -40,11 +42,18 @@ public class CheckStatementPattern implements StatementTupleExpr, BoundJoinTuple
 
 	protected final StatementTupleExpr stmt;
 	protected final String id;
+	protected final QueryInfo queryInfo;
 
-	public CheckStatementPattern(StatementTupleExpr stmt) {
+	private double resultSizeEstimate = -1;
+	private double costEstimate = -1;
+	private long resultSizeActual = -1;
+	private long totalTimeNanosActual = -1;
+
+	public CheckStatementPattern(StatementTupleExpr stmt, QueryInfo queryInfo) {
 		super();
 		this.stmt = stmt;
 		this.id = NodeFactory.getNextId();
+		this.queryInfo = queryInfo;
 	}
 
 	public StatementPattern getStatementPattern() {
@@ -97,8 +106,7 @@ public class CheckStatementPattern implements StatementTupleExpr, BoundJoinTuple
 	}
 
 	@Override
-	public void replaceChildNode(QueryModelNode current,
-			QueryModelNode replacement) {
+	public void replaceChildNode(QueryModelNode current, QueryModelNode replacement) {
 		stmt.replaceChildNode(current, replacement);
 	}
 
@@ -130,6 +138,46 @@ public class CheckStatementPattern implements StatementTupleExpr, BoundJoinTuple
 	}
 
 	@Override
+	public double getResultSizeEstimate() {
+		return resultSizeEstimate;
+	}
+
+	@Override
+	public void setResultSizeEstimate(double resultSizeEstimate) {
+		this.resultSizeEstimate = resultSizeEstimate;
+	}
+
+	@Override
+	public long getResultSizeActual() {
+		return resultSizeActual;
+	}
+
+	@Override
+	public void setResultSizeActual(long resultSizeActual) {
+		this.resultSizeActual = resultSizeActual;
+	}
+
+	@Override
+	public double getCostEstimate() {
+		return costEstimate;
+	}
+
+	@Override
+	public void setCostEstimate(double costEstimate) {
+		this.costEstimate = costEstimate;
+	}
+
+	@Override
+	public long getTotalTimeNanosActual() {
+		return totalTimeNanosActual;
+	}
+
+	@Override
+	public void setTotalTimeNanosActual(long totalTimeNanosActual) {
+		this.totalTimeNanosActual = totalTimeNanosActual;
+	}
+
+	@Override
 	public CloseableIteration<BindingSet, QueryEvaluationException> evaluate(BindingSet bindings)
 			throws QueryEvaluationException {
 
@@ -138,19 +186,20 @@ public class CheckStatementPattern implements StatementTupleExpr, BoundJoinTuple
 		try {
 			// return true if at least one endpoint has a result for this binding set
 			for (StatementSource source : stmt.getStatementSources()) {
-				Endpoint ownedEndpoint = EndpointManager.getEndpointManager().getEndpoint(source.getEndpointID());
+				Endpoint ownedEndpoint = queryInfo.getFederationContext()
+						.getEndpointManager()
+						.getEndpoint(source.getEndpointID());
 				TripleSource t = ownedEndpoint.getTripleSource();
-				if (t.hasStatements(st, bindings))
+				if (t.hasStatements(st, bindings, queryInfo, queryInfo.getDataset())) {
 					return new SingleBindingSetIteration(bindings);
+				}
 			}
-		} catch (RepositoryException e) {
-			throw new QueryEvaluationException(e);
-		} catch (MalformedQueryException e) {
+		} catch (RepositoryException | MalformedQueryException e) {
 			throw new QueryEvaluationException(e);
 		}
 
 		// XXX return NULL instead and add an additional check?
-		return new EmptyIteration<BindingSet, QueryEvaluationException>();
+		return new EmptyIteration<>();
 	}
 
 	@Override

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console;
 
@@ -20,7 +23,6 @@ import java.util.regex.Pattern;
 import org.eclipse.rdf4j.RDF4J;
 import org.eclipse.rdf4j.common.app.AppConfiguration;
 import org.eclipse.rdf4j.common.app.AppVersion;
-
 import org.eclipse.rdf4j.console.command.Clear;
 import org.eclipse.rdf4j.console.command.Close;
 import org.eclipse.rdf4j.console.command.Connect;
@@ -36,13 +38,11 @@ import org.eclipse.rdf4j.console.command.Open;
 import org.eclipse.rdf4j.console.command.PrintHelp;
 import org.eclipse.rdf4j.console.command.PrintInfo;
 import org.eclipse.rdf4j.console.command.QueryEvaluator;
-import org.eclipse.rdf4j.console.command.Serql;
 import org.eclipse.rdf4j.console.command.SetParameters;
 import org.eclipse.rdf4j.console.command.Show;
 import org.eclipse.rdf4j.console.command.Sparql;
 import org.eclipse.rdf4j.console.command.TupleAndGraphQueryEvaluator;
 import org.eclipse.rdf4j.console.command.Verify;
-
 import org.eclipse.rdf4j.console.setting.ConsoleSetting;
 import org.eclipse.rdf4j.console.setting.ConsoleWidth;
 import org.eclipse.rdf4j.console.setting.LogLevel;
@@ -51,7 +51,6 @@ import org.eclipse.rdf4j.console.setting.QueryPrefix;
 import org.eclipse.rdf4j.console.setting.SaveHistory;
 import org.eclipse.rdf4j.console.setting.ShowPrefix;
 import org.eclipse.rdf4j.console.setting.WorkDir;
-
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.UserInterruptException;
@@ -88,7 +87,7 @@ public class Console {
 
 	/**
 	 * Get console state
-	 * 
+	 *
 	 * @return basic console state
 	 */
 	public ConsoleState getState() {
@@ -97,7 +96,7 @@ public class Console {
 
 	/**
 	 * Get console IO
-	 * 
+	 *
 	 * @return console
 	 */
 	public ConsoleIO getConsoleIO() {
@@ -106,7 +105,7 @@ public class Console {
 
 	/**
 	 * Set exit on error mode
-	 * 
+	 *
 	 * @param mode true when error should exit
 	 */
 	protected void setExitOnError(boolean mode) {
@@ -115,7 +114,7 @@ public class Console {
 
 	/**
 	 * Main
-	 * 
+	 *
 	 * @param args command line arguments
 	 * @throws IOException
 	 */
@@ -147,7 +146,7 @@ public class Console {
 
 	/**
 	 * Connect to (and open) a repository, exit when connection fails
-	 * 
+	 *
 	 * @param console
 	 * @param selectedLocation s for server, d for local directory
 	 * @param location
@@ -172,7 +171,7 @@ public class Console {
 
 	/**
 	 * Add command to register of known commands
-	 * 
+	 *
 	 * @param cmd command to be added
 	 */
 	public final void register(ConsoleCommand cmd) {
@@ -181,7 +180,7 @@ public class Console {
 
 	/**
 	 * Add setting to register of known settings
-	 * 
+	 *
 	 * @param setting setting to be added
 	 */
 	public final void register(ConsoleSetting setting) {
@@ -190,7 +189,7 @@ public class Console {
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * @throws IOException
 	 */
 	public Console() throws IOException {
@@ -230,7 +229,6 @@ public class Console {
 		TupleAndGraphQueryEvaluator eval = new TupleAndGraphQueryEvaluator(consoleIO, STATE, settingMap);
 		register(new Federate(consoleIO, STATE));
 		register(new Sparql(eval));
-		register(new Serql(eval));
 		// information
 		register(new PrintHelp(consoleIO, commandMap));
 		register(new PrintInfo(consoleIO, STATE));
@@ -315,7 +313,7 @@ public class Console {
 
 	/**
 	 * Start the interactive console, return error code on exit
-	 * 
+	 *
 	 * @throws IOException
 	 */
 	public void start() throws IOException {
@@ -359,7 +357,7 @@ public class Console {
 
 	/**
 	 * Execute a command
-	 * 
+	 *
 	 * @param command
 	 * @return true when exit/quit command is entered
 	 * @throws IOException
@@ -387,7 +385,7 @@ public class Console {
 
 	/**
 	 * Split a command into an array of tokens
-	 * 
+	 *
 	 * @param command command to parse
 	 * @return array of strings
 	 */

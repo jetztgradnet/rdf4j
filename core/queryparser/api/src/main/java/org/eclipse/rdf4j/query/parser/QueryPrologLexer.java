@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.parser;
 
@@ -15,12 +18,12 @@ import java.util.regex.Pattern;
 /**
  * A simple lexer that tokenizes a syntactically legal input SPARQL query string on prolog items (prefixes, base
  * declarations, IRIs, comments, and syntactical tokens such as keywords, opening and closing brackets, and hashes).
- * 
+ *
  * @author Jeen Broekstra
  */
 public class QueryPrologLexer {
 
-	public static enum TokenType {
+	public enum TokenType {
 		PREFIX_KEYWORD,
 		PREFIX,
 		BASE_KEYWORD,
@@ -81,7 +84,7 @@ public class QueryPrologLexer {
 	/**
 	 * Tokenizes a syntactically legal input SPARQL query on prolog elements. The last token in the returned list is of
 	 * type {@link TokenType#REST_OF_QUERY} and contains the SPARQL query string minus the prolog.
-	 * 
+	 *
 	 * @param input a syntactically legal SPARQL query string
 	 * @return a list with tokens for each prolog element. If the input string is syntactically legal SPARQL, the final
 	 *         returned token is guaranteed to be of type {@link TokenType#REST_OF_QUERY} and to contain the SPARQL
@@ -139,7 +142,7 @@ public class QueryPrologLexer {
 	 * Tokenizes the input string on prolog elements and returns the final Token. If the input string is a syntactically
 	 * legal SPARQL query, this Token will be of type {@link TokenType#REST_OF_QUERY} and contain the query string minus
 	 * prolog.
-	 * 
+	 *
 	 * @param input a syntactically legal SPARQL string
 	 * @return if the input is syntactically legal SPARQL, a Token containing the query string without prolog. If the
 	 *         input is not syntactically legal, the method will still exist normally, but no guarantees are made about
@@ -193,7 +196,7 @@ public class QueryPrologLexer {
 	/**
 	 * Reads the first comment line from the input, and returns the comment line (including the line break character)
 	 * without the leading "#".
-	 * 
+	 *
 	 * @param input
 	 * @param index
 	 * @return

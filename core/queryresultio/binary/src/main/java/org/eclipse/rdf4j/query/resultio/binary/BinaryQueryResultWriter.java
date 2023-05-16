@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.resultio.binary;
 
@@ -17,11 +20,11 @@ import static org.eclipse.rdf4j.query.resultio.binary.BinaryQueryResultConstants
 import static org.eclipse.rdf4j.query.resultio.binary.BinaryQueryResultConstants.MALFORMED_QUERY_ERROR;
 import static org.eclipse.rdf4j.query.resultio.binary.BinaryQueryResultConstants.NAMESPACE_RECORD_MARKER;
 import static org.eclipse.rdf4j.query.resultio.binary.BinaryQueryResultConstants.NULL_RECORD_MARKER;
-import static org.eclipse.rdf4j.query.resultio.binary.BinaryQueryResultConstants.PLAIN_LITERAL_RECORD_MARKER;
 import static org.eclipse.rdf4j.query.resultio.binary.BinaryQueryResultConstants.QNAME_RECORD_MARKER;
 import static org.eclipse.rdf4j.query.resultio.binary.BinaryQueryResultConstants.QUERY_EVALUATION_ERROR;
 import static org.eclipse.rdf4j.query.resultio.binary.BinaryQueryResultConstants.REPEAT_RECORD_MARKER;
 import static org.eclipse.rdf4j.query.resultio.binary.BinaryQueryResultConstants.TABLE_END_RECORD_MARKER;
+import static org.eclipse.rdf4j.query.resultio.binary.BinaryQueryResultConstants.TRIPLE_RECORD_MARKER;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -31,14 +34,17 @@ import java.nio.CharBuffer;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.rdf4j.common.io.ByteSink;
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
+import org.eclipse.rdf4j.model.Triple;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.util.Literals;
 import org.eclipse.rdf4j.query.BindingSet;
@@ -48,13 +54,14 @@ import org.eclipse.rdf4j.query.impl.ListBindingSet;
 import org.eclipse.rdf4j.query.resultio.AbstractQueryResultWriter;
 import org.eclipse.rdf4j.query.resultio.TupleQueryResultFormat;
 import org.eclipse.rdf4j.query.resultio.TupleQueryResultWriter;
+import org.eclipse.rdf4j.rio.RioSetting;
 
 /**
  * Writer for the binary tuple result format. The format is explained in {@link BinaryQueryResultConstants}.
- * 
+ *
  * @author Arjohn Kampman
  */
-public class BinaryQueryResultWriter extends AbstractQueryResultWriter implements TupleQueryResultWriter {
+public class BinaryQueryResultWriter extends AbstractQueryResultWriter implements TupleQueryResultWriter, ByteSink {
 
 	/*-----------*
 	 * Variables *
@@ -63,15 +70,15 @@ public class BinaryQueryResultWriter extends AbstractQueryResultWriter implement
 	/**
 	 * The output stream to write the results table to.
 	 */
-	private DataOutputStream out;
+	private final DataOutputStream out;
 
-	private CharsetEncoder charsetEncoder = StandardCharsets.UTF_8.newEncoder();
+	private final CharsetEncoder charsetEncoder = StandardCharsets.UTF_8.newEncoder();
 
 	/**
 	 * Map containing the namespace IDs (Integer objects) that have been defined in the document, stored using the
 	 * concerning namespace (Strings).
 	 */
-	private Map<String, Integer> namespaceTable = new HashMap<>(32);
+	private final Map<String, Integer> namespaceTable = new HashMap<>(32);
 
 	private int nextNamespaceID;
 
@@ -83,19 +90,15 @@ public class BinaryQueryResultWriter extends AbstractQueryResultWriter implement
 
 	protected boolean tupleVariablesFound = false;
 
-	/*--------------*
-	 * Constructors *
-	 *--------------*/
-
 	public BinaryQueryResultWriter(OutputStream out) {
 		this.out = new DataOutputStream(out);
 	}
 
-	/*---------*
-	 * Methods *
-	 *---------*/
-
 	@Override
+	public OutputStream getOutputStream() {
+		return out;
+	}
+
 	public final TupleQueryResultFormat getTupleQueryResultFormat() {
 		return TupleQueryResultFormat.BINARY;
 	}
@@ -103,6 +106,11 @@ public class BinaryQueryResultWriter extends AbstractQueryResultWriter implement
 	@Override
 	public final TupleQueryResultFormat getQueryResultFormat() {
 		return getTupleQueryResultFormat();
+	}
+
+	@Override
+	public Collection<RioSetting<?>> getSupportedSettings() {
+		return Collections.emptyList();
 	}
 
 	@Override
@@ -118,6 +126,8 @@ public class BinaryQueryResultWriter extends AbstractQueryResultWriter implement
 
 	@Override
 	public void startQueryResult(List<String> bindingNames) throws TupleQueryResultHandlerException {
+		super.startQueryResult(bindingNames);
+
 		tupleVariablesFound = true;
 
 		if (!documentStarted) {
@@ -158,7 +168,7 @@ public class BinaryQueryResultWriter extends AbstractQueryResultWriter implement
 	}
 
 	@Override
-	public void handleSolution(BindingSet bindingSet) throws TupleQueryResultHandlerException {
+	protected void handleSolutionImpl(BindingSet bindingSet) throws TupleQueryResultHandlerException {
 		if (!tupleVariablesFound) {
 			throw new IllegalStateException("Must call startQueryResult before handleSolution");
 		}
@@ -174,14 +184,8 @@ public class BinaryQueryResultWriter extends AbstractQueryResultWriter implement
 						writeNull();
 					} else if (value.equals(previousBindings.getValue(bindingName))) {
 						writeRepeat();
-					} else if (value instanceof IRI) {
-						writeQName((IRI) value);
-					} else if (value instanceof BNode) {
-						writeBNode((BNode) value);
-					} else if (value instanceof Literal) {
-						writeLiteral((Literal) value);
 					} else {
-						throw new TupleQueryResultHandlerException("Unknown Value object type: " + value.getClass());
+						writeValue(value);
 					}
 				}
 
@@ -198,6 +202,20 @@ public class BinaryQueryResultWriter extends AbstractQueryResultWriter implement
 
 	private void writeRepeat() throws IOException {
 		out.writeByte(REPEAT_RECORD_MARKER);
+	}
+
+	private void writeValue(Value value) throws IOException {
+		if (value instanceof IRI) {
+			writeQName((IRI) value);
+		} else if (value instanceof BNode) {
+			writeBNode((BNode) value);
+		} else if (value instanceof Literal) {
+			writeLiteral((Literal) value);
+		} else if (value instanceof Triple) {
+			writeTriple((Triple) value);
+		} else {
+			throw new TupleQueryResultHandlerException("Unknown Value object type: " + value.getClass());
+		}
 	}
 
 	private void writeEmptyRow() throws IOException {
@@ -234,7 +252,7 @@ public class BinaryQueryResultWriter extends AbstractQueryResultWriter implement
 		String label = literal.getLabel();
 		IRI datatype = literal.getDatatype();
 
-		int marker = PLAIN_LITERAL_RECORD_MARKER;
+		int marker;
 
 		if (Literals.isLanguageLiteral(literal)) {
 			marker = LANG_LITERAL_RECORD_MARKER;
@@ -259,9 +277,16 @@ public class BinaryQueryResultWriter extends AbstractQueryResultWriter implement
 		}
 	}
 
+	private void writeTriple(Triple triple) throws IOException {
+		out.writeByte(TRIPLE_RECORD_MARKER);
+		writeValue(triple.getSubject());
+		writeValue(triple.getPredicate());
+		writeValue(triple.getObject());
+	}
+
 	/**
 	 * Writes an error msg to the stream.
-	 * 
+	 *
 	 * @param errType The error type.
 	 * @param msg     The error message.
 	 * @throws IOException When the error could not be written to the stream.

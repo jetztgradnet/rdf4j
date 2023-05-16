@@ -1,38 +1,40 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.datatypes;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.util.LiteralUtilException;
 import org.eclipse.rdf4j.rio.DatatypeHandler;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Abstract test for DatatypeHandler interface.
- * 
+ *
  * @author Peter Ansell
  */
 public abstract class AbstractDatatypeHandlerTest {
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
-
 	/**
 	 * Generates a new instance of the {@link DatatypeHandler} implementation in question and returns it.
-	 * 
+	 *
 	 * @return A new instance of the {@link DatatypeHandler} implementation being tested.
 	 */
 	protected abstract DatatypeHandler getNewDatatypeHandler();
@@ -85,13 +87,13 @@ public abstract class AbstractDatatypeHandlerTest {
 
 	private ValueFactory vf;
 
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
 		testHandler = getNewDatatypeHandler();
 		vf = getValueFactory();
 	}
 
-	@After
+	@AfterEach
 	public void tearDown() throws Exception {
 		testHandler = null;
 		vf = null;
@@ -102,8 +104,8 @@ public abstract class AbstractDatatypeHandlerTest {
 	 */
 	@Test
 	public void testIsRecognizedDatatypeNull() throws Exception {
-		thrown.expect(NullPointerException.class);
-		testHandler.isRecognizedDatatype(null);
+		assertThatThrownBy(() -> testHandler.isRecognizedDatatype(null))
+				.isInstanceOf(NullPointerException.class);
 	}
 
 	/**
@@ -128,8 +130,8 @@ public abstract class AbstractDatatypeHandlerTest {
 	 */
 	@Test
 	public void testVerifyDatatypeNullDatatypeUri() throws Exception {
-		thrown.expect(NullPointerException.class);
-		testHandler.verifyDatatype(getValueMatchingRecognisedDatatypeUri(), null);
+		assertThatThrownBy(() -> testHandler.verifyDatatype(getValueMatchingRecognisedDatatypeUri(), null))
+				.isInstanceOf(NullPointerException.class);
 	}
 
 	/**
@@ -138,8 +140,8 @@ public abstract class AbstractDatatypeHandlerTest {
 	 */
 	@Test
 	public void testVerifyDatatypeNullValueRecognised() throws Exception {
-		thrown.expect(NullPointerException.class);
-		testHandler.verifyDatatype(null, getRecognisedDatatypeUri());
+		assertThatThrownBy(() -> testHandler.verifyDatatype(null, getRecognisedDatatypeUri()))
+				.isInstanceOf(NullPointerException.class);
 	}
 
 	/**
@@ -148,8 +150,8 @@ public abstract class AbstractDatatypeHandlerTest {
 	 */
 	@Test
 	public void testVerifyDatatypeNullValueUnrecognised() throws Exception {
-		thrown.expect(LiteralUtilException.class);
-		testHandler.verifyDatatype(null, getUnrecognisedDatatypeUri());
+		assertThatThrownBy(() -> testHandler.verifyDatatype(null, getUnrecognisedDatatypeUri()))
+				.isInstanceOf(LiteralUtilException.class);
 	}
 
 	/**
@@ -158,8 +160,9 @@ public abstract class AbstractDatatypeHandlerTest {
 	 */
 	@Test
 	public void testVerifyDatatypeUnrecognisedDatatypeUri() throws Exception {
-		thrown.expect(LiteralUtilException.class);
-		testHandler.verifyDatatype(getValueMatchingRecognisedDatatypeUri(), getUnrecognisedDatatypeUri());
+		assertThatThrownBy(
+				() -> testHandler.verifyDatatype(getValueMatchingRecognisedDatatypeUri(), getUnrecognisedDatatypeUri()))
+				.isInstanceOf(LiteralUtilException.class);
 	}
 
 	/**
@@ -187,8 +190,8 @@ public abstract class AbstractDatatypeHandlerTest {
 	 */
 	@Test
 	public void testNormalizeDatatypeNullDatatypeUri() throws Exception {
-		thrown.expect(NullPointerException.class);
-		testHandler.normalizeDatatype(getValueMatchingRecognisedDatatypeUri(), null, vf);
+		assertThatThrownBy(() -> testHandler.normalizeDatatype(getValueMatchingRecognisedDatatypeUri(), null, vf))
+				.isInstanceOf(NullPointerException.class);
 	}
 
 	/**
@@ -198,8 +201,8 @@ public abstract class AbstractDatatypeHandlerTest {
 	 */
 	@Test
 	public void testNormalizeDatatypeNullValue() throws Exception {
-		thrown.expect(NullPointerException.class);
-		testHandler.normalizeDatatype(null, getRecognisedDatatypeUri(), vf);
+		assertThatThrownBy(() -> testHandler.normalizeDatatype(null, getRecognisedDatatypeUri(), vf))
+				.isInstanceOf(NullPointerException.class);
 	}
 
 	/**
@@ -209,8 +212,9 @@ public abstract class AbstractDatatypeHandlerTest {
 	 */
 	@Test
 	public void testNormalizeDatatypeUnrecognisedDatatypeUri() throws Exception {
-		thrown.expect(LiteralUtilException.class);
-		testHandler.normalizeDatatype(getValueMatchingRecognisedDatatypeUri(), getUnrecognisedDatatypeUri(), vf);
+		assertThatThrownBy(() -> testHandler.normalizeDatatype(getValueMatchingRecognisedDatatypeUri(),
+				getUnrecognisedDatatypeUri(), vf))
+				.isInstanceOf(LiteralUtilException.class);
 	}
 
 	/**
@@ -220,8 +224,9 @@ public abstract class AbstractDatatypeHandlerTest {
 	 */
 	@Test
 	public void testNormalizeDatatypeInvalidValue() throws Exception {
-		thrown.expect(LiteralUtilException.class);
-		testHandler.normalizeDatatype(getValueNotMatchingRecognisedDatatypeUri(), getRecognisedDatatypeUri(), vf);
+		assertThatThrownBy(() -> testHandler.normalizeDatatype(getValueNotMatchingRecognisedDatatypeUri(),
+				getRecognisedDatatypeUri(), vf))
+				.isInstanceOf(LiteralUtilException.class);
 	}
 
 	/**
@@ -254,5 +259,4 @@ public abstract class AbstractDatatypeHandlerTest {
 
 		assertEquals(expectedResult, result);
 	}
-
 }

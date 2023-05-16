@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.lucene;
 
@@ -25,6 +28,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.commons.lang3.math.NumberUtils;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
@@ -51,61 +55,61 @@ import org.slf4j.LoggerFactory;
  * A LuceneSail wraps an arbitrary existing Sail and extends it with support for full-text search on all Literals.
  * <h2>Setting up a LuceneSail</h2> LuceneSail works in two modes: storing its data into a directory on the harddisk or
  * into a RAMDirectory in RAM (which is discarded when the program ends). Example with storage in a folder:
- * 
+ *
  * <pre>
  * // create a sesame memory sail
  * MemoryStore memoryStore = new MemoryStore();
- * 
+ *
  * // create a lucenesail to wrap the memorystore
  * LuceneSail lucenesail = new LuceneSail();
  * // set this parameter to store the lucene index on disk
  * lucenesail.setParameter(LuceneSail.LUCENE_DIR_KEY, "./data/mydirectory");
- * 
+ *
  * // wrap memorystore in a lucenesail
  * lucenesail.setBaseSail(memoryStore);
- * 
+ *
  * // create a Repository to access the sails
  * SailRepository repository = new SailRepository(lucenesail);
  * repository.initialize();
  * </pre>
- * 
+ * <p>
  * Example with storage in a RAM directory:
- * 
+ *
  * <pre>
  * // create a sesame memory sail
  * MemoryStore memoryStore = new MemoryStore();
- * 
+ *
  * // create a lucenesail to wrap the memorystore
  * LuceneSail lucenesail = new LuceneSail();
  * // set this parameter to let the lucene index store its data in ram
  * lucenesail.setParameter(LuceneSail.LUCENE_RAMDIR_KEY, "true");
- * 
+ *
  * // wrap memorystore in a lucenesail
  * lucenesail.setBaseSail(memoryStore);
- * 
+ *
  * // create a Repository to access the sails
  * SailRepository repository = new SailRepository(lucenesail);
  * repository.initialize();
  * </pre>
- * 
+ *
  * <h2>Asking full-text queries</h2> Text queries are expressed using the virtual properties of the LuceneSail. An
  * example query looks like this (SERQL): <code>
- * SELECT Subject, Score, Snippet 
- * FROM {Subject} <http://www.openrdf.org/contrib/lucenesail#matches> {} 
- * <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> {<http://www.openrdf.org/contrib/lucenesail#LuceneQuery>}; 
- * <http://www.openrdf.org/contrib/lucenesail#query> {"my Lucene query"}; 
- * <http://www.openrdf.org/contrib/lucenesail#score> {Score}; 
+ * SELECT Subject, Score, Snippet
+ * FROM {Subject} <http://www.openrdf.org/contrib/lucenesail#matches> {}
+ * <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> {<http://www.openrdf.org/contrib/lucenesail#LuceneQuery>};
+ * <http://www.openrdf.org/contrib/lucenesail#query> {"my Lucene query"};
+ * <http://www.openrdf.org/contrib/lucenesail#score> {Score};
  * <http://www.openrdf.org/contrib/lucenesail#snippet> {Snippet}</code>
- * 
+ * <p>
  * In SPARQL: <code>
  * SELECT ?subject ?score ?snippet ?resource WHERE {
  * ?subject <http://www.openrdf.org/contrib/lucenesail#matches> [
- *      a <http://www.openrdf.org/contrib/lucenesail#LuceneQuery> ;
- *      <http://www.openrdf.org/contrib/lucenesail#query> "my Lucene query" ;
- *      <http://www.openrdf.org/contrib/lucenesail#score> ?score ;
- *      <http://www.openrdf.org/contrib/lucenesail#snippet> ?snippet ;
- *      <http://www.openrdf.org/contrib/lucenesail#resource> ?resource 
- *   ]
+ * a <http://www.openrdf.org/contrib/lucenesail#LuceneQuery> ;
+ * <http://www.openrdf.org/contrib/lucenesail#query> "my Lucene query" ;
+ * <http://www.openrdf.org/contrib/lucenesail#score> ?score ;
+ * <http://www.openrdf.org/contrib/lucenesail#snippet> ?snippet ;
+ * <http://www.openrdf.org/contrib/lucenesail#resource> ?resource
+ * ]
  * }
  * </code> When defining queries, these properties <b>type and query are mandatory</b>. Also, the <b>matches relation is
  * mandatory</b>. When one of these misses, the query will not be executed as expected. The failure behavior can be
@@ -126,18 +130,20 @@ import org.slf4j.LoggerFactory;
  * method with no arguments. <code>clear()</code>. This will delete the index.</li>
  * </ul>
  * <h2>Handling of Contexts</h2> Each lucene document contains a field for every contextIDs that contributed to the
- * document. <b>NULL</b> contexts are marked using the String {@link LuceneIndex#CONTEXT_NULL} ("null") and stored in
- * the lucene field {@link LuceneIndex#CONTEXT_FIELD_NAME} ("context"). This means that when adding/appending to a
- * document, all additional context-uris are added to the document. When deleting individual triples, the context is
- * ignored. In clear(Resource ...) we make a query on all Lucene-Documents that were possibly created by this
- * context(s). Given a document D that context C(1-n) contributed to. D' is the new document after clear(). - if there
- * is only one C then D can be safely removed. There is no D' (I hope this is the standard case: like in ontologies,
- * where all triples about a resource are in one document) - if there are multiple C, remember the uri of D, delete D,
- * and query (s,p,o, ?) from the underlying store after committing the operation- this returns the literals of D', add
- * D' as new document This will probably be both fast in the common case and capable enough in the multiple-C case.
+ * document. <b>NULL</b> contexts are marked using the String
+ * {@link org.eclipse.rdf4j.sail.lucene.SearchFields#CONTEXT_NULL} ("null") and stored in the lucene field
+ * {@link org.eclipse.rdf4j.sail.lucene.SearchFields#CONTEXT_FIELD_NAME} ("context"). This means that when
+ * adding/appending to a document, all additional context-uris are added to the document. When deleting individual
+ * triples, the context is ignored. In clear(Resource ...) we make a query on all Lucene-Documents that were possibly
+ * created by this context(s). Given a document D that context C(1-n) contributed to. D' is the new document after
+ * clear(). - if there is only one C then D can be safely removed. There is no D' (I hope this is the standard case:
+ * like in ontologies, where all triples about a resource are in one document) - if there are multiple C, remember the
+ * uri of D, delete D, and query (s,p,o, ?) from the underlying store after committing the operation- this returns the
+ * literals of D', add D' as new document This will probably be both fast in the common case and capable enough in the
+ * multiple-C case.
  * <h2 name="indexedfieldssyntax">Defining the indexed Fields</h2> The property {@link #INDEXEDFIELDS} is to configure
  * which fields to index and to project a property to another. Syntax:
- * 
+ *
  * <pre>
  * # only index label and comment
  * index.1=http://www.w3.org/2000/01/rdf-schema#label
@@ -145,7 +151,38 @@ import org.slf4j.LoggerFactory;
  * # project http://xmlns.com/foaf/0.1/name to rdfs:label
  * http\://xmlns.com/foaf/0.1/name=http\://www.w3.org/2000/01/rdf-schema#label
  * </pre>
- * 
+ *
+ * <h2 name="indexidsyntax">Set and select Lucene sail by id</h2> The property {@link #INDEX_ID} is to configure the id
+ * of the index and filter every request without the search:indexid predicate, the request would be:
+ *
+ * <pre>
+ * ?subj search:matches [
+ * 	      search:indexid my:lucene_index_id;
+ * 	      search:query "search terms...";
+ * 	      search:property my:property;
+ * 	      search:score ?score;
+ * 	      search:snippet ?snippet ] .
+ * </pre>
+ * <p>
+ * If a LuceneSail is using another LuceneSail as a base sail, the evaluation mode should be set to
+ * {@link TupleFunctionEvaluationMode#NATIVE}.
+ *
+ * <h2 name="indexedtypelangsyntax">Defining the indexed Types/Languages</h2> The properties {@link #INDEXEDTYPES} and
+ * {@link #INDEXEDLANG} are to configure which fields to index by their language or type. {@link #INDEXEDTYPES} Syntax:
+ *
+ * <pre>
+ * # only index object of rdf:type ex:mytype1, rdf:type ex:mytype2 or ex:mytypedef ex:mytype3
+ * http\://www.w3.org/1999/02/22-rdf-syntax-ns#type=http://example.org/mytype1 http://example.org/mytype2
+ * http\://example.org/mytypedef=http://example.org/mytype3
+ * </pre>
+ * <p>
+ * {@link #INDEXEDLANG} Syntax:
+ *
+ * <pre>
+ * # syntax to index only French(fr) and English(en) literals
+ * fr en
+ * </pre>
+ *
  * <h2>Datatypes</h2> Datatypes are ignored in the LuceneSail.
  */
 public class LuceneSail extends NotifyingSailWrapper {
@@ -218,6 +255,21 @@ public class LuceneSail extends NotifyingSailWrapper {
 	public static final String INDEXEDFIELDS = "indexedfields";
 
 	/**
+	 * Set the parameter "indexedtypes=..." to configure a selection of field type to index. Only the fields with the
+	 * specific type will be indexed. Syntax of indexedtypes - see <a href="#indexedtypelangsyntax">above</a>
+	 */
+	public static final String INDEXEDTYPES = "indexedtypes";
+
+	/**
+	 * Set the parameter "indexedlang=..." to configure a selection of field language to index. Only the fields with the
+	 * specific language will be indexed. Syntax of indexedlang - see <a href="#indexedtypelangsyntax">above</a>
+	 */
+	public static final String INDEXEDLANG = "indexedlang";
+	/**
+	 * See {@link org.eclipse.rdf4j.sail.lucene.TypeBacktraceMode}
+	 */
+	public static final String INDEX_TYPE_BACKTRACE_MODE = "indexBacktraceMode";
+	/**
 	 * Set the key "lucenedir=&lt;path&gt;" as sail parameter to configure the Lucene Directory on the filesystem where
 	 * to store the lucene index.
 	 */
@@ -254,7 +306,13 @@ public class LuceneSail extends NotifyingSailWrapper {
 	 */
 	public static final String INDEX_CLASS_KEY = "index";
 
-	public static final String DEFAULT_INDEX_CLASS = "org.eclipse.rdf4j.sail.lucene.LuceneIndex";
+	/**
+	 * Set this key to configure the filtering of queries, if this parameter is set, the match object should contain the
+	 * search:indexid parameter, see the syntax <a href="#indexidsyntax">above</a>
+	 */
+	public static final String INDEX_ID = "indexid";
+
+	public static final String DEFAULT_INDEX_CLASS = "org.eclipse.rdf4j.sail.lucene.impl.LuceneIndex";
 
 	/**
 	 * Set this key as sail parameter to configure the Lucene analyzer class implementation to use for text analysis.
@@ -269,7 +327,7 @@ public class LuceneSail extends NotifyingSailWrapper {
 
 	/**
 	 * Set this key as sail parameter to influence whether incomplete queries are treated as failure (Malformed queries)
-	 * or whether they are ignored. Set to either "true" or "false". When ommitted in the properties, true is default
+	 * or whether they are ignored. Set to either "true" or "false". When omitted in the properties, true is default
 	 * (failure on incomplete queries). see {@link #isIncompleteQueryFails()}
 	 */
 	public static final String INCOMPLETE_QUERY_FAIL_KEY = "incompletequeryfail";
@@ -278,6 +336,11 @@ public class LuceneSail extends NotifyingSailWrapper {
 	 * See {@link TupleFunctionEvaluationMode}.
 	 */
 	public static final String EVALUATION_MODE_KEY = "evaluationMode";
+
+	/**
+	 * Set this key as sail parameter to influence the fuzzy prefix length.
+	 */
+	public static final String FUZZY_PREFIX_LENGTH_KEY = "fuzzyPrefixLength";
 
 	/**
 	 * The LuceneIndex holding the indexed literals.
@@ -292,6 +355,8 @@ public class LuceneSail extends NotifyingSailWrapper {
 
 	private volatile TupleFunctionEvaluationMode evaluationMode = TupleFunctionEvaluationMode.TRIPLE_SOURCE;
 
+	private volatile TypeBacktraceMode indexBacktraceMode = TypeBacktraceMode.DEFAULT_TYPE_BACKTRACE_MODE;
+
 	private TupleFunctionRegistry tupleFunctionRegistry = TupleFunctionRegistry.getInstance();
 
 	private FederatedServiceResolver serviceResolver = new SPARQLServiceResolver();
@@ -299,6 +364,8 @@ public class LuceneSail extends NotifyingSailWrapper {
 	private Set<IRI> indexedFields;
 
 	private Map<IRI, IRI> indexedFieldsMapping;
+
+	private IRI indexId = null;
 
 	private IndexableStatementFilter filter = null;
 
@@ -351,8 +418,8 @@ public class LuceneSail extends NotifyingSailWrapper {
 	}
 
 	@Override
-	public void initialize() throws SailException {
-		super.initialize();
+	public void init() throws SailException {
+		super.init();
 		if (parameters.containsKey(INDEXEDFIELDS)) {
 			String indexedfieldsString = parameters.getProperty(INDEXEDFIELDS);
 			Properties prop = new Properties();
@@ -376,6 +443,10 @@ public class LuceneSail extends NotifyingSailWrapper {
 			}
 		}
 
+		if (parameters.containsKey(INDEX_ID)) {
+			indexId = getValueFactory().createIRI(parameters.getProperty(INDEX_ID));
+		}
+
 		try {
 			if (parameters.containsKey(REINDEX_QUERY_KEY)) {
 				setReindexQuery(parameters.getProperty(REINDEX_QUERY_KEY));
@@ -385,6 +456,9 @@ public class LuceneSail extends NotifyingSailWrapper {
 			}
 			if (parameters.containsKey(EVALUATION_MODE_KEY)) {
 				setEvaluationMode(TupleFunctionEvaluationMode.valueOf(parameters.getProperty(EVALUATION_MODE_KEY)));
+			}
+			if (parameters.containsKey(FUZZY_PREFIX_LENGTH_KEY)) {
+				setFuzzyPrefixLength(NumberUtils.toInt(parameters.getProperty(FUZZY_PREFIX_LENGTH_KEY), 0));
 			}
 			if (luceneIndex == null) {
 				initializeLuceneIndex();
@@ -396,9 +470,9 @@ public class LuceneSail extends NotifyingSailWrapper {
 
 	/**
 	 * The method is relocated to {@link SearchIndexUtils#createSearchIndex(java.util.Properties) }.
-	 * 
+	 *
 	 * @param parameters
-	 * @return
+	 * @return search index
 	 * @throws Exception
 	 * @deprecated
 	 */
@@ -442,7 +516,7 @@ public class LuceneSail extends NotifyingSailWrapper {
 	/**
 	 * When this is true, incomplete queries will trigger a SailException. You can set this value either using
 	 * {@link #setIncompleteQueryFails(boolean)} or using the parameter "incompletequeryfail"
-	 * 
+	 *
 	 * @return Returns the incompleteQueryFails.
 	 */
 	public boolean isIncompleteQueryFails() {
@@ -452,7 +526,7 @@ public class LuceneSail extends NotifyingSailWrapper {
 	/**
 	 * Set this to true, so that incomplete queries will trigger a SailException. Otherwise, incomplete queries will be
 	 * logged with level WARN. Default is true. You can set this value also using the parameter "incompletequeryfail".
-	 * 
+	 *
 	 * @param incompleteQueryFails true or false
 	 */
 	public void setIncompleteQueryFails(boolean incompleteQueryFails) {
@@ -476,6 +550,26 @@ public class LuceneSail extends NotifyingSailWrapper {
 		this.evaluationMode = mode;
 	}
 
+	/**
+	 * See {@link #INDEX_TYPE_BACKTRACE_MODE} parameter.
+	 */
+	public TypeBacktraceMode getIndexBacktraceMode() {
+		return indexBacktraceMode;
+	}
+
+	/**
+	 * See {@link #INDEX_TYPE_BACKTRACE_MODE} parameter.
+	 */
+	public void setIndexBacktraceMode(TypeBacktraceMode mode) {
+		Objects.requireNonNull(mode);
+		this.setParameter(INDEX_TYPE_BACKTRACE_MODE, mode.name());
+		this.indexBacktraceMode = mode;
+	}
+
+	public void setFuzzyPrefixLength(int fuzzyPrefixLength) {
+		setParameter(FUZZY_PREFIX_LENGTH_KEY, String.valueOf(fuzzyPrefixLength));
+	}
+
 	public TupleFunctionRegistry getTupleFunctionRegistry() {
 		return tupleFunctionRegistry;
 	}
@@ -497,68 +591,83 @@ public class LuceneSail extends NotifyingSailWrapper {
 	/**
 	 * Starts a reindexation process of the whole sail. Basically, this will delete and add all data again, a
 	 * long-lasting process.
-	 * 
-	 * @throws IOException
+	 *
+	 * @throws SailException If the Sail could not be reindex
 	 */
-	public void reindex() throws Exception {
-		// clear
-		logger.info("Reindexing sail: clearing...");
-		luceneIndex.clear();
-		logger.info("Reindexing sail: adding...");
-
-		luceneIndex.begin();
+	public void reindex() throws SailException {
 		try {
-			// iterate
-			SailRepository repo = new SailRepository(new NotifyingSailWrapper(getBaseSail()) {
+			// clear
+			logger.info("Reindexing sail: clearing...");
+			luceneIndex.clear();
+			logger.info("Reindexing sail: adding...");
 
-				@Override
-				public void init() {
-					// don't re-initialize the Sail when we initialize the repo
-				}
+			try {
+				luceneIndex.begin();
+				// iterate
+				SailRepository repo = new SailRepository(new NotifyingSailWrapper(getBaseSail()) {
 
-				@Override
-				public void shutDown() {
-					// don't shutdown the underlying sail
-					// when we shutdown the repo.
-				}
-			});
-			try (SailRepositoryConnection connection = repo.getConnection()) {
-				TupleQuery query = connection.prepareTupleQuery(QueryLanguage.SPARQL, reindexQuery);
-				TupleQueryResult res = query.evaluate();
-				Resource current = null;
-				ValueFactory vf = getValueFactory();
-				List<Statement> statements = new ArrayList<>();
-				while (res.hasNext()) {
-					BindingSet set = res.next();
-					Resource r = (Resource) set.getValue("s");
-					IRI p = (IRI) set.getValue("p");
-					Value o = set.getValue("o");
-					Resource c = (Resource) set.getValue("c");
-					if (current == null) {
-						current = r;
-					} else if (!current.equals(r)) {
-						if (logger.isDebugEnabled())
-							logger.debug("reindexing resource " + current);
-						// commit
-						luceneIndex.addDocuments(current, statements);
-
-						// re-init
-						current = r;
-						statements.clear();
+					@Override
+					public void init() {
+						// don't re-initialize the Sail when we initialize the repo
 					}
-					statements.add(vf.createStatement(r, p, o, c));
-				}
-			} finally {
-				repo.shutDown();
-			}
-			// commit the changes
-			luceneIndex.commit();
 
-			logger.info("Reindexing sail: done.");
+					@Override
+					public void shutDown() {
+						// don't shutdown the underlying sail
+						// when we shutdown the repo.
+					}
+				});
+				try (SailRepositoryConnection connection = repo.getConnection()) {
+					TupleQuery query = connection.prepareTupleQuery(QueryLanguage.SPARQL, reindexQuery);
+					try (TupleQueryResult res = query.evaluate()) {
+						Resource current = null;
+						ValueFactory vf = getValueFactory();
+						List<Statement> statements = new ArrayList<>();
+						while (res.hasNext()) {
+							BindingSet set = res.next();
+							Resource r = (Resource) set.getValue("s");
+							IRI p = (IRI) set.getValue("p");
+							Value o = set.getValue("o");
+							Resource c = (Resource) set.getValue("c");
+							if (current == null) {
+								current = r;
+							} else if (!current.equals(r)) {
+								if (logger.isDebugEnabled()) {
+									logger.debug("reindexing resource " + current);
+								}
+								// commit
+								luceneIndex.addDocuments(current, statements);
+
+								// re-init
+								current = r;
+								statements.clear();
+							}
+							statements.add(vf.createStatement(r, p, o, c));
+						}
+
+						// make sure to index statements for last resource
+						if (current != null && !statements.isEmpty()) {
+							if (logger.isDebugEnabled()) {
+								logger.debug("reindexing resource " + current);
+							}
+							// commit
+							luceneIndex.addDocuments(current, statements);
+						}
+					}
+				} finally {
+					repo.shutDown();
+				}
+				// commit the changes
+				luceneIndex.commit();
+
+				logger.info("Reindexing sail: done.");
+			} catch (Exception e) {
+				logger.error("Rolling back", e);
+				luceneIndex.rollback();
+				throw e;
+			}
 		} catch (Exception e) {
-			logger.error("Rolling back", e);
-			luceneIndex.rollback();
-			throw e;
+			throw new SailException("Could not reindex LuceneSail: " + e.getMessage(), e);
 		}
 	}
 
@@ -600,7 +709,7 @@ public class LuceneSail extends NotifyingSailWrapper {
 	}
 
 	protected Collection<SearchQueryInterpreter> getSearchQueryInterpreters() {
-		return Arrays.<SearchQueryInterpreter>asList(new QuerySpecBuilder(incompleteQueryFails),
+		return Arrays.<SearchQueryInterpreter>asList(new QuerySpecBuilder(incompleteQueryFails, indexId),
 				new DistanceQuerySpecBuilder(luceneIndex), new GeoRelationQuerySpecBuilder(luceneIndex));
 	}
 }

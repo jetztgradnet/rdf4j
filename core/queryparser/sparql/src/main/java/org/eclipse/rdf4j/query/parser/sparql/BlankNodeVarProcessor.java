@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.parser.sparql;
 
@@ -26,13 +29,11 @@ import org.eclipse.rdf4j.query.parser.sparql.ast.VisitorException;
 
 /**
  * Processes blank nodes in the query body, replacing them with variables while retaining scope.
- * 
+ *
  * @author Arjohn Kampman
- * 
- * @deprecated since 3.0. This feature is for internal use only: its existence, signature or behavior may change without
- *             warning from one release to the next.
+ * @apiNote This feature is for internal use only: its existence, signature or behavior may change without warning from
+ *          one release to the next.
  */
-@Deprecated
 @InternalUseOnly
 public class BlankNodeVarProcessor extends AbstractASTVisitor {
 
@@ -54,9 +55,9 @@ public class BlankNodeVarProcessor extends AbstractASTVisitor {
 
 		private int anonVarNo = 1;
 
-		private Map<String, String> conversionMap = new HashMap<>();
+		private final Map<String, String> conversionMap = new HashMap<>();
 
-		private Set<String> usedBNodeIDs = new HashSet<>();
+		private final Set<String> usedBNodeIDs = new HashSet<>();
 
 		private String createAnonVarName() {
 			return "_anon_" + anonVarNo++;
@@ -101,11 +102,13 @@ public class BlankNodeVarProcessor extends AbstractASTVisitor {
 		}
 
 		private String findVarName(String bnodeID) throws VisitorException {
-			if (bnodeID == null)
+			if (bnodeID == null) {
 				return null;
+			}
 			String varName = conversionMap.get(bnodeID);
-			if (varName == null && usedBNodeIDs.contains(bnodeID))
+			if (varName == null && usedBNodeIDs.contains(bnodeID)) {
 				throw new VisitorException("BNodeID already used in another scope: " + bnodeID);
+			}
 			return varName;
 		}
 

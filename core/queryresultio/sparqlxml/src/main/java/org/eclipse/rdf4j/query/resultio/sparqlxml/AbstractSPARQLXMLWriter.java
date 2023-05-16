@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.resultio.sparqlxml;
 
@@ -20,16 +23,21 @@ import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstan
 import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.LITERAL_LANG_ATT;
 import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.LITERAL_TAG;
 import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.NAMESPACE;
+import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.OBJECT_TAG;
+import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.PREDICATE_TAG;
 import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.QNAME;
 import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.RESULT_SET_TAG;
 import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.RESULT_TAG;
 import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.ROOT_TAG;
+import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.SUBJECT_TAG;
+import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.TRIPLE_TAG;
 import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.URI_TAG;
 import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.VAR_NAME_ATT;
 import static org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLConstants.VAR_TAG;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.Writer;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,21 +45,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.rdf4j.common.io.CharSink;
 import org.eclipse.rdf4j.common.xml.XMLWriter;
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
+import org.eclipse.rdf4j.model.Triple;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.util.Literals;
 import org.eclipse.rdf4j.model.vocabulary.SESAMEQNAME;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.query.Binding;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.QueryResultHandlerException;
 import org.eclipse.rdf4j.query.TupleQueryResultHandlerException;
 import org.eclipse.rdf4j.query.resultio.AbstractQueryResultWriter;
 import org.eclipse.rdf4j.query.resultio.BasicQueryWriterSettings;
-import org.eclipse.rdf4j.query.resultio.QueryResultWriter;
 import org.eclipse.rdf4j.rio.RioSetting;
 import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
 import org.eclipse.rdf4j.rio.helpers.XMLWriterSettings;
@@ -60,10 +69,10 @@ import org.slf4j.LoggerFactory;
 
 /**
  * An abstract class to implement the base functionality for both SPARQLBooleanXMLWriter and SPARQLResultsXMLWriter.
- * 
+ *
  * @author Peter Ansell
  */
-abstract class AbstractSPARQLXMLWriter extends AbstractQueryResultWriter implements QueryResultWriter {
+abstract class AbstractSPARQLXMLWriter extends AbstractQueryResultWriter implements CharSink {
 
 	/*-----------*
 	 * Variables *
@@ -85,7 +94,7 @@ abstract class AbstractSPARQLXMLWriter extends AbstractQueryResultWriter impleme
 	/**
 	 * Map with keys as namespace URI strings and the values as the shortened prefixes.
 	 */
-	private Map<String, String> namespaceTable = new HashMap<>();
+	private final Map<String, String> namespaceTable = new HashMap<>();
 
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 
@@ -94,7 +103,12 @@ abstract class AbstractSPARQLXMLWriter extends AbstractQueryResultWriter impleme
 	 *--------------*/
 
 	protected AbstractSPARQLXMLWriter(OutputStream out) {
-		this(new XMLWriter(out));
+		this.xmlWriter = new XMLWriter(out);
+		this.xmlWriter.setPrettyPrint(true);
+	}
+
+	protected AbstractSPARQLXMLWriter(Writer writer) {
+		this(new XMLWriter(writer));
 	}
 
 	protected AbstractSPARQLXMLWriter(XMLWriter xmlWriter) {
@@ -102,15 +116,16 @@ abstract class AbstractSPARQLXMLWriter extends AbstractQueryResultWriter impleme
 		this.xmlWriter.setPrettyPrint(true);
 	}
 
-	/*---------*
-	 * Methods *
-	 *---------*/
+	@Override
+	public Writer getWriter() {
+		return xmlWriter.getWriter();
+	}
 
 	/**
 	 * Enables/disables addition of indentation characters and newlines in the XML document. By default, pretty-printing
-	 * is set to <tt>true</tt>. If set to <tt>false</tt>, no indentation and newlines are added to the XML document.
+	 * is set to <var>true</var>. If set to <var>false</var>, no indentation and newlines are added to the XML document.
 	 * This method has to be used before writing starts (that is, before {@link #startDocument} is called).
-	 * 
+	 *
 	 * @deprecated Use {@link #getWriterConfig()} .set(BasicWriterSettings.PRETTY_PRINT, prettyPrint) instead.
 	 */
 	@Deprecated
@@ -275,6 +290,8 @@ abstract class AbstractSPARQLXMLWriter extends AbstractQueryResultWriter impleme
 
 	@Override
 	public void startQueryResult(List<String> bindingNames) throws TupleQueryResultHandlerException {
+		super.startQueryResult(bindingNames);
+
 		try {
 			if (!documentOpen) {
 				startDocument();
@@ -289,11 +306,7 @@ abstract class AbstractSPARQLXMLWriter extends AbstractQueryResultWriter impleme
 				xmlWriter.setAttribute(VAR_NAME_ATT, name);
 				xmlWriter.emptyElement(VAR_TAG);
 			}
-		} catch (IOException e) {
-			throw new TupleQueryResultHandlerException(e);
-		} catch (TupleQueryResultHandlerException e) {
-			throw e;
-		} catch (QueryResultHandlerException e) {
+		} catch (IOException | QueryResultHandlerException e) {
 			throw new TupleQueryResultHandlerException(e);
 		}
 	}
@@ -319,17 +332,13 @@ abstract class AbstractSPARQLXMLWriter extends AbstractQueryResultWriter impleme
 
 			xmlWriter.endTag(RESULT_SET_TAG);
 			endDocument();
-		} catch (IOException e) {
-			throw new TupleQueryResultHandlerException(e);
-		} catch (TupleQueryResultHandlerException e) {
-			throw e;
-		} catch (QueryResultHandlerException e) {
+		} catch (IOException | QueryResultHandlerException e) {
 			throw new TupleQueryResultHandlerException(e);
 		}
 	}
 
 	@Override
-	public void handleSolution(BindingSet bindingSet) throws TupleQueryResultHandlerException {
+	protected void handleSolutionImpl(BindingSet bindingSet) throws TupleQueryResultHandlerException {
 		try {
 			if (!documentOpen) {
 				startDocument();
@@ -359,11 +368,7 @@ abstract class AbstractSPARQLXMLWriter extends AbstractQueryResultWriter impleme
 			}
 
 			xmlWriter.endTag(RESULT_TAG);
-		} catch (IOException e) {
-			throw new TupleQueryResultHandlerException(e);
-		} catch (TupleQueryResultHandlerException e) {
-			throw e;
-		} catch (QueryResultHandlerException e) {
+		} catch (IOException | QueryResultHandlerException e) {
 			throw new TupleQueryResultHandlerException(e);
 		}
 	}
@@ -373,8 +378,10 @@ abstract class AbstractSPARQLXMLWriter extends AbstractQueryResultWriter impleme
 		Set<RioSetting<?>> result = new HashSet<>(super.getSupportedSettings());
 
 		result.add(BasicWriterSettings.PRETTY_PRINT);
-		result.add(BasicQueryWriterSettings.ADD_SESAME_QNAME);
 		result.add(BasicWriterSettings.XSD_STRING_TO_PLAIN_LITERAL);
+		result.add(BasicWriterSettings.ENCODE_RDF_STAR);
+		result.add(BasicQueryWriterSettings.ADD_SESAME_QNAME);
+		result.add(XMLWriterSettings.INCLUDE_XML_PI);
 
 		return result;
 	}
@@ -402,7 +409,9 @@ abstract class AbstractSPARQLXMLWriter extends AbstractQueryResultWriter impleme
 	}
 
 	private void writeValue(Value value) throws IOException {
-		if (value instanceof IRI) {
+		if (value instanceof Triple) {
+			writeTriple((Triple) value);
+		} else if (value instanceof IRI) {
 			writeURI((IRI) value);
 		} else if (value instanceof BNode) {
 			writeBNode((BNode) value);
@@ -415,11 +424,25 @@ abstract class AbstractSPARQLXMLWriter extends AbstractQueryResultWriter impleme
 		return namespaceTable.containsKey(nextUri.getNamespace());
 	}
 
+	private void writeTriple(Triple triple) throws IOException {
+		xmlWriter.startTag(TRIPLE_TAG);
+		xmlWriter.startTag(SUBJECT_TAG);
+		writeValue(triple.getSubject());
+		xmlWriter.endTag(SUBJECT_TAG);
+		xmlWriter.startTag(PREDICATE_TAG);
+		writeValue(triple.getPredicate());
+		xmlWriter.endTag(PREDICATE_TAG);
+		xmlWriter.startTag(OBJECT_TAG);
+		writeValue(triple.getObject());
+		xmlWriter.endTag(OBJECT_TAG);
+		xmlWriter.endTag(TRIPLE_TAG);
+	}
+
 	/**
 	 * Write a QName for the given URI if and only if the {@link BasicQueryWriterSettings#ADD_SESAME_QNAME} setting has
 	 * been set to true. By default it is false, to ensure that this implementation stays within the specification by
 	 * default.
-	 * 
+	 *
 	 * @param nextUri The prefixed URI to be written as a sesame qname attribute.
 	 */
 	private void writeQName(IRI nextUri) {
@@ -447,7 +470,7 @@ abstract class AbstractSPARQLXMLWriter extends AbstractQueryResultWriter impleme
 		// rdf:langString datatype is handled implicitly above
 		else {
 			IRI datatype = literal.getDatatype();
-			boolean ignoreDatatype = datatype.equals(XMLSchema.STRING) && xsdStringToPlainLiteral();
+			boolean ignoreDatatype = datatype.equals(XSD.STRING) && xsdStringToPlainLiteral();
 			if (!ignoreDatatype) {
 				if (isQName(datatype)) {
 					writeQName(datatype);

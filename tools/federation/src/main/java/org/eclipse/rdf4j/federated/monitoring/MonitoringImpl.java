@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.monitoring;
 
@@ -13,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.eclipse.rdf4j.federated.Config;
+import org.eclipse.rdf4j.federated.FedXConfig;
 import org.eclipse.rdf4j.federated.endpoint.Endpoint;
 import org.eclipse.rdf4j.federated.exception.FedXRuntimeException;
 import org.eclipse.rdf4j.federated.structures.QueryInfo;
@@ -21,10 +24,10 @@ import org.eclipse.rdf4j.query.algebra.TupleExpr;
 
 /**
  * Implementation supporting the following monitoring features:
- * 
+ *
  * - monitor remote requests per endpoint - maintain a query backlog using {@link QueryLog}
- * 
- * 
+ *
+ *
  * @author andreas_s
  *
  */
@@ -35,17 +38,20 @@ public class MonitoringImpl implements MonitoringService {
 	 */
 	private final Map<Endpoint, MonitoringInformation> requestMap = new ConcurrentHashMap<>();
 	private final QueryLog queryLog;
+	private final FedXConfig config;
 
-	MonitoringImpl() {
+	MonitoringImpl(FedXConfig config) {
 
-		if (Config.getConfig().isLogQueries()) {
+		this.config = config;
+		if (config.isLogQueries()) {
 			try {
 				queryLog = new QueryLog();
 			} catch (IOException e) {
 				throw new FedXRuntimeException("QueryLog cannot be initialized: " + e.getMessage());
 			}
-		} else
+		} else {
 			queryLog = null;
+		}
 	}
 
 	@Override
@@ -65,7 +71,7 @@ public class MonitoringImpl implements MonitoringService {
 
 	@Override
 	public List<MonitoringInformation> getAllMonitoringInformation() {
-		return new ArrayList<MonitoringInformation>(requestMap.values());
+		return new ArrayList<>(requestMap.values());
 	}
 
 	@Override
@@ -86,6 +92,7 @@ public class MonitoringImpl implements MonitoringService {
 			numberOfRequests++;
 		}
 
+		@Override
 		public String toString() {
 			return e.getName() + " => " + numberOfRequests;
 		}
@@ -101,12 +108,15 @@ public class MonitoringImpl implements MonitoringService {
 
 	@Override
 	public void monitorQuery(QueryInfo query) {
-		if (queryLog != null)
+		if (queryLog != null) {
 			queryLog.logQuery(query);
+		}
 	}
 
 	@Override
 	public void logQueryPlan(TupleExpr tupleExpr) {
-		QueryPlanLog.setQueryPlan(tupleExpr);
+		if (config.isLogQueryPlan()) {
+			QueryPlanLog.setQueryPlan(tupleExpr);
+		}
 	}
 }

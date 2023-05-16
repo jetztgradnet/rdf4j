@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.sparql.federation;
 
@@ -19,10 +22,11 @@ import org.eclipse.rdf4j.repository.sparql.query.SPARQLQueryBindingSet;
 
 /**
  * Inserts original bindings into the result, uses ?__rowIdx to resolve original bindings. See
- * {@link ServiceJoinIterator} and {@link SPARQLFederatedService}.
- * 
+ * {@link org.eclipse.rdf4j.query.algebra.evaluation.federation.ServiceJoinIterator} and {@link SPARQLFederatedService}.
+ *
  * @author Andreas Schwarte
  */
+@Deprecated(since = "4.1.0")
 public class ServiceJoinConversionIteration
 		extends ConvertingIteration<BindingSet, BindingSet, QueryEvaluationException> {
 
@@ -54,10 +58,11 @@ public class ServiceJoinConversionIteration
 
 		// should never occur: in such case we would have to create the cross product (which
 		// is dealt with in another place)
-		if (bIndex == -1)
+		if (bIndex == -1) {
 			throw new QueryEvaluationException(
 					"Invalid join. Probably this is due to non-standard behavior of the SPARQL endpoint. "
 							+ "Please report to the developers.");
+		}
 
 		res.addAll(bindings.get(bIndex));
 		return res;

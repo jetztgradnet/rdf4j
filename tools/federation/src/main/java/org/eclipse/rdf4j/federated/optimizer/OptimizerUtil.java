@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.optimizer;
 
@@ -19,20 +22,20 @@ public class OptimizerUtil {
 
 	/**
 	 * Flatten the join to one layer, i.e. collect all join arguments
-	 * 
+	 *
 	 * @param join
 	 * @param queryInfo
 	 * @return the flattened {@link NJoin}
 	 */
 	public static NJoin flattenJoin(Join join, QueryInfo queryInfo) {
-		List<TupleExpr> joinArgs = new ArrayList<TupleExpr>();
+		List<TupleExpr> joinArgs = new ArrayList<>();
 		collectJoinArgs(join, joinArgs);
 		return new NJoin(joinArgs, queryInfo);
 	}
 
 	/**
 	 * Collect join arguments by descending the query tree (recursively).
-	 * 
+	 *
 	 * @param node
 	 * @param joinArgs
 	 */
@@ -41,7 +44,8 @@ public class OptimizerUtil {
 		if (node instanceof Join) {
 			collectJoinArgs(((Join) node).getLeftArg(), joinArgs);
 			collectJoinArgs(((Join) node).getRightArg(), joinArgs);
-		} else
+		} else {
 			joinArgs.add(node);
+		}
 	}
 }

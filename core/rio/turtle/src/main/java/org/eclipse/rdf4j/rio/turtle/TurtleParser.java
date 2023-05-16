@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.turtle;
 
@@ -21,16 +24,17 @@ import java.util.Set;
 
 import org.apache.commons.io.input.BOMInputStream;
 import org.eclipse.rdf4j.common.text.ASCIIUtil;
-import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
+import org.eclipse.rdf4j.model.Triple;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.model.util.Values;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.RDFHandlerException;
 import org.eclipse.rdf4j.rio.RDFParseException;
@@ -49,7 +53,7 @@ import org.eclipse.rdf4j.rio.helpers.TurtleParserSettings;
  * allow comments to be used inside triple constructs that extend over multiple lines, but the author's own parser
  * deviates from this too.</li>
  * </ul>
- * 
+ *
  * @author Arjohn Kampman
  * @author Peter Ansell
  */
@@ -70,6 +74,11 @@ public class TurtleParser extends AbstractRDFParser {
 	private int lineNumber = 1;
 
 	private final StringBuilder parsingBuilder = new StringBuilder();
+
+	/**
+	 * The most recently read complete statement.
+	 */
+	private Statement previousStatement;
 
 	/*--------------*
 	 * Constructors *
@@ -104,27 +113,16 @@ public class TurtleParser extends AbstractRDFParser {
 	public Collection<RioSetting<?>> getSupportedSettings() {
 		Set<RioSetting<?>> result = new HashSet<>(super.getSupportedSettings());
 		result.add(TurtleParserSettings.CASE_INSENSITIVE_DIRECTIVES);
+		result.add(TurtleParserSettings.ACCEPT_TURTLESTAR);
 		return result;
 	}
 
-	/**
-	 * Implementation of the <tt>parse(InputStream, String)</tt> method defined in the RDFParser interface.
-	 *
-	 * @param in      The InputStream from which to read the data, must not be <tt>null</tt>. The InputStream is
-	 *                supposed to contain UTF-8 encoded Unicode characters, as per the Turtle specification.
-	 * @param baseURI The URI associated with the data in the InputStream, must not be <tt>null</tt>.
-	 * @throws IOException              If an I/O error occurred while data was read from the InputStream.
-	 * @throws RDFParseException        If the parser has found an unrecoverable parse error.
-	 * @throws RDFHandlerException      If the configured statement handler encountered an unrecoverable error.
-	 * @throws IllegalArgumentException If the supplied input stream or base URI is <tt>null</tt>.
-	 */
 	@Override
 	public synchronized void parse(InputStream in, String baseURI)
 			throws IOException, RDFParseException, RDFHandlerException {
 		if (in == null) {
 			throw new IllegalArgumentException("Input stream must not be 'null'");
 		}
-		// Note: baseURI will be checked in parse(Reader, String)
 
 		try {
 			parse(new InputStreamReader(new BOMInputStream(in, false), StandardCharsets.UTF_8), baseURI);
@@ -134,16 +132,6 @@ public class TurtleParser extends AbstractRDFParser {
 		}
 	}
 
-	/**
-	 * Implementation of the <tt>parse(Reader, String)</tt> method defined in the RDFParser interface.
-	 *
-	 * @param reader  The Reader from which to read the data, must not be <tt>null</tt>.
-	 * @param baseURI The URI associated with the data in the Reader, must not be <tt>null</tt>.
-	 * @throws IOException              If an I/O error occurred while data was read from the InputStream.
-	 * @throws RDFParseException        If the parser has found an unrecoverable parse error.
-	 * @throws RDFHandlerException      If the configured statement handler encountered an unrecoverable error.
-	 * @throws IllegalArgumentException If the supplied reader or base URI is <tt>null</tt>.
-	 */
 	@Override
 	public synchronized void parse(Reader reader, String baseURI)
 			throws IOException, RDFParseException, RDFHandlerException {
@@ -152,9 +140,6 @@ public class TurtleParser extends AbstractRDFParser {
 		try {
 			if (reader == null) {
 				throw new IllegalArgumentException("Reader must not be 'null'");
-			}
-			if (baseURI == null) {
-				throw new IllegalArgumentException("base URI must not be 'null'");
 			}
 
 			if (rdfHandler != null) {
@@ -165,10 +150,12 @@ public class TurtleParser extends AbstractRDFParser {
 			lineNumber = 1;
 
 			// Allow at most 8 characters to be pushed back:
-			this.reader = new PushbackReader(reader, 8);
+			this.reader = new PushbackReader(reader, 10);
 
-			// Store normalized base URI
-			setBaseURI(baseURI);
+			if (baseURI != null) {
+				// Store normalized base URI
+				setBaseURI(baseURI);
+			}
 
 			reportLocation();
 
@@ -294,12 +281,11 @@ public class TurtleParser extends AbstractRDFParser {
 		skipWSC();
 
 		// Read the namespace URI
-		IRI namespace = parseURI();
+		String namespaceStr = parseURI().toString();
+
+		String prefixStr = prefixID.toString();
 
 		// Store and report this namespace mapping
-		String prefixStr = prefixID.toString();
-		String namespaceStr = namespace.toString();
-
 		setNamespace(prefixStr, namespaceStr);
 
 		if (rdfHandler != null) {
@@ -388,10 +374,16 @@ public class TurtleParser extends AbstractRDFParser {
 	protected void parseObjectList() throws IOException, RDFParseException, RDFHandlerException {
 		parseObject();
 
+		if (skipWSC() == '{') {
+			parseAnnotation();
+		}
 		while (skipWSC() == ',') {
 			readCodePoint();
 			skipWSC();
 			parseObject();
+			if (skipWSC() == '{') {
+				parseAnnotation();
+			}
 		}
 	}
 
@@ -465,7 +457,7 @@ public class TurtleParser extends AbstractRDFParser {
 	}
 
 	/**
-	 * Parses a collection, e.g. <tt>( item1 item2 item3 )</tt>.
+	 * Parses a collection, e.g. <var>( item1 item2 item3 )</var>.
 	 */
 	protected Resource parseCollection() throws IOException, RDFParseException, RDFHandlerException {
 		verifyCharacterOrFail(readCodePoint(), "(");
@@ -523,7 +515,7 @@ public class TurtleParser extends AbstractRDFParser {
 	}
 
 	/**
-	 * Parses an implicit blank node. This method parses the token <tt>[]</tt> and predicateObjectLists that are
+	 * Parses an implicit blank node. This method parses the token <var>[]</var> and predicateObjectLists that are
 	 * surrounded by square brackets.
 	 */
 	protected Resource parseImplicitBlank() throws IOException, RDFParseException, RDFHandlerException {
@@ -568,6 +560,10 @@ public class TurtleParser extends AbstractRDFParser {
 	 * Parses an RDF value. This method parses uriref, qname, node ID, quoted literal, integer, double and boolean.
 	 */
 	protected Value parseValue() throws IOException, RDFParseException, RDFHandlerException {
+		if (getParserConfig().get(TurtleParserSettings.ACCEPT_TURTLESTAR) && peekIsTripleValue()) {
+			return parseTripleValue();
+		}
+
 		int c = peekCodePoint();
 
 		if (c == '<') {
@@ -630,7 +626,7 @@ public class TurtleParser extends AbstractRDFParser {
 				// Turtle
 				// language tags do not need whitespace following the language
 				// tag
-				if (c == '.' || c == ';' || c == ',' || c == ')' || c == ']' || c == -1) {
+				if (c == '.' || c == ';' || c == ',' || c == ')' || c == ']' || c == '>' || c == -1) {
 					break;
 				}
 				if (verifyLanguageTag && !TurtleUtil.isLanguageChar(c)) {
@@ -654,13 +650,13 @@ public class TurtleParser extends AbstractRDFParser {
 
 			// Read datatype
 			Value datatype = parseValue();
-			if (datatype instanceof Literal || datatype instanceof BNode) {
-				reportFatalError("Illegal datatype value: " + datatype);
-			} else if (datatype == null) {
+			if (datatype == null) {
 				// the datatype IRI could not be parsed. report as error only if VERIFY_URI_SYNTAX is enabled, silently
 				// skip otherwise.
 				reportError("Invalid datatype IRI for literal '" + label + "'", BasicParserSettings.VERIFY_URI_SYNTAX);
 				return null;
+			} else if (!(datatype instanceof IRI)) {
+				reportFatalError("Illegal datatype value: " + datatype);
 			}
 			return createLiteral(label, null, (IRI) datatype, getLineNumber(), -1);
 		} else {
@@ -670,13 +666,13 @@ public class TurtleParser extends AbstractRDFParser {
 
 	/**
 	 * Parses a quoted string, which is either a "normal string" or a """long string""".
-	 * 
+	 *
 	 * @return string
 	 * @throws IOException
 	 * @throws RDFParseException
 	 */
 	protected String parseQuotedString() throws IOException, RDFParseException {
-		String result = null;
+		String result;
 
 		int c1 = readCodePoint();
 
@@ -710,7 +706,7 @@ public class TurtleParser extends AbstractRDFParser {
 
 	/**
 	 * Parses a "normal string". This method requires that the opening character has already been parsed.
-	 * 
+	 *
 	 * @return parsed string
 	 * @throws IOException
 	 * @throws RDFParseException
@@ -772,6 +768,11 @@ public class TurtleParser extends AbstractRDFParser {
 
 			appendCodepoint(sb, c);
 
+			if (c == '\n') {
+				lineNumber++;
+				reportLocation();
+			}
+
 			if (c == '\\') {
 				// This escapes the next character, which might be a '"'
 				c = readCodePoint();
@@ -787,7 +788,7 @@ public class TurtleParser extends AbstractRDFParser {
 
 	protected Literal parseNumber() throws IOException, RDFParseException {
 		StringBuilder value = getBuilder();
-		IRI datatype = XMLSchema.INTEGER;
+		IRI datatype = XSD.INTEGER;
 
 		int c = readCodePoint();
 
@@ -827,7 +828,7 @@ public class TurtleParser extends AbstractRDFParser {
 					}
 
 					// We're parsing a decimal or a double
-					datatype = XMLSchema.DECIMAL;
+					datatype = XSD.DECIMAL;
 				}
 			} else {
 				if (value.length() == 0) {
@@ -838,7 +839,7 @@ public class TurtleParser extends AbstractRDFParser {
 
 			// read optional exponent
 			if (c == 'e' || c == 'E') {
-				datatype = XMLSchema.DOUBLE;
+				datatype = XSD.DOUBLE;
 				appendCodepoint(value, c);
 
 				c = readCodePoint();
@@ -960,7 +961,7 @@ public class TurtleParser extends AbstractRDFParser {
 					BasicParserSettings.VERIFY_RELATIVE_URIS);
 		}
 
-		String namespace = null;
+		String namespace;
 
 		if (c == ':') {
 			// qname using default namespace
@@ -991,10 +992,10 @@ public class TurtleParser extends AbstractRDFParser {
 
 				if (value.equals("true")) {
 					unread(c);
-					return createLiteral("true", null, XMLSchema.BOOLEAN, getLineNumber(), -1);
+					return createLiteral("true", null, XSD.BOOLEAN, getLineNumber(), -1);
 				} else if (value.equals("false")) {
 					unread(c);
-					return createLiteral("false", null, XMLSchema.BOOLEAN, getLineNumber(), -1);
+					return createLiteral("false", null, XSD.BOOLEAN, getLineNumber(), -1);
 				}
 			}
 
@@ -1071,7 +1072,7 @@ public class TurtleParser extends AbstractRDFParser {
 	}
 
 	/**
-	 * Parses a blank node ID, e.g. <tt>_:node1</tt>.
+	 * Parses a blank node ID, e.g. <var>_:node1</var>.
 	 */
 	protected Resource parseNodeID() throws IOException, RDFParseException {
 		// Node ID should start with "_:"
@@ -1117,16 +1118,16 @@ public class TurtleParser extends AbstractRDFParser {
 
 	protected void reportStatement(Resource subj, IRI pred, Value obj) throws RDFParseException, RDFHandlerException {
 		if (subj != null && pred != null && obj != null) {
-			Statement st = createStatement(subj, pred, obj);
+			previousStatement = createStatement(subj, pred, obj);
 			if (rdfHandler != null) {
-				rdfHandler.handleStatement(st);
+				rdfHandler.handleStatement(previousStatement);
 			}
 		}
 	}
 
 	/**
-	 * Verifies that the supplied character code point <tt>codePoint</tt> is one of the expected characters specified in
-	 * <tt>expected</tt>. This method will throw a <tt>ParseException</tt> if this is not the case.
+	 * Verifies that the supplied character code point <var>codePoint</var> is one of the expected characters specified
+	 * in <var>expected</var>. This method will throw a <var>ParseException</var> if this is not the case.
 	 */
 	protected void verifyCharacterOrFail(int codePoint, String expected) throws RDFParseException {
 		if (codePoint == -1) {
@@ -1155,11 +1156,11 @@ public class TurtleParser extends AbstractRDFParser {
 	}
 
 	/**
-	 * Consumes any white space characters (space, tab, line feed, newline) and comments (#-style) from <tt>reader</tt>.
-	 * After this method has been called, the first character that is returned by <tt>reader</tt> is either a
-	 * non-ignorable character, or EOF. For convenience, this character is also returned by this method.
+	 * Consumes any white space characters (space, tab, line feed, newline) and comments (#-style) from
+	 * <var>reader</var>. After this method has been called, the first character that is returned by <var>reader</var>
+	 * is either a non-ignorable character, or EOF. For convenience, this character is also returned by this method.
 	 *
-	 * @return The next character code point that will be returned by <tt>reader</tt>.
+	 * @return The next character code point that will be returned by <var>reader</var>.
 	 */
 	protected int skipWSC() throws IOException, RDFHandlerException {
 		int c = readCodePoint();
@@ -1254,13 +1255,16 @@ public class TurtleParser extends AbstractRDFParser {
 	 * @throws IOException
 	 */
 	protected void unread(String string) throws IOException {
-		for (int i = string.codePointCount(0, string.length()); i >= 1; i--) {
+		int i = string.length();
+		while (i > 0) {
 			final int codePoint = string.codePointBefore(i);
 			if (Character.isSupplementaryCodePoint(codePoint)) {
 				final char[] surrogatePair = Character.toChars(codePoint);
 				reader.unread(surrogatePair);
+				i -= surrogatePair.length;
 			} else {
 				reader.unread(codePoint);
+				i--;
 			}
 		}
 	}
@@ -1329,7 +1333,7 @@ public class TurtleParser extends AbstractRDFParser {
 	/**
 	 * Appends the characters from codepoint into the string builder. This is the same as Character#toChars but prevents
 	 * the additional char array garbage for BMP codepoints.
-	 * 
+	 *
 	 * @param dst       the destination in which to append the characters
 	 * @param codePoint the codepoint to be appended
 	 */
@@ -1343,4 +1347,72 @@ public class TurtleParser extends AbstractRDFParser {
 			throw new IllegalArgumentException("Invalid codepoint " + codePoint);
 		}
 	}
+
+	/**
+	 * Peeks at the next two Unicode code points without advancing the reader and returns true if they indicate the
+	 * start of an RDF-star triple value. Such values start with '<<'.
+	 *
+	 * @return true if the next code points indicate the beginning of an RDF-star triple value, false otherwise
+	 * @throws IOException
+	 */
+	protected boolean peekIsTripleValue() throws IOException {
+		int c0 = readCodePoint();
+		int c1 = readCodePoint();
+		unread(c1);
+		unread(c0);
+
+		return c0 == '<' && c1 == '<';
+	}
+
+	/**
+	 * Parser an RDF-star triple value and returns it.
+	 *
+	 * @return An RDF-star triple.
+	 * @throws IOException
+	 */
+	protected Triple parseTripleValue() throws IOException {
+		verifyCharacterOrFail(readCodePoint(), "<");
+		verifyCharacterOrFail(readCodePoint(), "<");
+		skipWSC();
+		Value subject = parseValue();
+		if (subject instanceof Resource) {
+			skipWSC();
+			Value predicate = parseValue();
+			if (predicate instanceof IRI) {
+				skipWSC();
+				Value object = parseValue();
+				if (object != null) {
+					skipWSC();
+					verifyCharacterOrFail(readCodePoint(), ">");
+					verifyCharacterOrFail(readCodePoint(), ">");
+					return valueFactory.createTriple((Resource) subject, (IRI) predicate, object);
+				} else {
+					reportFatalError("Missing object in RDF-star triple");
+				}
+			} else {
+				reportFatalError("Illegal predicate value in RDF-star triple: " + predicate);
+			}
+		} else {
+			reportFatalError("Illegal subject val in RDF-star triple: " + subject);
+		}
+
+		return null;
+	}
+
+	protected void parseAnnotation() throws IOException {
+		verifyCharacterOrFail(readCodePoint(), "{");
+		verifyCharacterOrFail(readCodePoint(), "|");
+		skipWSC();
+
+		// keep reference to original subject and predicate while processing the annotation content
+		final Resource currentSubject = subject;
+		final IRI currentPredicate = predicate;
+		subject = Values.triple(previousStatement);
+		parsePredicateObjectList();
+		verifyCharacterOrFail(readCodePoint(), "|");
+		verifyCharacterOrFail(readCodePoint(), "}");
+		subject = currentSubject;
+		predicate = currentPredicate;
+	}
+
 }

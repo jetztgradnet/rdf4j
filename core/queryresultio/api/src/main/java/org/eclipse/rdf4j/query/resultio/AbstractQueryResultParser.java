@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.resultio;
 
@@ -17,6 +20,7 @@ import org.eclipse.rdf4j.rio.ParseErrorListener;
 import org.eclipse.rdf4j.rio.ParseLocationListener;
 import org.eclipse.rdf4j.rio.ParserConfig;
 import org.eclipse.rdf4j.rio.RioSetting;
+import org.eclipse.rdf4j.rio.helpers.BasicParserSettings;
 
 /**
  * Base class for {@link QueryResultParser}s offering common functionality for query result parsers.
@@ -84,6 +88,9 @@ public abstract class AbstractQueryResultParser implements QueryResultParser {
 
 	@Override
 	public QueryResultParser setQueryResultHandler(QueryResultHandler handler) {
+		if (getParserConfig().get(BasicParserSettings.PROCESS_ENCODED_RDF_STAR)) {
+			handler = new RDFStarDecodingQueryResultHandler(handler);
+		}
 		this.handler = handler;
 		return this;
 	}

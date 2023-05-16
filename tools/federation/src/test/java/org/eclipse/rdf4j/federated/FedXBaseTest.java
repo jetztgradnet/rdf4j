@@ -1,24 +1,29 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.eclipse.rdf4j.common.io.IOUtil;
 import org.eclipse.rdf4j.common.iteration.Iterations;
-import org.eclipse.rdf4j.federated.FederationManager;
-import org.eclipse.rdf4j.federated.QueryManager;
+import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
@@ -32,7 +37,6 @@ import org.eclipse.rdf4j.query.Query;
 import org.eclipse.rdf4j.query.QueryResults;
 import org.eclipse.rdf4j.query.TupleQuery;
 import org.eclipse.rdf4j.query.TupleQueryResult;
-import org.eclipse.rdf4j.query.dawg.DAWGTestResultSetUtil;
 import org.eclipse.rdf4j.query.impl.ListBindingSet;
 import org.eclipse.rdf4j.query.impl.MutableTupleQueryResult;
 import org.eclipse.rdf4j.query.impl.TupleQueryResultBuilder;
@@ -40,7 +44,6 @@ import org.eclipse.rdf4j.query.resultio.BooleanQueryResultParserRegistry;
 import org.eclipse.rdf4j.query.resultio.QueryResultFormat;
 import org.eclipse.rdf4j.query.resultio.QueryResultIO;
 import org.eclipse.rdf4j.query.resultio.TupleQueryResultParser;
-import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryException;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.RDFParser;
@@ -53,45 +56,62 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-public class FedXBaseTest {
+public abstract class FedXBaseTest {
 
 	public static Logger log;
 
 	@BeforeAll
-	public static void initLogging() throws Exception {
+	public static void initLogging() {
 
-		if (System.getProperty("log4j.configurationFile") == null)
+		if (System.getProperty("log4j.configurationFile") == null) {
 			System.setProperty("log4j.configurationFile", "file:build/test/log4j-debug.properties");
+		}
 
 		log = LoggerFactory.getLogger(FedXBaseTest.class);
 	}
 
+	protected static final String EXAMPLE_NAMESPACE = "http://example.org/";
+
 	protected static final ValueFactory vf = SimpleValueFactory.getInstance();
+
+	protected String defaultNamespace = EXAMPLE_NAMESPACE;
 
 	/**
 	 * Execute a testcase, both queryFile and expectedResultFile must be files
-	 * 
+	 *
 	 * @param queryFile
 	 * @param expectedResultFile
 	 * @param checkOrder
+	 * @param doubleCheckClose   double check that closing works as intended even if no results are retrieved
 	 * @throws Exception
 	 */
-	protected void execute(RepositoryConnection conn, String queryFile, String expectedResultFile, boolean checkOrder)
+	protected void execute(String queryFile, String expectedResultFile, boolean checkOrder, boolean doubleCheckClose)
 			throws Exception {
 
 		String queryString = readQueryString(queryFile);
 
-		Query query = QueryManager.prepareQuery(queryString);
+		Query query = queryManager().prepareQuery(queryString);
 
 		if (query instanceof TupleQuery) {
+			// Some query results will automatically close themselves when they are exhausted. To properly test that
+			// query results are closed correctly we need to evaluate the query without retrieving any elements.
+			if (doubleCheckClose) {
+				((TupleQuery) query).evaluate().close();
+			}
+
 			try (TupleQueryResult queryResult = ((TupleQuery) query).evaluate()) {
-
-				TupleQueryResult expectedResult = readExpectedTupleQueryResult(expectedResultFile);
-
-				compareTupleQueryResults(queryResult, expectedResult, checkOrder);
+				try (TupleQueryResult expectedResult = readExpectedTupleQueryResult(expectedResultFile)) {
+					compareTupleQueryResults(queryResult, expectedResult, checkOrder);
+				}
 			}
 
 		} else if (query instanceof GraphQuery) {
+			// Some query results will automatically close themselves when they are exhausted. To properly test that
+			// query results are closed correctly we need to evaluate the query without retrieving any elements.
+			if (doubleCheckClose) {
+				((GraphQuery) query).evaluate().close();
+			}
+
 			try (GraphQueryResult gqr = ((GraphQuery) query).evaluate()) {
 				Set<Statement> queryResult = Iterations.asSet(gqr);
 
@@ -101,7 +121,6 @@ public class FedXBaseTest {
 			}
 
 		} else if (query instanceof BooleanQuery) {
-
 			boolean queryResult = ((BooleanQuery) query).evaluate();
 			boolean expectedResult = readExpectedBooleanQueryResult(expectedResultFile);
 			Assertions.assertEquals(expectedResult, queryResult);
@@ -110,22 +129,14 @@ public class FedXBaseTest {
 		}
 	}
 
-	protected TupleQueryResult runSelectQueryFile(String queryFile) throws Exception {
-		String queryString = readQueryString(queryFile);
-
-		Query query = QueryManager.prepareQuery(queryString);
-
-		if (query instanceof TupleQuery) {
-			return ((TupleQuery) query).evaluate();
-		}
-
-		throw new Exception("unexpected query: " + queryString);
-	}
-
 	protected void evaluateQueryPlan(String queryFile, String expectedPlanFile) throws Exception {
 
-		String actualQueryPlan = QueryManager.getQueryPlan(readQueryString(queryFile));
+		String actualQueryPlan = federationContext().getQueryManager().getQueryPlan(readQueryString(queryFile));
 		String expectedQueryPlan = readResourceAsString(expectedPlanFile);
+		assertQueryPlanEquals(expectedQueryPlan, actualQueryPlan);
+	}
+
+	protected void assertQueryPlanEquals(String expectedQueryPlan, String actualQueryPlan) {
 
 		// make sure the comparison works cross operating system
 		expectedQueryPlan = expectedQueryPlan.replace("\r\n", "\n");
@@ -134,18 +145,34 @@ public class FedXBaseTest {
 		actualQueryPlan = actualQueryPlan.replace("sparql_localhost:18080_repositories_", "");
 		actualQueryPlan = actualQueryPlan.replace("remote_", "");
 		Assertions.assertEquals(expectedQueryPlan, actualQueryPlan);
-
 	}
 
-	protected void prepareTest() throws RepositoryException {
-		// reset fedx
-		FederationManager.getInstance().getCache().clear();
+	protected void assertContainsAll(List<BindingSet> res, String bindingName, Set<Value> expected) {
+		Assertions.assertEquals(expected,
+				res.stream().map(bs -> bs.getValue(bindingName)).collect(Collectors.toSet()));
+		Assertions.assertEquals(expected.size(), res.size());
+	}
+
+	protected Literal l(String value) {
+		return SimpleValueFactory.getInstance().createLiteral(value);
+	}
+
+	/**
+	 * @param localName
+	 * @return the IRI in the instance's {@link #defaultNamespace}
+	 */
+	protected IRI iri(String localName) {
+		return iri(defaultNamespace, localName);
+	}
+
+	protected static IRI iri(String namespace, String localName) {
+		return vf.createIRI(namespace, localName);
 	}
 
 	/**
 	 * Read the query string from the specified resource
-	 * 
-	 * @param queryResource
+	 *
+	 * @param queryFile
 	 * @return
 	 * @throws RepositoryException
 	 * @throws IOException
@@ -156,100 +183,77 @@ public class FedXBaseTest {
 
 	/**
 	 * Read resource from classpath as string, e.g. /tests/basic/data01endpoint1.ttl
-	 * 
+	 *
 	 * @param resource
 	 * @return
 	 * @throws IOException
 	 */
 	protected String readResourceAsString(String resource) throws IOException {
-		InputStream stream = FedXBaseTest.class.getResourceAsStream(resource);
-		try {
-			return IOUtil.readString(new InputStreamReader(stream, "UTF-8"));
-		} finally {
-			stream.close();
+		try (InputStream stream = FedXBaseTest.class.getResourceAsStream(resource)) {
+			assert stream != null;
+			return IOUtil.readString(new InputStreamReader(stream, StandardCharsets.UTF_8));
 		}
 	}
 
 	/**
 	 * Read the expected tuple query result from the specified resource
-	 * 
-	 * @param queryResource
+	 *
+	 * @param resultFile
 	 * @return
 	 * @throws RepositoryException
 	 * @throws IOException
 	 */
 	protected TupleQueryResult readExpectedTupleQueryResult(String resultFile) throws Exception {
-		QueryResultFormat tqrFormat = QueryResultIO.getParserFormatForFileName(resultFile).get();
+		QueryResultFormat tqrFormat = QueryResultIO.getParserFormatForFileName(resultFile).orElseThrow();
 
-		if (tqrFormat != null) {
-			InputStream in = SPARQLBaseTest.class.getResourceAsStream(resultFile);
-			if (in == null)
+		InputStream in = SPARQLBaseTest.class.getResourceAsStream(resultFile);
+
+		try (in) {
+			if (in == null) {
 				throw new IOException("File could not be opened: " + resultFile);
-
-			try {
-				TupleQueryResultParser parser = QueryResultIO.createTupleParser(tqrFormat);
-
-				TupleQueryResultBuilder qrBuilder = new TupleQueryResultBuilder();
-				parser.setQueryResultHandler(qrBuilder);
-
-				parser.parseQueryResult(in);
-				return qrBuilder.getQueryResult();
-			} finally {
-				in.close();
 			}
-		} else {
-			Set<Statement> resultGraph = readExpectedGraphQueryResult(resultFile);
-			return DAWGTestResultSetUtil.toTupleQueryResult(resultGraph);
+			TupleQueryResultParser parser = QueryResultIO.createTupleParser(tqrFormat);
+
+			TupleQueryResultBuilder qrBuilder = new TupleQueryResultBuilder();
+			parser.setQueryResultHandler(qrBuilder);
+
+			parser.parseQueryResult(in);
+			return qrBuilder.getQueryResult();
 		}
 	}
 
 	/**
 	 * Read the expected graph query result from the specified resource
-	 * 
+	 *
 	 * @param resultFile
 	 * @return
 	 * @throws Exception
 	 */
 	protected Set<Statement> readExpectedGraphQueryResult(String resultFile) throws Exception {
-		RDFFormat rdfFormat = Rio.getParserFormatForFileName(resultFile).get();
+		RDFFormat rdfFormat = Rio.getParserFormatForFileName(resultFile).orElseThrow();
 
-		if (rdfFormat != null) {
-			RDFParser parser = Rio.createParser(rdfFormat);
-			parser.setPreserveBNodeIDs(true);
-			parser.setValueFactory(SimpleValueFactory.getInstance());
+		RDFParser parser = Rio.createParser(rdfFormat);
+		parser.setPreserveBNodeIDs(true);
+		parser.setValueFactory(SimpleValueFactory.getInstance());
 
-			Set<Statement> result = new LinkedHashSet<Statement>();
-			parser.setRDFHandler(new StatementCollector(result));
+		Set<Statement> result = new LinkedHashSet<>();
+		parser.setRDFHandler(new StatementCollector(result));
 
-			InputStream in = SPARQLBaseTest.class.getResourceAsStream(resultFile);
-			try {
-				parser.parse(in, resultFile);
-			} finally {
-				in.close();
-			}
-
-			return result;
-		} else {
-			throw new RuntimeException("Unable to determine file type of results file");
+		try (InputStream in = SPARQLBaseTest.class.getResourceAsStream(resultFile)) {
+			parser.parse(in, resultFile);
 		}
+
+		return result;
 	}
 
 	protected boolean readExpectedBooleanQueryResult(String resultFile) throws Exception {
 		QueryResultFormat bqrFormat = BooleanQueryResultParserRegistry.getInstance()
 				.getFileFormatForFileName(
 						resultFile)
-				.get();
+				.orElseThrow();
 
-		if (bqrFormat != null) {
-			InputStream in = SPARQLBaseTest.class.getResourceAsStream(resultFile);
-			try {
-				return QueryResultIO.parseBoolean(in, bqrFormat);
-			} finally {
-				in.close();
-			}
-		} else {
-			Set<Statement> resultGraph = readExpectedGraphQueryResult(resultFile);
-			return DAWGTestResultSetUtil.toBooleanQueryResult(resultGraph);
+		try (InputStream in = SPARQLBaseTest.class.getResourceAsStream(resultFile)) {
+			return QueryResultIO.parseBoolean(in, bqrFormat);
 		}
 	}
 
@@ -258,18 +262,28 @@ public class FedXBaseTest {
 	}
 
 	/**
+	 * Note: metod can only be used after initialization phase
+	 *
+	 * @return the current {@link FederationContext}
+	 */
+	protected abstract FederationContext federationContext();
+
+	protected QueryManager queryManager() {
+		return federationContext().getQueryManager();
+	}
+
+	/**
 	 * Compare two tuple query results
-	 * 
+	 *
 	 * @param queryResult
 	 * @param expectedResult
 	 * @param checkOrder
-	 * @throws Exception
 	 */
 	protected void compareTupleQueryResults(TupleQueryResult queryResult, TupleQueryResult expectedResult,
-			boolean checkOrder)
-			throws Exception {
+			boolean checkOrder) {
 		// Create MutableTupleQueryResult to be able to re-iterate over the
 		// results
+
 		MutableTupleQueryResult queryResultTable = new MutableTupleQueryResult(queryResult);
 		MutableTupleQueryResult expectedResultTable = new MutableTupleQueryResult(expectedResult);
 
@@ -301,10 +315,10 @@ public class FedXBaseTest {
 
 			List<BindingSet> expectedBindings = Iterations.asList(expectedResultTable);
 
-			List<BindingSet> missingBindings = new ArrayList<BindingSet>(expectedBindings);
+			List<BindingSet> missingBindings = new ArrayList<>(expectedBindings);
 			missingBindings.removeAll(queryBindings);
 
-			List<BindingSet> unexpectedBindings = new ArrayList<BindingSet>(queryBindings);
+			List<BindingSet> unexpectedBindings = new ArrayList<>(queryBindings);
 			unexpectedBindings.removeAll(expectedBindings);
 
 			StringBuilder message = new StringBuilder(128);
@@ -342,7 +356,7 @@ public class FedXBaseTest {
 				}
 				message.append(" =======================\n");
 
-				System.out.print(message.toString());
+				System.out.print(message);
 			}
 
 			log.error(message.toString());
@@ -353,13 +367,11 @@ public class FedXBaseTest {
 
 	/**
 	 * Compare two graphs
-	 * 
+	 *
 	 * @param queryResult
 	 * @param expectedResult
-	 * @throws Exception
 	 */
-	protected void compareGraphs(Set<Statement> queryResult, Set<Statement> expectedResult)
-			throws Exception {
+	protected void compareGraphs(Set<Statement> queryResult, Set<Statement> expectedResult) {
 		if (!Models.isomorphic(expectedResult, queryResult)) {
 			StringBuilder message = new StringBuilder(128);
 			message.append("Expected result: \n");
@@ -381,9 +393,8 @@ public class FedXBaseTest {
 
 	/**
 	 * A builder for {@link TupleQueryResult}s.
-	 * 
-	 * @author as
 	 *
+	 * @author as
 	 */
 	public static class SimpleTupleQueryResultBuilder {
 
@@ -396,7 +407,7 @@ public class FedXBaseTest {
 
 		/**
 		 * Add the {@link BindingSet} to the result.
-		 * 
+		 *
 		 * @param b
 		 * @return
 		 * @throws IllegalArgumentException if the provided binding names is not a subset of the defined result binding
@@ -405,10 +416,11 @@ public class FedXBaseTest {
 		public SimpleTupleQueryResultBuilder add(BindingSet b) throws IllegalArgumentException {
 
 			// check if the binding names are a subset of defined binding names
-			if (!bindingNames.containsAll(b.getBindingNames()))
+			if (!bindingNames.containsAll(b.getBindingNames())) {
 				throw new IllegalArgumentException(
 						"Provided binding set does must be a subset of defined binding names: " + bindingNames
 								+ ". Was: " + b.getBindingNames());
+			}
 			this.bindings.add(b);
 			return this;
 		}

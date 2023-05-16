@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.helpers;
 
@@ -18,7 +21,7 @@ public class SailUtil {
 	/**
 	 * Searches a stack of Sails from top to bottom for a Sail that is an instance of the suppied class or interface.
 	 * The first Sail that matches (i.e. the one closest to the top) is returned.
-	 * 
+	 *
 	 * @param topSail   The top of the Sail stack.
 	 * @param sailClass A class or interface.
 	 * @return A Sail that is an instance of sailClass, or null if no such Sail was found.

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.limited.iterator;
 
@@ -18,6 +21,7 @@ import org.eclipse.rdf4j.query.QueryEvaluationException;
 /**
  * @author Jerven Bolleman, SIB Swiss Institute of Bioinformatics
  */
+@Deprecated(since = "4.1.0", forRemoval = true)
 public class LimitedSizeIteratorUtil {
 
 	/**
@@ -31,8 +35,9 @@ public class LimitedSizeIteratorUtil {
 	public static Set<BindingSet> addAll(Iteration<? extends BindingSet, ? extends QueryEvaluationException> arg2,
 			Set<BindingSet> includeSet, AtomicLong used, long maxSize) throws QueryEvaluationException {
 		while (arg2.hasNext()) {
-			if (includeSet.add(arg2.next()) && used.incrementAndGet() > maxSize)
+			if (includeSet.add(arg2.next()) && used.incrementAndGet() > maxSize) {
 				throw new QueryEvaluationException("Size limited reached inside intersect operator");
+			}
 		}
 		return includeSet;
 	}
@@ -48,8 +53,9 @@ public class LimitedSizeIteratorUtil {
 	public static <V> boolean add(V object, Collection<V> excludeSet, AtomicLong used, long maxSize)
 			throws QueryEvaluationException {
 		boolean add = excludeSet.add(object);
-		if (add && used.incrementAndGet() > maxSize)
+		if (add && used.incrementAndGet() > maxSize) {
 			throw new QueryEvaluationException("Size limited reached inside query operator.");
+		}
 		return add;
 	}
 }

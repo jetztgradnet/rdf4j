@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.impl;
 
@@ -49,10 +52,11 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A query optimizer that optimizes constant value expressions.
- * 
+ *
  * @author James Leigh
  * @author Arjohn Kampman
  */
+@Deprecated(forRemoval = true, since = "4.1.0")
 public class ConstantOptimizer implements QueryOptimizer {
 
 	protected static final Logger logger = LoggerFactory.getLogger(ConstantOptimizer.class);
@@ -80,7 +84,7 @@ public class ConstantOptimizer implements QueryOptimizer {
 			varsBefore.removeAll(varsAfter);
 			for (ProjectionElemList projElems : visitor.projElemLists) {
 				for (ProjectionElem projElem : projElems.getElements()) {
-					String name = projElem.getSourceName();
+					String name = projElem.getName();
 					if (varsBefore.contains(name)) {
 						UnaryTupleOperator proj = (UnaryTupleOperator) projElems.getParentNode();
 						Extension ext = new Extension(proj.getArg());
@@ -213,7 +217,7 @@ public class ConstantOptimizer implements QueryOptimizer {
 
 			List<ValueExpr> args = functionCall.getArgs();
 
-			if (args.size() == 0) {
+			if (args.isEmpty()) {
 				/*
 				 * SPARQL has two types of zero-arg function. One are proper 'constant' functions like NOW() which
 				 * generate a single value for the entire query and which can be safely optimized to a constant. Other
@@ -248,7 +252,7 @@ public class ConstantOptimizer implements QueryOptimizer {
 		/**
 		 * Determines if the provided zero-arg function is a function that should return a constant value for the entire
 		 * query execution (e.g NOW()), or if it should generate a new value for every call (e.g. RAND()).
-		 * 
+		 *
 		 * @param functionCall a zero-arg function call.
 		 * @return <code>true<code> iff the provided function returns a constant value for the query execution, <code>false</code>
 		 *         otherwise.

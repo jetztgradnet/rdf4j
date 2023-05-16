@@ -1,15 +1,18 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.sail.helpers;
 
+import java.util.Objects;
 import java.util.Set;
 
-import org.eclipse.rdf4j.OpenRDFUtil;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
@@ -24,7 +27,7 @@ import org.eclipse.rdf4j.sail.UpdateContext;
 /**
  * An Sail-specific RDFHandler that removes RDF data from a repository. To be used in combination with SPARQL DELETE
  * DATA only.
- * 
+ *
  * @author jeen
  */
 class RDFSailRemover extends AbstractRDFHandler {
@@ -54,7 +57,7 @@ class RDFSailRemover extends AbstractRDFHandler {
 
 	/**
 	 * Creates a new RDFSailRemover object.
-	 * 
+	 *
 	 * @param con The connection to use for the remove operations.
 	 */
 	public RDFSailRemover(SailConnection con, ValueFactory vf, UpdateContext uc) {
@@ -70,18 +73,19 @@ class RDFSailRemover extends AbstractRDFHandler {
 
 	/**
 	 * Enforces the supplied contexts upon all statements that are reported to this RDFSailRemover.
-	 * 
+	 *
 	 * @param contexts the contexts to use. Use an empty array (not null!) to indicate no context(s) should be enforced.
 	 */
 	public void enforceContext(Resource... contexts) {
-		OpenRDFUtil.verifyContextNotNull(contexts);
+		Objects.requireNonNull(contexts,
+				"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 		this.contexts = contexts;
 	}
 
 	/**
 	 * Checks whether this RDFRemover enforces its contexts upon all statements that are reported to it.
-	 * 
-	 * @return <tt>true</tt> if it enforces its contexts, <tt>false</tt> otherwise.
+	 *
+	 * @return <var>true</var> if it enforces its contexts, <var>false</var> otherwise.
 	 */
 	public boolean enforcesContext() {
 		return contexts.length != 0;
@@ -89,9 +93,9 @@ class RDFSailRemover extends AbstractRDFHandler {
 
 	/**
 	 * Gets the contexts that this RDFRemover enforces upon all statements that are reported to it (in case
-	 * <tt>enforcesContext()</tt> returns <tt>true</tt>).
-	 * 
-	 * @return A Resource[] identifying the contexts, or <tt>null</tt> if no contexts is enforced.
+	 * <var>enforcesContext()</var> returns <var>true</var>).
+	 *
+	 * @return A Resource[] identifying the contexts, or <var>null</var> if no contexts is enforced.
 	 */
 	public Resource[] getContexts() {
 		return contexts;
@@ -111,7 +115,8 @@ class RDFSailRemover extends AbstractRDFHandler {
 				if (ctxt == null) {
 					final Set<IRI> removeGraphs = uc.getDataset().getDefaultRemoveGraphs();
 					if (!removeGraphs.isEmpty()) {
-						con.removeStatement(uc, subj, pred, obj, new IRI[removeGraphs.size()]);
+						IRI[] ctxts = removeGraphs.toArray(new IRI[removeGraphs.size()]);
+						con.removeStatement(uc, subj, pred, obj, ctxts);
 					} else {
 						con.removeStatement(uc, subj, pred, obj);
 					}

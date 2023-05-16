@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.spin.function;
 
@@ -77,15 +80,17 @@ public class SpinFunction extends AbstractSpinFunction implements TransientFunct
 			TupleQuery queryOp = qp.prepare(selectQuery);
 			addBindings(queryOp, arguments, args);
 			try {
-				TupleQueryResult queryResult = queryOp.evaluate();
-				if (queryResult.hasNext()) {
-					BindingSet bs = queryResult.next();
-					if (bs.size() != 1) {
-						throw new ValueExprEvaluationException("Only a single result variables is supported: " + bs);
+				try (TupleQueryResult queryResult = queryOp.evaluate()) {
+					if (queryResult.hasNext()) {
+						BindingSet bs = queryResult.next();
+						if (bs.size() != 1) {
+							throw new ValueExprEvaluationException(
+									"Only a single result variables is supported: " + bs);
+						}
+						result = bs.iterator().next().getValue();
+					} else {
+						throw new ValueExprEvaluationException("No value");
 					}
-					result = bs.iterator().next().getValue();
-				} else {
-					throw new ValueExprEvaluationException("No value");
 				}
 			} catch (QueryEvaluationException e) {
 				throw new ValueExprEvaluationException(e);

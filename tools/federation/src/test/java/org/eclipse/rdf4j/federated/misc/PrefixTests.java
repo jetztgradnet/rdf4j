@@ -1,15 +1,17 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.misc;
 
 import java.util.Arrays;
 
-import org.eclipse.rdf4j.federated.FederationManager;
 import org.eclipse.rdf4j.federated.QueryManager;
 import org.eclipse.rdf4j.federated.SPARQLBaseTest;
 import org.eclipse.rdf4j.query.MalformedQueryException;
@@ -24,11 +26,11 @@ public class PrefixTests extends SPARQLBaseTest {
 		prepareTest(Arrays.asList("/tests/data/data1.ttl", "/tests/data/data2.ttl", "/tests/data/data3.ttl",
 				"/tests/data/data4.ttl"));
 
-		QueryManager qm = FederationManager.getInstance().getQueryManager();
+		QueryManager qm = federationContext().getQueryManager();
 		qm.addPrefixDeclaration("foaf", "http://xmlns.com/foaf/0.1/");
 		qm.addPrefixDeclaration("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#");
 
-		execute("/tests/prefix/query.rq", "/tests/prefix/query.srx", false);
+		execute("/tests/prefix/query.rq", "/tests/prefix/query.srx", false, true);
 
 		qm.addPrefixDeclaration("foaf", null);
 		qm.addPrefixDeclaration("rdf", null);
@@ -42,7 +44,7 @@ public class PrefixTests extends SPARQLBaseTest {
 		try {
 			prepareTest(Arrays.asList("/tests/data/data1.ttl", "/tests/data/data2.ttl", "/tests/data/data3.ttl",
 					"/tests/data/data4.ttl"));
-			execute("/tests/prefix/query.rq", "/tests/prefix/query.srx", false);
+			execute("/tests/prefix/query.rq", "/tests/prefix/query.srx", false, true);
 		} catch (MalformedQueryException m) {
 			// this exception is expected
 			return;
@@ -56,10 +58,10 @@ public class PrefixTests extends SPARQLBaseTest {
 		prepareTest(Arrays.asList("/tests/data/data1.ttl", "/tests/data/data2.ttl", "/tests/data/data3.ttl",
 				"/tests/data/data4.ttl"));
 
-		QueryManager qm = FederationManager.getInstance().getQueryManager();
+		QueryManager qm = federationContext().getQueryManager();
 		qm.addPrefixDeclaration("foaf", "http://xmlns.com/foaf/0.1/");
 
-		execute("/tests/prefix/query2.rq", "/tests/prefix/query2.srx", false);
+		execute("/tests/prefix/query2.rq", "/tests/prefix/query2.srx", false, true);
 
 		qm.addPrefixDeclaration("foaf", null);
 		qm.addPrefixDeclaration("rdf", null);

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.endpoint.provider;
 
@@ -23,10 +26,10 @@ import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
  * Provider for an Endpoint that uses a RDF4j {@link SPARQLRepository} as underlying repository. All SPARQL endpoints
  * are considered Remote.
  * <p>
- * 
+ *
  * This {@link SPARQLProvider} implements special hard-coded endpoint configuration for the DBpedia endpoint: the
  * support for ASK queries is always set to false.
- * 
+ *
  * @author Andreas Schwarte
  */
 public class SPARQLProvider implements EndpointProvider<SPARQLRepositoryInformation> {
@@ -45,7 +48,6 @@ public class SPARQLProvider implements EndpointProvider<SPARQLRepositoryInformat
 					.setHttpClientBuilder(httpClientBuilder);
 			try {
 				repo.init();
-				ProviderUtil.checkConnectionIfConfigured(repo);
 			} finally {
 				repo.shutDown();
 			}
@@ -66,7 +68,7 @@ public class SPARQLProvider implements EndpointProvider<SPARQLRepositoryInformat
 
 	/**
 	 * Manipulate the endpoint configuration for certain common endpoints, e.g. DBpedia => does not support ASK queries
-	 * 
+	 *
 	 * @param location
 	 * @param ep
 	 * @return

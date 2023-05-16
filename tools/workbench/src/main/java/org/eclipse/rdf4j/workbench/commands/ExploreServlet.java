@@ -1,17 +1,20 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.workbench.commands;
 
-import java.util.Arrays;
+import java.util.List;
 
 import javax.servlet.http.HttpServletResponse;
 
-import org.eclipse.rdf4j.RDF4JException;
+import org.eclipse.rdf4j.common.exception.RDF4JException;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
@@ -54,7 +57,7 @@ public class ExploreServlet extends TupleServlet {
 			final TupleResultBuilder builder = getTupleResultBuilder(req, resp, resp.getOutputStream());
 			builder.transform(xslPath, "explore.xsl");
 			builder.start("error-message");
-			builder.link(Arrays.asList(INFO));
+			builder.link(List.of(INFO));
 			builder.result(exc.getMessage());
 			builder.end();
 		}
@@ -86,7 +89,7 @@ public class ExploreServlet extends TupleServlet {
 
 	/**
 	 * Query the repository for all instances of the given value, optionally writing the results into the HTTP response.
-	 * 
+	 *
 	 * @param con     the connection to the repository
 	 * @param builder used for writing to the HTTP response
 	 * @param value   the value to query the repository for
@@ -131,7 +134,7 @@ public class ExploreServlet extends TupleServlet {
 	 * <li>export(*, null, null, object, null)</li>
 	 * <li>export(*, null, null, null, context)</li>
 	 * </ol>
-	 * 
+	 *
 	 * @param con     the connection to the repository
 	 * @param builder used for writing to the HTTP response
 	 * @param cursor  used for keeping track of our location in the result set
@@ -159,7 +162,7 @@ public class ExploreServlet extends TupleServlet {
 
 	/**
 	 * Gets whether this is the first time the result quad has been seen.
-	 * 
+	 *
 	 * @param patternPredicate the predicate asked for, or null if another quad element was asked for
 	 * @param patternObject    the object asked for, or null if another quad element was asked for
 	 * @param result           the result statement to determine if we've already seen
@@ -191,7 +194,7 @@ public class ExploreServlet extends TupleServlet {
 
 	/**
 	 * Class for keeping track of location within the result set, relative to offset and limit.
-	 * 
+	 *
 	 * @author Dale Visser
 	 */
 	protected class ResultCursor {
@@ -220,7 +223,7 @@ public class ExploreServlet extends TupleServlet {
 		/**
 		 * Gets the total number of results. Only meant to be called after advance() has been called for all results in
 		 * the set.
-		 * 
+		 *
 		 * @return the number of times advance() has been called
 		 */
 		public int getTotalResultCount() {
@@ -230,7 +233,7 @@ public class ExploreServlet extends TupleServlet {
 		/**
 		 * Gets the number of results that were actually rendered. Only meant to be called after advance() has been
 		 * called for all results in the set.
-		 * 
+		 *
 		 * @return the number of times advance() has been called when this.mayRender() evaluated to true
 		 */
 		public int getRenderedResultCount() {

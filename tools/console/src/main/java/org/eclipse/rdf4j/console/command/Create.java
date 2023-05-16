@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console.command;
 
@@ -16,6 +19,7 @@ import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -25,11 +29,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.eclipse.rdf4j.common.io.IOUtil;
 import org.eclipse.rdf4j.console.ConsoleIO;
 import org.eclipse.rdf4j.console.ConsoleState;
-import org.eclipse.rdf4j.console.LockRemover;
 import org.eclipse.rdf4j.console.Util;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
@@ -46,7 +50,6 @@ import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.RDFParser;
 import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.rio.helpers.StatementCollector;
-
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.UserInterruptException;
 
@@ -58,7 +61,7 @@ import org.jline.reader.UserInterruptException;
 public class Create extends ConsoleCommand {
 	private static final String TEMPLATES_SUBDIR = "templates";
 	private static final String FILE_EXT = ".ttl";
-	private File templatesDir;
+	private final File templatesDir;
 
 	@Override
 	public String getName() {
@@ -99,24 +102,26 @@ public class Create extends ConsoleCommand {
 
 	/**
 	 * Return a concatenated list of ordered configuration templates files, without file type extension.
-	 * 
+	 *
 	 * @param path path with templates
 	 * @return string concatenated string
 	 * @throws IOException
 	 */
 	private String getOrderedTemplates(Path path) throws IOException {
-		return Files.walk(path)
-				.filter(Files::isRegularFile)
-				.map(f -> f.getFileName().toString())
-				.filter(s -> s.endsWith(FILE_EXT))
-				.map(s -> s.substring(0, s.length() - FILE_EXT.length()))
-				.sorted()
-				.collect(Collectors.joining(", "));
+		try (Stream<Path> walk = Files.walk(path)) {
+			return walk
+					.filter(Files::isRegularFile)
+					.map(f -> f.getFileName().toString())
+					.filter(s -> s.endsWith(FILE_EXT))
+					.map(s -> s.substring(0, s.length() - FILE_EXT.length()))
+					.sorted()
+					.collect(Collectors.joining(", "));
+		}
 	}
 
 	/**
 	 * Get the names of the user-defined repository templates, located in the templates directory.
-	 * 
+	 *
 	 * @return ordered array of names
 	 */
 	private String getUserTemplates() {
@@ -133,7 +138,7 @@ public class Create extends ConsoleCommand {
 
 	/**
 	 * Get the names of the built-in repository templates, located in the JAR containing RepositoryConfig.
-	 * 
+	 *
 	 * @return concatenated list of names
 	 */
 	private String getBuiltinTemplates() {
@@ -157,7 +162,7 @@ public class Create extends ConsoleCommand {
 
 	/**
 	 * Create a new repository based on a template
-	 * 
+	 *
 	 * @param templateName name of the template
 	 * @throws IOException
 	 */
@@ -172,7 +177,7 @@ public class Create extends ConsoleCommand {
 			if (templateStream != null) {
 				String template;
 				try {
-					template = IOUtil.readString(new InputStreamReader(templateStream, "UTF-8"));
+					template = IOUtil.readString(new InputStreamReader(templateStream, StandardCharsets.UTF_8));
 				} finally {
 					templateStream.close();
 				}
@@ -190,7 +195,7 @@ public class Create extends ConsoleCommand {
 					rdfParser.parse(new StringReader(configString), RepositoryConfigSchema.NAMESPACE);
 
 					final Resource repositoryNode = Models
-							.subject(graph.filter(null, RDF.TYPE, RepositoryConfigSchema.REPOSITORY))
+							.subject(graph.getStatements(null, RDF.TYPE, RepositoryConfigSchema.REPOSITORY))
 							.orElseThrow(() -> new RepositoryConfigException("missing repository node"));
 
 					final RepositoryConfig repConfig = RepositoryConfig.create(graph, repositoryNode);
@@ -212,12 +217,8 @@ public class Create extends ConsoleCommand {
 							this.state.getManager().addRepositoryConfig(repConfig);
 							writeInfo("Repository created");
 						} catch (RepositoryReadOnlyException e) {
-							if (LockRemover.tryToRemoveLock(this.state.getManager().getSystemRepository(), consoleIO)) {
-								this.state.getManager().addRepositoryConfig(repConfig);
-								writeInfo("Repository created");
-							} else {
-								writeError("Failed to create repository", e);
-							}
+							this.state.getManager().addRepositoryConfig(repConfig);
+							writeInfo("Repository created");
 						}
 					} else {
 						writeln("Create aborted");
@@ -234,7 +235,7 @@ public class Create extends ConsoleCommand {
 
 	/**
 	 * Ask user to specify values for the template variables
-	 * 
+	 *
 	 * @param valueMap
 	 * @param variableMap
 	 * @param multilineInput
@@ -288,7 +289,7 @@ public class Create extends ConsoleCommand {
 	/**
 	 * Create input stream from a template file in the specified file directory. If the file cannot be found, try to
 	 * read it from the embedded java resources instead.
-	 * 
+	 *
 	 * @param templateName     name of the template
 	 * @param templateFileName template file name
 	 * @param templatesDir     template directory

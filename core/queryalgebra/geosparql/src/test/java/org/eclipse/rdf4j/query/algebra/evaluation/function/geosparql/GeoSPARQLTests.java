@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.function.geosparql;
 
@@ -30,7 +33,7 @@ import org.eclipse.rdf4j.sail.memory.MemoryStore;
 
 /**
  * Abstract helper class for unit tests
- * 
+ *
  * @author Bart Hanssens
  */
 public class GeoSPARQLTests {
@@ -38,7 +41,7 @@ public class GeoSPARQLTests {
 
 	/**
 	 * Get the repository
-	 * 
+	 *
 	 * @return repository
 	 */
 	public static Repository getRepository() {
@@ -50,7 +53,7 @@ public class GeoSPARQLTests {
 
 	/**
 	 * Get the results of a query, stored as a resource file, as a binding set
-	 * 
+	 *
 	 * @param name name of the file containing the query
 	 * @return binding set
 	 * @throws IOException
@@ -61,7 +64,7 @@ public class GeoSPARQLTests {
 
 	/**
 	 * Get multiple resulting binding sets of a query, stored as a resource file
-	 * 
+	 *
 	 * @param name name of the file containing the query
 	 * @return list of binding sets
 	 * @throws IOException
@@ -72,7 +75,7 @@ public class GeoSPARQLTests {
 
 	/**
 	 * Get the query, stored as a resource file
-	 * 
+	 *
 	 * @param name name of the file containing the query
 	 * @return
 	 * @throws IOException
@@ -86,7 +89,6 @@ public class GeoSPARQLTests {
 
 	private static Repository setupTestRepository() {
 		SailRepository repo = new SailRepository(new MemoryStore());
-		repo.initialize();
 		ValueFactory f = repo.getValueFactory();
 
 		Map<String, String> cities = new HashMap<>();

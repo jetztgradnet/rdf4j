@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.model.impl;
 
@@ -21,7 +24,6 @@ import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
-import org.eclipse.rdf4j.model.util.Models;
 
 /**
  * Provides basic operations that are common to all Models.
@@ -49,9 +51,11 @@ public abstract class AbstractModel extends AbstractSet<Statement> implements Mo
 	public boolean containsAll(Collection<?> c) {
 		Iterator<?> e = c.iterator();
 		try {
-			while (e.hasNext())
-				if (!contains(e.next()))
+			while (e.hasNext()) {
+				if (!contains(e.next())) {
 					return false;
+				}
+			}
 			return true;
 		} finally {
 			closeIterator(c, e);
@@ -64,8 +68,9 @@ public abstract class AbstractModel extends AbstractSet<Statement> implements Mo
 		if (size() > c.size()) {
 			Iterator<?> i = c.iterator();
 			try {
-				while (i.hasNext())
+				while (i.hasNext()) {
 					modified |= remove(i.next());
+				}
 			} finally {
 				closeIterator(c, i);
 			}
@@ -121,8 +126,9 @@ public abstract class AbstractModel extends AbstractSet<Statement> implements Mo
 		try {
 			boolean modified = false;
 			while (e.hasNext()) {
-				if (add(e.next()))
+				if (add(e.next())) {
 					modified = true;
+				}
 			}
 			return modified;
 		} finally {
@@ -179,36 +185,8 @@ public abstract class AbstractModel extends AbstractSet<Statement> implements Mo
 	}
 
 	@Override
-	public int hashCode() {
-		return super.hashCode();
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o instanceof Model) {
-			Model model = (Model) o;
-			return Models.isomorphic(this, model);
-		} else if (o instanceof Set) {
-			if (this.size() != ((Set<?>) o).size()) {
-				return false;
-			}
-			try {
-				return Models.isomorphic(this, (Iterable<? extends Statement>) o);
-			} catch (ClassCastException e) {
-				return false;
-			}
-		}
-
-		return false;
-	}
-
-	@Override
 	public Set<Resource> subjects() {
-		return new ValueSet<Resource>() {
+		return new ValueSet<>() {
 
 			@Override
 			public boolean contains(Object o) {
@@ -245,7 +223,7 @@ public abstract class AbstractModel extends AbstractSet<Statement> implements Mo
 
 	@Override
 	public Set<IRI> predicates() {
-		return new ValueSet<IRI>() {
+		return new ValueSet<>() {
 
 			@Override
 			public boolean contains(Object o) {
@@ -282,7 +260,7 @@ public abstract class AbstractModel extends AbstractSet<Statement> implements Mo
 
 	@Override
 	public Set<Value> objects() {
-		return new ValueSet<Value>() {
+		return new ValueSet<>() {
 
 			@Override
 			public boolean contains(Object o) {
@@ -319,7 +297,7 @@ public abstract class AbstractModel extends AbstractSet<Statement> implements Mo
 
 	@Override
 	public Set<Resource> contexts() {
-		return new ValueSet<Resource>() {
+		return new ValueSet<>() {
 
 			@Override
 			public boolean contains(Object o) {
@@ -451,8 +429,9 @@ public abstract class AbstractModel extends AbstractSet<Statement> implements Mo
 			boolean modified = false;
 			Iterator<?> i = c.iterator();
 			try {
-				while (i.hasNext())
+				while (i.hasNext()) {
 					modified |= remove(i.next());
+				}
 			} finally {
 				closeIterator(c, i);
 			}
@@ -491,9 +470,11 @@ public abstract class AbstractModel extends AbstractSet<Statement> implements Mo
 		public boolean containsAll(Collection<?> c) {
 			Iterator<?> e = c.iterator();
 			try {
-				while (e.hasNext())
-					if (!contains(e.next()))
+				while (e.hasNext()) {
+					if (!contains(e.next())) {
 						return false;
+					}
+				}
 				return true;
 			} finally {
 				closeIterator(c, e);
@@ -506,8 +487,9 @@ public abstract class AbstractModel extends AbstractSet<Statement> implements Mo
 			try {
 				boolean modified = false;
 				while (e.hasNext()) {
-					if (add(e.next()))
+					if (add(e.next())) {
 						modified = true;
+					}
 				}
 				return modified;
 			} finally {
@@ -555,7 +537,7 @@ public abstract class AbstractModel extends AbstractSet<Statement> implements Mo
 	/**
 	 * Called by aggregate sets when a term has been removed from a term iterator. Exactly one of the last four terms
 	 * will be non-empty.
-	 * 
+	 *
 	 * @param iter     The iterator used to navigate the live set (never null)
 	 * @param subj     the subject term to be removed or null
 	 * @param pred     the predicate term to be removed or null
@@ -567,7 +549,7 @@ public abstract class AbstractModel extends AbstractSet<Statement> implements Mo
 
 	/**
 	 * Cleans up any resources used by this iterator. After this call the given iterator should not be used.
-	 * 
+	 *
 	 * @param iter Iterator to clean up
 	 */
 	protected void closeIterator(Iterator<?> iter) {

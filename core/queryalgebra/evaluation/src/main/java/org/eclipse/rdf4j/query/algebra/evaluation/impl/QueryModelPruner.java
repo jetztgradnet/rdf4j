@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.impl;
 
@@ -20,14 +23,13 @@ import org.eclipse.rdf4j.query.algebra.Union;
 import org.eclipse.rdf4j.query.algebra.ValueConstant;
 import org.eclipse.rdf4j.query.algebra.ValueExpr;
 import org.eclipse.rdf4j.query.algebra.evaluation.QueryOptimizer;
-import org.eclipse.rdf4j.query.algebra.evaluation.ValueExprEvaluationException;
-import org.eclipse.rdf4j.query.algebra.evaluation.util.QueryEvaluationUtil;
+import org.eclipse.rdf4j.query.algebra.evaluation.util.QueryEvaluationUtility;
 import org.eclipse.rdf4j.query.algebra.helpers.AbstractQueryModelVisitor;
 
 /**
  * A query optimizer that prunes query model trees by removing superfluous parts and/or by reducing complex parts with
  * simpler parts.
- * 
+ *
  * @author Arjohn Kampman
  * @deprecated Replaced by {@link QueryModelNormalizer}.
  */
@@ -39,7 +41,7 @@ public class QueryModelPruner implements QueryOptimizer {
 
 	/**
 	 * Applies generally applicable optimizations: path expressions are sorted from more to less specific.
-	 * 
+	 *
 	 * @param tupleExpr
 	 */
 	@Override
@@ -80,15 +82,11 @@ public class QueryModelPruner implements QueryOptimizer {
 			} else if (rightArg instanceof SingletonSet) {
 				leftJoin.replaceWith(leftArg);
 			} else if (condition instanceof ValueConstant) {
-				boolean conditionValue;
-				try {
-					conditionValue = QueryEvaluationUtil
-							.getEffectiveBooleanValue(((ValueConstant) condition).getValue());
-				} catch (ValueExprEvaluationException e) {
-					conditionValue = false;
-				}
+				boolean conditionValue = QueryEvaluationUtility
+						.getEffectiveBooleanValue(((ValueConstant) condition).getValue())
+						.orElse(false);
 
-				if (conditionValue == false) {
+				if (!conditionValue) {
 					// Constraint is always false
 					leftJoin.replaceWith(leftArg);
 				} else {

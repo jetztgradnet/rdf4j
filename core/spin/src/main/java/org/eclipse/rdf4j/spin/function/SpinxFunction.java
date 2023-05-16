@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.spin.function;
 
@@ -16,12 +19,12 @@ import javax.script.CompiledScript;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
+import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
-import org.eclipse.rdf4j.model.URI;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
-import org.eclipse.rdf4j.model.impl.ValueFactoryImpl;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.query.algebra.evaluation.ValueExprEvaluationException;
 import org.eclipse.rdf4j.spin.Argument;
 
@@ -39,7 +42,7 @@ public class SpinxFunction implements TransientFunction {
 
 	private String script;
 
-	private URI returnType;
+	private IRI returnType;
 
 	public SpinxFunction(String uri) {
 		this.uri = uri;
@@ -61,11 +64,11 @@ public class SpinxFunction implements TransientFunction {
 		return script;
 	}
 
-	public void setReturnType(URI datatype) {
+	public void setReturnType(IRI datatype) {
 		this.returnType = datatype;
 	}
 
-	public URI getReturnType() {
+	public IRI getReturnType() {
 		return returnType;
 	}
 
@@ -89,6 +92,7 @@ public class SpinxFunction implements TransientFunction {
 
 	@Override
 	public Value evaluate(ValueFactory valueFactory, Value... args) throws ValueExprEvaluationException {
+
 		Bindings bindings = scriptEngine.createBindings();
 		for (int i = 0; i < args.length; i++) {
 			Argument argument = arguments.get(i);
@@ -96,9 +100,9 @@ public class SpinxFunction implements TransientFunction {
 			Object jsArg;
 			if (arg instanceof Literal) {
 				Literal argLiteral = (Literal) arg;
-				if (XMLSchema.INTEGER.equals(argLiteral.getDatatype())) {
+				if (XSD.INTEGER.equals(argLiteral.getDatatype())) {
 					jsArg = argLiteral.intValue();
-				} else if (XMLSchema.DECIMAL.equals(argLiteral.getDatatype())) {
+				} else if (XSD.DECIMAL.equals(argLiteral.getDatatype())) {
 					jsArg = argLiteral.doubleValue();
 				} else {
 					jsArg = argLiteral.getLabel();
@@ -123,8 +127,8 @@ public class SpinxFunction implements TransientFunction {
 			throw new ValueExprEvaluationException(e);
 		}
 
-		ValueFactory vf = ValueFactoryImpl.getInstance();
-		return (returnType != null) ? vf.createLiteral(result.toString(), returnType) : vf.createURI(result.toString());
+		ValueFactory vf = SimpleValueFactory.getInstance();
+		return (returnType != null) ? vf.createLiteral(result.toString(), returnType) : vf.createIRI(result.toString());
 	}
 
 }

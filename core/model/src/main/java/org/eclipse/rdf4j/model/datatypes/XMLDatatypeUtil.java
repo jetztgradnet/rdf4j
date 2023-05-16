@@ -1,16 +1,21 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.model.datatypes;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URISyntaxException;
+import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.regex.Pattern;
 
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeConstants;
@@ -22,15 +27,23 @@ import javax.xml.namespace.QName;
 import org.eclipse.rdf4j.common.net.ParsedIRI;
 import org.eclipse.rdf4j.common.text.ASCIIUtil;
 import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.base.CoreDatatype;
 import org.eclipse.rdf4j.model.util.Literals;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 
 /**
  * Provides methods for handling the standard XML Schema datatypes.
- * 
+ *
  * @author Arjohn Kampman
  */
 public class XMLDatatypeUtil {
+
+	private static final IllegalArgumentExceptionWithoutStackTrace VALUE_SMALLER_THAN_MINIMUM_VALUE_EXCEPTION = new IllegalArgumentExceptionWithoutStackTrace(
+			"Value smaller than minimum value");
+	private static final IllegalArgumentExceptionWithoutStackTrace VALUE_LARGER_THAN_MAXIMUM_VALUE_EXCEPTION = new IllegalArgumentExceptionWithoutStackTrace(
+			"Value larger than maximum value");
+	private static final IllegalArgumentExceptionWithoutStackTrace NAN_COMPARE_EXCEPTION = new IllegalArgumentExceptionWithoutStackTrace(
+			"NaN cannot be compared to other floats");
 
 	public static final String POSITIVE_INFINITY = "INF";
 
@@ -38,7 +51,7 @@ public class XMLDatatypeUtil {
 
 	public static final String NaN = "NaN";
 
-	private static DatatypeFactory dtFactory;
+	private static final DatatypeFactory dtFactory;
 
 	static {
 		try {
@@ -48,55 +61,111 @@ public class XMLDatatypeUtil {
 		}
 	}
 
-	/*-------------------*
-	 * Datatype checking *
-	 *-------------------*/
+	private final static Pattern P_DURATION = Pattern.compile(
+			"-?P((\\d)+Y)?((\\d)+M)?((\\d)+D)?((T(\\d)+H((\\d)+M)?((\\d)+(\\.(\\d)+)?S)?)|(T(\\d)+M((\\d)+(\\.(\\d)+)?S)?)|(T(\\d)+(\\.(\\d)+)?S))?");
+	private final static Pattern P_DAYTIMEDURATION = Pattern.compile(
+			"-?P((\\d)+D)?((T(\\d)+H((\\d)+M)?((\\d)+(\\.(\\d)+)?S)?)|(T(\\d)+M((\\d)+(\\.(\\d)+)?S)?)|(T(\\d)+(\\.(\\d)+)?S))?");
+	private final static Pattern P_YEARMONTHDURATION = Pattern.compile("-?P((\\d)+Y)?((\\d)+M)?");
+	private final static Pattern P_TIMEZONE = Pattern.compile(".*(Z|[+-]((0\\d|1[0-3]):[0-5]\\d|14:00))$");
+	private final static Pattern P_DATE = Pattern.compile("-?\\d{4,}-\\d\\d-\\d\\d(Z|([+\\-])\\d\\d:\\d\\d)?");
+	private final static Pattern P_TIME = Pattern.compile("\\d\\d:\\d\\d:\\d\\d(\\.\\d+)?(Z|([+\\-])\\d\\d:\\d\\d)?");
+	private final static Pattern P_GDAY = Pattern.compile("---\\d\\d(Z|([+\\-])\\d\\d:\\d\\d)?");
+	private final static Pattern P_GMONTH = Pattern.compile("--\\d\\d(Z|([+\\-])\\d\\d:\\d\\d)?");
+	private final static Pattern P_GMONTHDAY = Pattern.compile("--\\d\\d-\\d\\d(Z|([+\\-])\\d\\d:\\d\\d)?");
+	private final static Pattern P_GYEAR = Pattern.compile("-?\\d{4,}(Z|([+\\-])\\d\\d:\\d\\d)?");
+	private final static Pattern P_GYEARMONTH = Pattern.compile("-?\\d{4,}-\\d\\d(Z|([+\\-])\\d\\d:\\d\\d)?");
+
+	private static final Set<IRI> primitiveDatatypes = Set.of(org.eclipse.rdf4j.model.vocabulary.XSD.DURATION,
+			org.eclipse.rdf4j.model.vocabulary.XSD.DATETIME, org.eclipse.rdf4j.model.vocabulary.XSD.TIME,
+			org.eclipse.rdf4j.model.vocabulary.XSD.DATE,
+			org.eclipse.rdf4j.model.vocabulary.XSD.GYEARMONTH, org.eclipse.rdf4j.model.vocabulary.XSD.GYEAR,
+			org.eclipse.rdf4j.model.vocabulary.XSD.GMONTHDAY, org.eclipse.rdf4j.model.vocabulary.XSD.GDAY,
+			org.eclipse.rdf4j.model.vocabulary.XSD.GMONTH, org.eclipse.rdf4j.model.vocabulary.XSD.STRING,
+			org.eclipse.rdf4j.model.vocabulary.XSD.BOOLEAN, org.eclipse.rdf4j.model.vocabulary.XSD.BASE64BINARY,
+			org.eclipse.rdf4j.model.vocabulary.XSD.HEXBINARY, org.eclipse.rdf4j.model.vocabulary.XSD.FLOAT,
+			org.eclipse.rdf4j.model.vocabulary.XSD.DECIMAL, org.eclipse.rdf4j.model.vocabulary.XSD.DOUBLE,
+			org.eclipse.rdf4j.model.vocabulary.XSD.ANYURI, org.eclipse.rdf4j.model.vocabulary.XSD.QNAME,
+			org.eclipse.rdf4j.model.vocabulary.XSD.NOTATION);
+
+	private static final Set<IRI> derivedDatatypes = Set.of(org.eclipse.rdf4j.model.vocabulary.XSD.NORMALIZEDSTRING,
+			org.eclipse.rdf4j.model.vocabulary.XSD.TOKEN, org.eclipse.rdf4j.model.vocabulary.XSD.LANGUAGE,
+			org.eclipse.rdf4j.model.vocabulary.XSD.NMTOKEN,
+			org.eclipse.rdf4j.model.vocabulary.XSD.NMTOKENS, org.eclipse.rdf4j.model.vocabulary.XSD.NAME,
+			org.eclipse.rdf4j.model.vocabulary.XSD.NCNAME, org.eclipse.rdf4j.model.vocabulary.XSD.ID,
+			org.eclipse.rdf4j.model.vocabulary.XSD.IDREF, org.eclipse.rdf4j.model.vocabulary.XSD.IDREFS,
+			org.eclipse.rdf4j.model.vocabulary.XSD.ENTITY, org.eclipse.rdf4j.model.vocabulary.XSD.ENTITIES,
+			org.eclipse.rdf4j.model.vocabulary.XSD.INTEGER,
+			org.eclipse.rdf4j.model.vocabulary.XSD.LONG, org.eclipse.rdf4j.model.vocabulary.XSD.INT,
+			org.eclipse.rdf4j.model.vocabulary.XSD.SHORT, org.eclipse.rdf4j.model.vocabulary.XSD.BYTE,
+			org.eclipse.rdf4j.model.vocabulary.XSD.NON_POSITIVE_INTEGER,
+			org.eclipse.rdf4j.model.vocabulary.XSD.NEGATIVE_INTEGER,
+			org.eclipse.rdf4j.model.vocabulary.XSD.NON_NEGATIVE_INTEGER,
+			org.eclipse.rdf4j.model.vocabulary.XSD.POSITIVE_INTEGER,
+			org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_LONG, org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_INT,
+			org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_SHORT,
+			org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_BYTE,
+			org.eclipse.rdf4j.model.vocabulary.XSD.DAYTIMEDURATION,
+			org.eclipse.rdf4j.model.vocabulary.XSD.YEARMONTHDURATION,
+			org.eclipse.rdf4j.model.vocabulary.XSD.DATETIMESTAMP);
+
+	private static final Set<IRI> integerDatatypes = Set.of(org.eclipse.rdf4j.model.vocabulary.XSD.INTEGER,
+			org.eclipse.rdf4j.model.vocabulary.XSD.LONG, org.eclipse.rdf4j.model.vocabulary.XSD.INT,
+			org.eclipse.rdf4j.model.vocabulary.XSD.SHORT, org.eclipse.rdf4j.model.vocabulary.XSD.BYTE,
+			org.eclipse.rdf4j.model.vocabulary.XSD.NON_POSITIVE_INTEGER,
+			org.eclipse.rdf4j.model.vocabulary.XSD.NEGATIVE_INTEGER,
+			org.eclipse.rdf4j.model.vocabulary.XSD.NON_NEGATIVE_INTEGER,
+			org.eclipse.rdf4j.model.vocabulary.XSD.POSITIVE_INTEGER,
+			org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_LONG, org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_INT,
+			org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_SHORT,
+			org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_BYTE);
+
+	private static final Set<IRI> calendarDatatypes = Set.of(org.eclipse.rdf4j.model.vocabulary.XSD.DATETIME,
+			org.eclipse.rdf4j.model.vocabulary.XSD.DATE, org.eclipse.rdf4j.model.vocabulary.XSD.TIME,
+			org.eclipse.rdf4j.model.vocabulary.XSD.GYEARMONTH,
+			org.eclipse.rdf4j.model.vocabulary.XSD.GMONTHDAY, org.eclipse.rdf4j.model.vocabulary.XSD.GYEAR,
+			org.eclipse.rdf4j.model.vocabulary.XSD.GMONTH, org.eclipse.rdf4j.model.vocabulary.XSD.GDAY,
+			org.eclipse.rdf4j.model.vocabulary.XSD.DATETIMESTAMP);
+
+	private static final Set<IRI> durationDatatypes = Set.of(org.eclipse.rdf4j.model.vocabulary.XSD.DURATION,
+			org.eclipse.rdf4j.model.vocabulary.XSD.DAYTIMEDURATION,
+			org.eclipse.rdf4j.model.vocabulary.XSD.YEARMONTHDURATION);
 
 	/**
 	 * Checks whether the supplied datatype is a primitive XML Schema datatype.
+	 *
+	 * @param datatype
+	 * @return true if the datatype is a primitive type
 	 */
 	public static boolean isPrimitiveDatatype(IRI datatype) {
-		return datatype.equals(XMLSchema.DURATION) || datatype.equals(XMLSchema.DATETIME)
-				|| datatype.equals(XMLSchema.TIME) || datatype.equals(XMLSchema.DATE)
-				|| datatype.equals(XMLSchema.GYEARMONTH) || datatype.equals(XMLSchema.GYEAR)
-				|| datatype.equals(XMLSchema.GMONTHDAY) || datatype.equals(XMLSchema.GDAY)
-				|| datatype.equals(XMLSchema.GMONTH) || datatype.equals(XMLSchema.STRING)
-				|| datatype.equals(XMLSchema.BOOLEAN) || datatype.equals(XMLSchema.BASE64BINARY)
-				|| datatype.equals(XMLSchema.HEXBINARY) || datatype.equals(XMLSchema.FLOAT)
-				|| datatype.equals(XMLSchema.DECIMAL) || datatype.equals(XMLSchema.DOUBLE)
-				|| datatype.equals(XMLSchema.ANYURI) || datatype.equals(XMLSchema.QNAME)
-				|| datatype.equals(XMLSchema.NOTATION);
+		return primitiveDatatypes.contains(datatype);
 	}
 
 	/**
 	 * Checks whether the supplied datatype is a derived XML Schema datatype.
+	 *
+	 * @param datatype
+	 * @return true if the datatype is a derived type
 	 */
 	public static boolean isDerivedDatatype(IRI datatype) {
-		return datatype.equals(XMLSchema.NORMALIZEDSTRING) || datatype.equals(XMLSchema.TOKEN)
-				|| datatype.equals(XMLSchema.LANGUAGE) || datatype.equals(XMLSchema.NMTOKEN)
-				|| datatype.equals(XMLSchema.NMTOKENS) || datatype.equals(XMLSchema.NAME)
-				|| datatype.equals(XMLSchema.NCNAME) || datatype.equals(XMLSchema.ID)
-				|| datatype.equals(XMLSchema.IDREF) || datatype.equals(XMLSchema.IDREFS)
-				|| datatype.equals(XMLSchema.ENTITY) || datatype.equals(XMLSchema.ENTITIES)
-				|| datatype.equals(XMLSchema.INTEGER) || datatype.equals(XMLSchema.LONG)
-				|| datatype.equals(XMLSchema.INT) || datatype.equals(XMLSchema.SHORT) || datatype.equals(XMLSchema.BYTE)
-				|| datatype.equals(XMLSchema.NON_POSITIVE_INTEGER) || datatype.equals(XMLSchema.NEGATIVE_INTEGER)
-				|| datatype.equals(XMLSchema.NON_NEGATIVE_INTEGER) || datatype.equals(XMLSchema.POSITIVE_INTEGER)
-				|| datatype.equals(XMLSchema.UNSIGNED_LONG) || datatype.equals(XMLSchema.UNSIGNED_INT)
-				|| datatype.equals(XMLSchema.UNSIGNED_SHORT) || datatype.equals(XMLSchema.UNSIGNED_BYTE)
-				|| datatype.equals(XMLSchema.DAYTIMEDURATION) || datatype.equals(XMLSchema.YEARMONTHDURATION);
+		return derivedDatatypes.contains(datatype);
 	}
 
 	/**
 	 * Checks whether the supplied datatype is a built-in XML Schema datatype.
+	 *
+	 * @param datatype
+	 * @return true if it is a primitive or derived XML Schema type
 	 */
 	public static boolean isBuiltInDatatype(IRI datatype) {
 		return isPrimitiveDatatype(datatype) || isDerivedDatatype(datatype);
 	}
 
 	/**
-	 * Checks whether the supplied datatype is a numeric datatype, i.e. if it is equal to xsd:float, xsd:double,
+	 * Checks whether the supplied datatype is a numeric datatype, i.e.if it is equal to xsd:float, xsd:double,
 	 * xsd:decimal or one of the datatypes derived from xsd:decimal.
+	 *
+	 * @param datatype
+	 * @return true of it is a decimal or floating point type
 	 */
 	public static boolean isNumericDatatype(IRI datatype) {
 		return isDecimalDatatype(datatype) || isFloatingPointDatatype(datatype);
@@ -105,59 +174,66 @@ public class XMLDatatypeUtil {
 	/**
 	 * Checks whether the supplied datatype is equal to xsd:decimal or one of the built-in datatypes that is derived
 	 * from xsd:decimal.
+	 *
+	 * @param datatype
+	 * @return true if it is a decimal datatype
 	 */
 	public static boolean isDecimalDatatype(IRI datatype) {
-		return datatype.equals(XMLSchema.DECIMAL) || isIntegerDatatype(datatype);
+		return datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DECIMAL) || isIntegerDatatype(datatype);
 	}
 
 	/**
 	 * Checks whether the supplied datatype is equal to xsd:integer or one of the built-in datatypes that is derived
 	 * from xsd:integer.
+	 *
+	 * @param datatype
+	 * @return true if it is an integer type
 	 */
 	public static boolean isIntegerDatatype(IRI datatype) {
-		return datatype.equals(XMLSchema.INTEGER) || datatype.equals(XMLSchema.LONG) || datatype.equals(XMLSchema.INT)
-				|| datatype.equals(XMLSchema.SHORT) || datatype.equals(XMLSchema.BYTE)
-				|| datatype.equals(XMLSchema.NON_POSITIVE_INTEGER) || datatype.equals(XMLSchema.NEGATIVE_INTEGER)
-				|| datatype.equals(XMLSchema.NON_NEGATIVE_INTEGER) || datatype.equals(XMLSchema.POSITIVE_INTEGER)
-				|| datatype.equals(XMLSchema.UNSIGNED_LONG) || datatype.equals(XMLSchema.UNSIGNED_INT)
-				|| datatype.equals(XMLSchema.UNSIGNED_SHORT) || datatype.equals(XMLSchema.UNSIGNED_BYTE);
+		return integerDatatypes.contains(datatype);
 	}
 
 	/**
 	 * Checks whether the supplied datatype is equal to xsd:float or xsd:double.
+	 *
+	 * @param datatype
+	 * @return true if it is a floating point type
 	 */
 	public static boolean isFloatingPointDatatype(IRI datatype) {
-		return datatype.equals(XMLSchema.FLOAT) || datatype.equals(XMLSchema.DOUBLE);
+		return datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.FLOAT)
+				|| datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DOUBLE);
 	}
 
 	/**
 	 * Checks whether the supplied datatype is equal to xsd:dateTime, xsd:date, xsd:time, xsd:gYearMonth, xsd:gMonthDay,
-	 * xsd:gYear, xsd:gMonth or xsd:gDay. These are the primitive datatypes that represent dates and/or times.
-	 * 
+	 * xsd:gYear, xsd:gMonth or xsd:gDay.These are the primitive datatypes that represent dates and/or times.
+	 *
+	 * @param datatype
+	 * @return true if it is a calendar type
 	 * @see XMLGregorianCalendar
 	 */
 	public static boolean isCalendarDatatype(IRI datatype) {
-		return datatype.equals(XMLSchema.DATETIME) || datatype.equals(XMLSchema.DATE) || datatype.equals(XMLSchema.TIME)
-				|| datatype.equals(XMLSchema.GYEARMONTH) || datatype.equals(XMLSchema.GMONTHDAY)
-				|| datatype.equals(XMLSchema.GYEAR) || datatype.equals(XMLSchema.GMONTH)
-				|| datatype.equals(XMLSchema.GDAY);
-
+		return calendarDatatypes.contains(datatype);
 	}
 
 	/**
 	 * Checks whether the supplied datatype is equal to xsd:duration, xsd:dayTimeDuration, xsd:yearMonthDuration. These
 	 * are the datatypes that represents durations.
 	 *
+	 * @param datatype
+	 * @return true if it is a duration type
 	 * @see Duration
 	 */
 	public static boolean isDurationDatatype(IRI datatype) {
-		return datatype.equals(XMLSchema.DURATION) || datatype.equals(XMLSchema.DAYTIMEDURATION)
-				|| datatype.equals(XMLSchema.YEARMONTHDURATION);
+		return durationDatatypes.contains(datatype);
 	}
 
 	/**
-	 * Checks whether the supplied datatype is ordered. The values of an ordered datatype can be compared to eachother
-	 * using operators like <tt>&lt;</tt> and <tt>&gt;</tt>.
+	 * Checks whether the supplied datatype is ordered.The values of an ordered datatype can be compared to each other
+	 * using operators like <var>&lt;</var> and <var>&gt;</var>.
+	 *
+	 * @param datatype
+	 * @return true if the datatype is ordered
 	 */
 	public static boolean isOrderedDatatype(IRI datatype) {
 		return isNumericDatatype(datatype) || isCalendarDatatype(datatype);
@@ -169,81 +245,168 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Verifies if the supplied lexical value is valid for the given datatype.
-	 * 
+	 *
 	 * @param value    a lexical value
 	 * @param datatype an XML Schema datatatype.
 	 * @return true if the supplied lexical value is valid, false otherwise.
 	 */
 	public static boolean isValidValue(String value, IRI datatype) {
-		boolean result = true;
-
-		if (datatype.equals(XMLSchema.DECIMAL)) {
-			result = isValidDecimal(value);
-		} else if (datatype.equals(XMLSchema.INTEGER)) {
-			result = isValidInteger(value);
-		} else if (datatype.equals(XMLSchema.NEGATIVE_INTEGER)) {
-			result = isValidNegativeInteger(value);
-		} else if (datatype.equals(XMLSchema.NON_POSITIVE_INTEGER)) {
-			result = isValidNonPositiveInteger(value);
-		} else if (datatype.equals(XMLSchema.NON_NEGATIVE_INTEGER)) {
-			result = isValidNonNegativeInteger(value);
-		} else if (datatype.equals(XMLSchema.POSITIVE_INTEGER)) {
-			result = isValidPositiveInteger(value);
-		} else if (datatype.equals(XMLSchema.LONG)) {
-			result = isValidLong(value);
-		} else if (datatype.equals(XMLSchema.INT)) {
-			result = isValidInt(value);
-		} else if (datatype.equals(XMLSchema.SHORT)) {
-			result = isValidShort(value);
-		} else if (datatype.equals(XMLSchema.BYTE)) {
-			result = isValidByte(value);
-		} else if (datatype.equals(XMLSchema.UNSIGNED_LONG)) {
-			result = isValidUnsignedLong(value);
-		} else if (datatype.equals(XMLSchema.UNSIGNED_INT)) {
-			result = isValidUnsignedInt(value);
-		} else if (datatype.equals(XMLSchema.UNSIGNED_SHORT)) {
-			result = isValidUnsignedShort(value);
-		} else if (datatype.equals(XMLSchema.UNSIGNED_BYTE)) {
-			result = isValidUnsignedByte(value);
-		} else if (datatype.equals(XMLSchema.FLOAT)) {
-			result = isValidFloat(value);
-		} else if (datatype.equals(XMLSchema.DOUBLE)) {
-			result = isValidDouble(value);
-		} else if (datatype.equals(XMLSchema.BOOLEAN)) {
-			result = isValidBoolean(value);
-		} else if (datatype.equals(XMLSchema.DATETIME)) {
-			result = isValidDateTime(value);
-		} else if (datatype.equals(XMLSchema.DATE)) {
-			result = isValidDate(value);
-		} else if (datatype.equals(XMLSchema.TIME)) {
-			result = isValidTime(value);
-		} else if (datatype.equals(XMLSchema.GDAY)) {
-			result = isValidGDay(value);
-		} else if (datatype.equals(XMLSchema.GMONTH)) {
-			result = isValidGMonth(value);
-		} else if (datatype.equals(XMLSchema.GMONTHDAY)) {
-			result = isValidGMonthDay(value);
-		} else if (datatype.equals(XMLSchema.GYEAR)) {
-			result = isValidGYear(value);
-		} else if (datatype.equals(XMLSchema.GYEARMONTH)) {
-			result = isValidGYearMonth(value);
-		} else if (datatype.equals(XMLSchema.DURATION)) {
-			result = isValidDuration(value);
-		} else if (datatype.equals(XMLSchema.DAYTIMEDURATION)) {
-			result = isValidDayTimeDuration(value);
-		} else if (datatype.equals(XMLSchema.YEARMONTHDURATION)) {
-			result = isValidYearMonthDuration(value);
-		} else if (datatype.equals(XMLSchema.QNAME)) {
-			result = isValidQName(value);
-		} else if (datatype.equals(XMLSchema.ANYURI)) {
-			result = isValidAnyURI(value);
-		} else if (datatype.equals(XMLSchema.LANGUAGE)) {
-			result = Literals.isValidLanguageTag(value);
+		if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DECIMAL)) {
+			return isValidDecimal(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.INTEGER)) {
+			return isValidInteger(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.NEGATIVE_INTEGER)) {
+			return isValidNegativeInteger(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.NON_POSITIVE_INTEGER)) {
+			return isValidNonPositiveInteger(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.NON_NEGATIVE_INTEGER)) {
+			return isValidNonNegativeInteger(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.POSITIVE_INTEGER)) {
+			return isValidPositiveInteger(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.LONG)) {
+			return isValidLong(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.INT)) {
+			return isValidInt(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.SHORT)) {
+			return isValidShort(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.BYTE)) {
+			return isValidByte(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_LONG)) {
+			return isValidUnsignedLong(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_INT)) {
+			return isValidUnsignedInt(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_SHORT)) {
+			return isValidUnsignedShort(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_BYTE)) {
+			return isValidUnsignedByte(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.FLOAT)) {
+			return isValidFloat(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DOUBLE)) {
+			return isValidDouble(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.BOOLEAN)) {
+			return isValidBoolean(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DATETIME)) {
+			return isValidDateTime(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DATETIMESTAMP)) {
+			return isValidDateTimeStamp(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DATE)) {
+			return isValidDate(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.TIME)) {
+			return isValidTime(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.GDAY)) {
+			return isValidGDay(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.GMONTH)) {
+			return isValidGMonth(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.GMONTHDAY)) {
+			return isValidGMonthDay(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.GYEAR)) {
+			return isValidGYear(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.GYEARMONTH)) {
+			return isValidGYearMonth(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DURATION)) {
+			return isValidDuration(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DAYTIMEDURATION)) {
+			return isValidDayTimeDuration(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.YEARMONTHDURATION)) {
+			return isValidYearMonthDuration(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.QNAME)) {
+			return isValidQName(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.ANYURI)) {
+			return isValidAnyURI(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.LANGUAGE)) {
+			return Literals.isValidLanguageTag(value);
 		}
 
-		return result;
+		return true;
+
 	}
 
+	public static boolean isValidValue(String value, CoreDatatype datatype) {
+		if (datatype.isXSDDatatype()) {
+			return isValidValue(value, ((CoreDatatype.XSD) datatype));
+		}
+		return true;
+
+	}
+
+	public static boolean isValidValue(String value, CoreDatatype.XSD datatype) {
+		switch (datatype) {
+		case DECIMAL:
+			return isValidDecimal(value);
+		case INTEGER:
+			return isValidInteger(value);
+		case NEGATIVE_INTEGER:
+			return isValidNegativeInteger(value);
+		case NON_POSITIVE_INTEGER:
+			return isValidNonPositiveInteger(value);
+		case NON_NEGATIVE_INTEGER:
+			return isValidNonNegativeInteger(value);
+		case POSITIVE_INTEGER:
+			return isValidPositiveInteger(value);
+		case LONG:
+			return isValidLong(value);
+		case INT:
+			return isValidInt(value);
+		case SHORT:
+			return isValidShort(value);
+		case BYTE:
+			return isValidByte(value);
+		case UNSIGNED_LONG:
+			return isValidUnsignedLong(value);
+		case UNSIGNED_INT:
+			return isValidUnsignedInt(value);
+		case UNSIGNED_SHORT:
+			return isValidUnsignedShort(value);
+		case UNSIGNED_BYTE:
+			return isValidUnsignedByte(value);
+		case FLOAT:
+			return isValidFloat(value);
+		case DOUBLE:
+			return isValidDouble(value);
+		case BOOLEAN:
+			return isValidBoolean(value);
+		case DATETIME:
+			return isValidDateTime(value);
+		case DATETIMESTAMP:
+			return isValidDateTimeStamp(value);
+		case DATE:
+			return isValidDate(value);
+		case TIME:
+			return isValidTime(value);
+		case GDAY:
+			return isValidGDay(value);
+		case GMONTH:
+			return isValidGMonth(value);
+		case GMONTHDAY:
+			return isValidGMonthDay(value);
+		case GYEAR:
+			return isValidGYear(value);
+		case GYEARMONTH:
+			return isValidGYearMonth(value);
+		case DURATION:
+			return isValidDuration(value);
+		case DAYTIMEDURATION:
+			return isValidDayTimeDuration(value);
+		case YEARMONTHDURATION:
+			return isValidYearMonthDuration(value);
+		case QNAME:
+			return isValidQName(value);
+		case ANYURI:
+			return isValidAnyURI(value);
+		case LANGUAGE:
+			return Literals.isValidLanguageTag(value);
+		}
+
+		return true;
+
+	}
+
+	/**
+	 * Verifies if the supplied lexical value is a valid decimal or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidDecimal(String value) {
 		try {
 			normalizeDecimal(value);
@@ -253,6 +416,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid integer or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidInteger(String value) {
 		try {
 			normalizeInteger(value);
@@ -262,6 +431,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid negative integer or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidNegativeInteger(String value) {
 		try {
 			normalizeNegativeInteger(value);
@@ -271,6 +446,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid non-positive integer or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidNonPositiveInteger(String value) {
 		try {
 			normalizeNonPositiveInteger(value);
@@ -280,6 +461,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid non-negative integer or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidNonNegativeInteger(String value) {
 		try {
 			normalizeNonNegativeInteger(value);
@@ -289,6 +476,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid positive integer or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidPositiveInteger(String value) {
 		try {
 			normalizePositiveInteger(value);
@@ -298,6 +491,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid long or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidLong(String value) {
 		try {
 			normalizeLong(value);
@@ -307,6 +506,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid integer or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidInt(String value) {
 		try {
 			normalizeInt(value);
@@ -316,6 +521,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid short or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidShort(String value) {
 		try {
 			normalizeShort(value);
@@ -325,6 +536,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid byte or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidByte(String value) {
 		try {
 			normalizeByte(value);
@@ -334,6 +551,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid unsigned long or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidUnsignedLong(String value) {
 		try {
 			normalizeUnsignedLong(value);
@@ -343,6 +566,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid unsigned int.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidUnsignedInt(String value) {
 		try {
 			normalizeUnsignedInt(value);
@@ -352,6 +581,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid unsigned short or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidUnsignedShort(String value) {
 		try {
 			normalizeUnsignedShort(value);
@@ -361,6 +596,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid unsigned byte or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidUnsignedByte(String value) {
 		try {
 			normalizeUnsignedByte(value);
@@ -370,6 +611,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid float or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidFloat(String value) {
 		try {
 			normalizeFloat(value);
@@ -379,6 +626,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid double or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidDouble(String value) {
 		try {
 			normalizeDouble(value);
@@ -388,6 +641,12 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid boolean or not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidBoolean(String value) {
 		try {
 			normalizeBoolean(value);
@@ -397,30 +656,44 @@ public class XMLDatatypeUtil {
 		}
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid duration.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidDuration(String value) {
-
 		// voodoo regex for checking valid xsd:duration string. See
 		// http://www.w3.org/TR/xmlschema-2/#duration for details.
-		String regex = "-?P((\\d)+Y)?((\\d)+M)?((\\d)+D)?((T(\\d)+H((\\d)+M)?((\\d)+(\\.(\\d)+)?S)?)|(T(\\d)+M((\\d)+(\\.(\\d)+)?S)?)|(T(\\d)+(\\.(\\d)+)?S))?";
-		return value.length() > 1 && value.matches(regex);
+		return value.length() > 1 && P_DURATION.matcher(value).matches();
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid day-time duration ot not.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidDayTimeDuration(String value) {
-
-		// regex for checking valid xsd:dayTimeDuration string. See
-		// http://www.schemacentral.com/sc/xsd/t-xsd_dayTimeDuration.html
-		String regex = "-?P((\\d)+D)?((T(\\d)+H((\\d)+M)?((\\d)+(\\.(\\d)+)?S)?)|(T(\\d)+M((\\d)+(\\.(\\d)+)?S)?)|(T(\\d)+(\\.(\\d)+)?S))?";
-		return value.length() > 1 && value.matches(regex);
+		return value.length() > 1 && P_DAYTIMEDURATION.matcher(value).matches();
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid year-month duration.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidYearMonthDuration(String value) {
-
-		// regex for checking valid xsd:yearMontheDuration string. See
-		// http://www.schemacentral.com/sc/xsd/t-xsd_yearMonthDuration.html
-		String regex = "-?P((\\d)+Y)?((\\d)+M)?";
-		return value.length() > 1 && value.matches(regex);
+		return value.length() > 1 && P_YEARMONTHDURATION.matcher(value).matches();
 	}
 
+	/**
+	 * Verifies if the supplied lexical value is a valid date-time.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
 	public static boolean isValidDateTime(String value) {
 		try {
 			@SuppressWarnings("unused")
@@ -432,130 +705,97 @@ public class XMLDatatypeUtil {
 	}
 
 	/**
-	 * Determines if the supplied value is a valid xsd:date string.
-	 * 
+	 * Verifies if the supplied lexical value is a valid date-timestamp.
+	 *
 	 * @param value
-	 * @return <tt>true</tt> if valid, <tt>false</tt> otherwise
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
 	 */
-	public static boolean isValidDate(String value) {
-
-		String regex = "-?\\d{4,}-\\d\\d-\\d\\d(Z|(\\+|-)\\d\\d:\\d\\d)?";
-
-		if (value.matches(regex)) {
-			return isValidCalendarValue(value);
-		} else {
+	public static boolean isValidDateTimeStamp(String value) {
+		try {
+			@SuppressWarnings("unused")
+			XMLDateTime dt = new XMLDateTime(value);
+			return P_TIMEZONE.matcher(value).matches();
+		} catch (IllegalArgumentException e) {
 			return false;
 		}
+	}
+
+	/**
+	 * Determines if the supplied value is a valid xsd:date string.
+	 *
+	 * @param value
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
+	 */
+	public static boolean isValidDate(String value) {
+		return P_DATE.matcher(value).matches() && isValidCalendarValue(value);
 	}
 
 	/**
 	 * Determines if the supplied value is a valid xsd:time string.
-	 * 
+	 *
 	 * @param value
-	 * @return <tt>true</tt> if valid, <tt>false</tt> otherwise
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
 	 */
 	public static boolean isValidTime(String value) {
-
-		String regex = "\\d\\d:\\d\\d:\\d\\d(\\.\\d+)?(Z|(\\+|-)\\d\\d:\\d\\d)?";
-
-		if (value.matches(regex)) {
-			return isValidCalendarValue(value);
-		} else {
-			return false;
-		}
+		return P_TIME.matcher(value).matches() && isValidCalendarValue(value);
 	}
 
 	/**
 	 * Determines if the supplied value is a valid xsd:gDay string.
-	 * 
+	 *
 	 * @param value
-	 * @return <tt>true</tt> if valid, <tt>false</tt> otherwise
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
 	 */
 	public static boolean isValidGDay(String value) {
-
-		String regex = "---\\d\\d(Z|(\\+|-)\\d\\d:\\d\\d)?";
-
-		if (value.matches(regex)) {
-			return isValidCalendarValue(value);
-		} else {
-			return false;
-		}
+		return P_GDAY.matcher(value).matches() && isValidCalendarValue(value);
 	}
 
 	/**
 	 * Determines if the supplied value is a valid xsd:gMonth string.
-	 * 
+	 *
 	 * @param value
-	 * @return <tt>true</tt> if valid, <tt>false</tt> otherwise
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
 	 */
 	public static boolean isValidGMonth(String value) {
-
-		String regex = "--\\d\\d(Z|(\\+|-)\\d\\d:\\d\\d)?";
-
-		if (value.matches(regex)) {
-			return isValidCalendarValue(value);
-		} else {
-			return false;
-		}
+		return P_GMONTH.matcher(value).matches() && isValidCalendarValue(value);
 	}
 
 	/**
 	 * Determines if the supplied value is a valid xsd:gMonthDay string.
-	 * 
+	 *
 	 * @param value
-	 * @return <tt>true</tt> if valid, <tt>false</tt> otherwise
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
 	 */
 	public static boolean isValidGMonthDay(String value) {
-
-		String regex = "--\\d\\d-\\d\\d(Z|(\\+|-)\\d\\d:\\d\\d)?";
-
-		if (value.matches(regex)) {
-			return isValidCalendarValue(value);
-		} else {
-			return false;
-		}
+		return P_GMONTHDAY.matcher(value).matches() && isValidCalendarValue(value);
 	}
 
 	/**
 	 * Determines if the supplied value is a valid xsd:gYear string.
-	 * 
+	 *
 	 * @param value
-	 * @return <tt>true</tt> if valid, <tt>false</tt> otherwise
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
 	 */
 	public static boolean isValidGYear(String value) {
-
-		String regex = "-?\\d{4,}(Z|(\\+|-)\\d\\d:\\d\\d)?";
-
-		if (value.matches(regex)) {
-			return isValidCalendarValue(value);
-		} else {
-			return false;
-		}
+		return P_GYEAR.matcher(value).matches() && isValidCalendarValue(value);
 	}
 
 	/**
 	 * Determines if the supplied value is a valid xsd:gYearMonth string.
-	 * 
+	 *
 	 * @param value
-	 * @return <tt>true</tt> if valid, <tt>false</tt> otherwise
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
 	 */
 	public static boolean isValidGYearMonth(String value) {
-
-		String regex = "-?\\d{4,}-\\d\\d(Z|(\\+|-)\\d\\d:\\d\\d)?";
-
-		if (value.matches(regex)) {
-			return isValidCalendarValue(value);
-		} else {
-			return false;
-		}
+		return P_GYEARMONTH.matcher(value).matches() && isValidCalendarValue(value);
 	}
 
 	/**
 	 * Determines if the supplied value is a valid xsd:QName string. Note that this method only checks for syntax errors
 	 * in the supplied string itself. It does not validate that the prefix is a declared and in-scope namespace prefix.
-	 * 
+	 *
 	 * @param value
-	 * @return <tt>true</tt> if valid, <tt>false</tt> otherwise
+	 * @return <var>true</var> if valid, <var>false</var> otherwise
 	 */
 	public static boolean isValidQName(String value) {
 
@@ -568,12 +808,12 @@ public class XMLDatatypeUtil {
 		// check prefix
 		String prefix = split[0];
 		if (!"".equals(prefix)) {
-			if (!isPrefixStartChar(prefix.charAt(0))) {
+			if (isNotPrefixStartChar(prefix.charAt(0))) {
 				return false;
 			}
 
 			for (int i = 1; i < prefix.length(); i++) {
-				if (!isNameChar(prefix.charAt(i))) {
+				if (isNotNameChar(prefix.charAt(i))) {
 					return false;
 				}
 			}
@@ -583,12 +823,12 @@ public class XMLDatatypeUtil {
 
 		if (!"".equals(name)) {
 			// check name
-			if (!isNameStartChar(name.charAt(0))) {
+			if (isNotNameStartChar(name.charAt(0))) {
 				return false;
 			}
 
 			for (int i = 1; i < name.length(); i++) {
-				if (!isNameChar(name.charAt(i))) {
+				if (isNotNameChar(name.charAt(i))) {
 					return false;
 				}
 			}
@@ -604,7 +844,7 @@ public class XMLDatatypeUtil {
 	 * in the IETF Standards Track.
 	 *
 	 * @param value
-	 * @return <tt>true</tt> if a valid IRI, <tt>false</tt> otherwise
+	 * @return <var>true</var> if a valid IRI, <var>false</var> otherwise
 	 */
 	public static boolean isValidAnyURI(String value) {
 		try {
@@ -615,26 +855,26 @@ public class XMLDatatypeUtil {
 		}
 	}
 
-	private static boolean isPrefixStartChar(int c) {
-		return ASCIIUtil.isLetter(c) || c >= 0x00C0 && c <= 0x00D6 || c >= 0x00D8 && c <= 0x00F6
-				|| c >= 0x00F8 && c <= 0x02FF || c >= 0x0370 && c <= 0x037D || c >= 0x037F && c <= 0x1FFF
-				|| c >= 0x200C && c <= 0x200D || c >= 0x2070 && c <= 0x218F || c >= 0x2C00 && c <= 0x2FEF
-				|| c >= 0x3001 && c <= 0xD7FF || c >= 0xF900 && c <= 0xFDCF || c >= 0xFDF0 && c <= 0xFFFD
-				|| c >= 0x10000 && c <= 0xEFFFF;
+	private static boolean isNotPrefixStartChar(int c) {
+		return !ASCIIUtil.isLetter(c) && (c < 0x00C0 || c > 0x00D6) && (c < 0x00D8 || c > 0x00F6)
+				&& (c < 0x00F8 || c > 0x02FF) && (c < 0x0370 || c > 0x037D) && (c < 0x037F || c > 0x1FFF)
+				&& (c < 0x200C || c > 0x200D) && (c < 0x2070 || c > 0x218F) && (c < 0x2C00 || c > 0x2FEF)
+				&& (c < 0x3001 || c > 0xD7FF) && (c < 0xF900 || c > 0xFDCF) && (c < 0xFDF0 || c > 0xFFFD)
+				&& (c < 0x10000 || c > 0xEFFFF);
 	}
 
-	private static boolean isNameStartChar(int c) {
-		return c == '_' || isPrefixStartChar(c);
+	private static boolean isNotNameStartChar(int c) {
+		return c != '_' && isNotPrefixStartChar(c);
 	}
 
-	private static boolean isNameChar(int c) {
-		return isNameStartChar(c) || ASCIIUtil.isNumber(c) || c == '-' || c == 0x00B7 || c >= 0x0300 && c <= 0x036F
-				|| c >= 0x203F && c <= 0x2040;
+	private static boolean isNotNameChar(int c) {
+		return isNotNameStartChar(c) && !ASCIIUtil.isNumber(c) && c != '-' && c != 0x00B7 && (c < 0x0300 || c > 0x036F)
+				&& (c < 0x203F || c > 0x2040);
 	}
 
 	/**
 	 * Determines if the supplied string can be parsed to a valid XMLGregorianCalendar value.
-	 * 
+	 *
 	 * @param value
 	 * @return true if the supplied string is a parsable calendar value, false otherwise.
 	 */
@@ -653,7 +893,7 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Normalizes the supplied value according to the normalization rules for the supplied datatype.
-	 * 
+	 *
 	 * @param value    The value to normalize.
 	 * @param datatype The value's datatype.
 	 * @return The normalized value if there are any (supported) normalization rules for the supplied datatype, or the
@@ -661,56 +901,100 @@ public class XMLDatatypeUtil {
 	 * @throws IllegalArgumentException If the supplied value is illegal considering the supplied datatype.
 	 */
 	public static String normalize(String value, IRI datatype) {
-		String result = value;
-
-		if (datatype.equals(XMLSchema.DECIMAL)) {
-			result = normalizeDecimal(value);
-		} else if (datatype.equals(XMLSchema.INTEGER)) {
-			result = normalizeInteger(value);
-		} else if (datatype.equals(XMLSchema.NEGATIVE_INTEGER)) {
-			result = normalizeNegativeInteger(value);
-		} else if (datatype.equals(XMLSchema.NON_POSITIVE_INTEGER)) {
-			result = normalizeNonPositiveInteger(value);
-		} else if (datatype.equals(XMLSchema.NON_NEGATIVE_INTEGER)) {
-			result = normalizeNonNegativeInteger(value);
-		} else if (datatype.equals(XMLSchema.POSITIVE_INTEGER)) {
-			result = normalizePositiveInteger(value);
-		} else if (datatype.equals(XMLSchema.LONG)) {
-			result = normalizeLong(value);
-		} else if (datatype.equals(XMLSchema.INT)) {
-			result = normalizeInt(value);
-		} else if (datatype.equals(XMLSchema.SHORT)) {
-			result = normalizeShort(value);
-		} else if (datatype.equals(XMLSchema.BYTE)) {
-			result = normalizeByte(value);
-		} else if (datatype.equals(XMLSchema.UNSIGNED_LONG)) {
-			result = normalizeUnsignedLong(value);
-		} else if (datatype.equals(XMLSchema.UNSIGNED_INT)) {
-			result = normalizeUnsignedInt(value);
-		} else if (datatype.equals(XMLSchema.UNSIGNED_SHORT)) {
-			result = normalizeUnsignedShort(value);
-		} else if (datatype.equals(XMLSchema.UNSIGNED_BYTE)) {
-			result = normalizeUnsignedByte(value);
-		} else if (datatype.equals(XMLSchema.FLOAT)) {
-			result = normalizeFloat(value);
-		} else if (datatype.equals(XMLSchema.DOUBLE)) {
-			result = normalizeDouble(value);
-		} else if (datatype.equals(XMLSchema.BOOLEAN)) {
-			result = normalizeBoolean(value);
-		} else if (datatype.equals(XMLSchema.DATETIME)) {
-			result = normalizeDateTime(value);
-		} else if (datatype.equals(XMLSchema.ANYURI)) {
-			result = collapseWhiteSpace(value);
+		if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DECIMAL)) {
+			return normalizeDecimal(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.INTEGER)) {
+			return normalizeInteger(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.NEGATIVE_INTEGER)) {
+			return normalizeNegativeInteger(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.NON_POSITIVE_INTEGER)) {
+			return normalizeNonPositiveInteger(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.NON_NEGATIVE_INTEGER)) {
+			return normalizeNonNegativeInteger(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.POSITIVE_INTEGER)) {
+			return normalizePositiveInteger(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.LONG)) {
+			return normalizeLong(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.INT)) {
+			return normalizeInt(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.SHORT)) {
+			return normalizeShort(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.BYTE)) {
+			return normalizeByte(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_LONG)) {
+			return normalizeUnsignedLong(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_INT)) {
+			return normalizeUnsignedInt(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_SHORT)) {
+			return normalizeUnsignedShort(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_BYTE)) {
+			return normalizeUnsignedByte(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.FLOAT)) {
+			return normalizeFloat(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DOUBLE)) {
+			return normalizeDouble(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.BOOLEAN)) {
+			return normalizeBoolean(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DATETIME)) {
+			return normalizeDateTime(value);
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.ANYURI)) {
+			return collapseWhiteSpace(value);
 		}
 
-		return result;
+		return value;
+	}
+
+	public static String normalize(String value, CoreDatatype.XSD datatype) {
+
+		switch (datatype) {
+		case DECIMAL:
+			return normalizeDecimal(value);
+		case INTEGER:
+			return normalizeInteger(value);
+		case NEGATIVE_INTEGER:
+			return normalizeNegativeInteger(value);
+		case NON_POSITIVE_INTEGER:
+			return normalizeNonPositiveInteger(value);
+		case NON_NEGATIVE_INTEGER:
+			return normalizeNonNegativeInteger(value);
+		case POSITIVE_INTEGER:
+			return normalizePositiveInteger(value);
+		case LONG:
+			return normalizeLong(value);
+		case INT:
+			return normalizeInt(value);
+		case SHORT:
+			return normalizeShort(value);
+		case BYTE:
+			return normalizeByte(value);
+		case UNSIGNED_LONG:
+			return normalizeUnsignedLong(value);
+		case UNSIGNED_INT:
+			return normalizeUnsignedInt(value);
+		case UNSIGNED_SHORT:
+			return normalizeUnsignedShort(value);
+		case UNSIGNED_BYTE:
+			return normalizeUnsignedByte(value);
+		case FLOAT:
+			return normalizeFloat(value);
+		case DOUBLE:
+			return normalizeDouble(value);
+		case BOOLEAN:
+			return normalizeBoolean(value);
+		case DATETIME:
+			return normalizeDateTime(value);
+		case ANYURI:
+			return collapseWhiteSpace(value);
+		}
+
+		return value;
 	}
 
 	/**
-	 * Normalizes a boolean value to its canonical representation. More specifically, the values <tt>1</tt> and
-	 * <tt>0</tt> will be normalized to the canonical values <tt>true</tt> and <tt>false</tt>, respectively. Supplied
-	 * canonical values will remain as is.
-	 * 
+	 * Normalizes a boolean value to its canonical representation. More specifically, the values <var>1</var> and
+	 * <var>0</var> will be normalized to the canonical values <var>true</var> and <var>false</var>, respectively.
+	 * Supplied canonical values will remain as is.
+	 *
 	 * @param value The boolean value to normalize.
 	 * @return The normalized value.
 	 * @throws IllegalArgumentException If the supplied value is not a legal boolean.
@@ -725,17 +1009,17 @@ public class XMLDatatypeUtil {
 		} else if (value.equals("true") || value.equals("false")) {
 			return value;
 		} else {
-			throw new IllegalArgumentException("Not a legal boolean value: " + value);
+			throw new IllegalArgumentExceptionWithoutStackTrace("Not a legal boolean value: " + value);
 		}
 	}
 
 	/**
-	 * Normalizes a decimal to its canonical representation. For example: <tt>120</tt> becomes <tt>120.0</tt>,
-	 * <tt>+.3</tt> becomes <tt>0.3</tt>, <tt>00012.45000</tt> becomes <tt>12.45</tt> and <tt>-.0</tt> becomes
-	 * <tt>0.0</tt>.
-	 * 
+	 * Normalizes a decimal to its canonical representation. For example: <var>120</var> becomes <var>120.0</var>,
+	 * <var>+.3</var> becomes <var>0.3</var>, <var>00012.45000</var> becomes <var>12.45</var> and <var>-.0</var> becomes
+	 * <var>0.0</var>.
+	 *
 	 * @param decimal The decimal to normalize.
-	 * @return The canonical representation of <tt>decimal</tt>.
+	 * @return The canonical representation of <var>decimal</var>.
 	 * @throws IllegalArgumentException If one of the supplied strings is not a legal decimal.
 	 */
 	public static String normalizeDecimal(String decimal) {
@@ -745,7 +1029,7 @@ public class XMLDatatypeUtil {
 		StringBuilder result = new StringBuilder(decLength + 2);
 
 		if (decLength == 0) {
-			throwIAE("Not a legal decimal: " + decimal);
+			throw new IllegalArgumentExceptionWithoutStackTrace("Not a legal decimal: " + decimal);
 		}
 
 		boolean isZeroPointZero = true;
@@ -760,7 +1044,7 @@ public class XMLDatatypeUtil {
 		}
 
 		if (idx == decLength) {
-			throwIAE("Not a legal decimal: " + decimal);
+			throw new IllegalArgumentExceptionWithoutStackTrace("Not a legal decimal: " + decimal);
 		}
 
 		// skip any leading zeros
@@ -784,8 +1068,8 @@ public class XMLDatatypeUtil {
 				if (c == '.') {
 					break;
 				}
-				if (!isDigit(c)) {
-					throwIAE("Not a legal decimal: " + decimal);
+				if (isNotDigit(c)) {
+					throw new IllegalArgumentExceptionWithoutStackTrace("Not a legal decimal: " + decimal);
 				}
 				result.append(c);
 				idx++;
@@ -815,8 +1099,8 @@ public class XMLDatatypeUtil {
 
 				while (idx <= lastIdx) {
 					char c = decimal.charAt(idx);
-					if (!isDigit(c)) {
-						throwIAE("Not a legal decimal: " + decimal);
+					if (isNotDigit(c)) {
+						throw new IllegalArgumentExceptionWithoutStackTrace("Not a legal decimal: " + decimal);
 					}
 					result.append(c);
 					idx++;
@@ -833,11 +1117,11 @@ public class XMLDatatypeUtil {
 	}
 
 	/**
-	 * Normalizes an integer to its canonical representation. For example: <tt>+120</tt> becomes <tt>120</tt> and
-	 * <tt>00012</tt> becomes <tt>12</tt>.
-	 * 
+	 * Normalizes an integer to its canonical representation. For example: <var>+120</var> becomes <var>120</var> and
+	 * <var>00012</var> becomes <var>12</var>.
+	 *
 	 * @param value The value to normalize.
-	 * @return The canonical representation of <tt>value</tt>.
+	 * @return The canonical representation of <var>value</var>.
 	 * @throws IllegalArgumentException If the supplied value is not a legal integer.
 	 */
 	public static String normalizeInteger(String value) {
@@ -938,7 +1222,7 @@ public class XMLDatatypeUtil {
 		int intLength = integer.length();
 
 		if (intLength == 0) {
-			throwIAE("Not a legal integer: " + integer);
+			throw new IllegalArgumentExceptionWithoutStackTrace("Not a legal integer: " + integer);
 		}
 
 		int idx = 0;
@@ -953,7 +1237,7 @@ public class XMLDatatypeUtil {
 		}
 
 		if (idx == intLength) {
-			throwIAE("Not a legal integer: " + integer);
+			throw new IllegalArgumentExceptionWithoutStackTrace("Not a legal integer: " + integer);
 		}
 
 		if (integer.charAt(idx) == '0' && idx < intLength - 1) {
@@ -969,8 +1253,8 @@ public class XMLDatatypeUtil {
 
 		// Check that all characters in 'norm' are digits
 		for (int i = 0; i < norm.length(); i++) {
-			if (!isDigit(norm.charAt(i))) {
-				throwIAE("Not a legal integer: " + integer);
+			if (isNotDigit(norm.charAt(i))) {
+				throw new IllegalArgumentExceptionWithoutStackTrace("Not a legal integer: " + integer);
 			}
 		}
 
@@ -981,12 +1265,12 @@ public class XMLDatatypeUtil {
 		// Check lower and upper bounds, if applicable
 		if (minValue != null) {
 			if (compareCanonicalIntegers(norm, minValue) < 0) {
-				throwIAE("Value smaller than minimum value");
+				throw VALUE_SMALLER_THAN_MINIMUM_VALUE_EXCEPTION;
 			}
 		}
 		if (maxValue != null) {
 			if (compareCanonicalIntegers(norm, maxValue) > 0) {
-				throwIAE("Value larger than maximum value");
+				throw VALUE_LARGER_THAN_MAXIMUM_VALUE_EXCEPTION;
 			}
 		}
 
@@ -995,9 +1279,9 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Normalizes a float to its canonical representation.
-	 * 
+	 *
 	 * @param value The value to normalize.
-	 * @return The canonical representation of <tt>value</tt>.
+	 * @return The canonical representation of <var>value</var>.
 	 * @throws IllegalArgumentException If the supplied value is not a legal float.
 	 */
 	public static String normalizeFloat(String value) {
@@ -1006,9 +1290,9 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Normalizes a double to its canonical representation.
-	 * 
+	 *
 	 * @param value The value to normalize.
-	 * @return The canonical representation of <tt>value</tt>.
+	 * @return The canonical representation of <var>value</var>.
 	 * @throws IllegalArgumentException If the supplied value is not a legal double.
 	 */
 	public static String normalizeDouble(String value) {
@@ -1017,9 +1301,9 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Normalizes a floating point number to its canonical representation.
-	 * 
+	 *
 	 * @param value The value to normalize.
-	 * @return The canonical representation of <tt>value</tt>.
+	 * @return The canonical representation of <var>value</var>.
 	 * @throws IllegalArgumentException If the supplied value is not a legal floating point number.
 	 */
 	public static String normalizeFPNumber(String value) {
@@ -1028,13 +1312,13 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Normalizes a floating point lexical value to its canonical representation.
-	 * 
+	 *
 	 * @param value       The lexical value to normalize.
 	 * @param minMantissa A normalized decimal indicating the lowest value that the mantissa may have.
 	 * @param maxMantissa A normalized decimal indicating the highest value that the mantissa may have.
 	 * @param minExponent A normalized integer indicating the lowest value that the exponent may have.
 	 * @param maxExponent A normalized integer indicating the highest value that the exponent may have.
-	 * @return The canonical representation of <tt>value</tt>.
+	 * @return The canonical representation of <var>value</var>.
 	 * @throws IllegalArgumentException If the supplied value is not a legal floating point lexical value.
 	 */
 	private static String normalizeFPNumber(String value, String minMantissa, String maxMantissa, String minExponent,
@@ -1043,7 +1327,8 @@ public class XMLDatatypeUtil {
 
 		if (value.contains(" ")) {
 			// floating point lexical value can not contain spaces after collapse
-			throwIAE("No space allowed in floating point lexical value (" + value + ")");
+			throw new IllegalArgumentExceptionWithoutStackTrace(
+					"No space allowed in floating point lexical value (" + value + ")");
 		}
 
 		// handle special values
@@ -1087,7 +1372,7 @@ public class XMLDatatypeUtil {
 			}
 			sb.append(mantissa.charAt(firstDigitIdx));
 			sb.append('.');
-			sb.append(mantissa.substring(firstDigitIdx + 1, dotIdx));
+			sb.append(mantissa, firstDigitIdx + 1, dotIdx);
 			sb.append(mantissa.substring(dotIdx + 1));
 
 			mantissa = sb.toString();
@@ -1158,22 +1443,26 @@ public class XMLDatatypeUtil {
 		// applicable
 		if (minMantissa != null) {
 			if (compareCanonicalDecimals(mantissa, minMantissa) < 0) {
-				throwIAE("Mantissa smaller than minimum value (" + minMantissa + ")");
+				throw new IllegalArgumentExceptionWithoutStackTrace(
+						"Mantissa smaller than minimum value (" + minMantissa + ")");
 			}
 		}
 		if (maxMantissa != null) {
 			if (compareCanonicalDecimals(mantissa, maxMantissa) > 0) {
-				throwIAE("Mantissa larger than maximum value (" + maxMantissa + ")");
+				throw new IllegalArgumentExceptionWithoutStackTrace(
+						"Mantissa larger than maximum value (" + maxMantissa + ")");
 			}
 		}
 		if (minExponent != null) {
 			if (compareCanonicalIntegers(exponent, minExponent) < 0) {
-				throwIAE("Exponent smaller than minimum value (" + minExponent + ")");
+				throw new IllegalArgumentExceptionWithoutStackTrace(
+						"Exponent smaller than minimum value (" + minExponent + ")");
 			}
 		}
 		if (maxExponent != null) {
 			if (compareCanonicalIntegers(exponent, maxExponent) > 0) {
-				throwIAE("Exponent larger than maximum value (" + maxExponent + ")");
+				throw new IllegalArgumentExceptionWithoutStackTrace(
+						"Exponent larger than maximum value (" + maxExponent + ")");
 			}
 		}
 
@@ -1182,7 +1471,7 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Normalizes an xsd:dateTime.
-	 * 
+	 *
 	 * @param value The value to normalize.
 	 * @return The normalized value.
 	 * @throws IllegalArgumentException If the supplied value is not a legal xsd:dateTime value.
@@ -1194,20 +1483,12 @@ public class XMLDatatypeUtil {
 	}
 
 	/**
-	 * Replaces all occurences of #x9 (tab), #xA (line feed) and #xD (carriage return) with #x20 (space), as specified
-	 * for whiteSpace facet <tt>replace</tt>.
-	 */
-	// private static String replaceWhiteSpace(String s) {
-	// s = StringUtil.gsub("\t", " ", s);
-	// s = StringUtil.gsub("\r", " ", s);
-	// s = StringUtil.gsub("\n", " ", s);
-	// return s;
-	// }
-
-	/**
 	 * Replaces all contiguous sequences of #x9 (tab), #xA (line feed) and #xD (carriage return) with a single #x20
 	 * (space) character, and removes any leading and trailing whitespace characters, as specified for whiteSpace facet
-	 * <tt>collapse</tt>.
+	 * <var>collapse</var>.
+	 *
+	 * @param s
+	 * @return new string
 	 */
 	public static String collapseWhiteSpace(String s) {
 		StringBuilder sb = new StringBuilder(s.length());
@@ -1230,39 +1511,40 @@ public class XMLDatatypeUtil {
 	 *------------------*/
 
 	public static int compare(String value1, String value2, IRI datatype) {
-		if (datatype.equals(XMLSchema.DECIMAL)) {
+		if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DECIMAL)) {
 			return compareDecimals(value1, value2);
-		} else if (datatype.equals(XMLSchema.INTEGER)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.INTEGER)) {
 			return compareIntegers(value1, value2);
-		} else if (datatype.equals(XMLSchema.NEGATIVE_INTEGER)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.NEGATIVE_INTEGER)) {
 			return compareNegativeIntegers(value1, value2);
-		} else if (datatype.equals(XMLSchema.NON_POSITIVE_INTEGER)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.NON_POSITIVE_INTEGER)) {
 			return compareNonPositiveIntegers(value1, value2);
-		} else if (datatype.equals(XMLSchema.NON_NEGATIVE_INTEGER)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.NON_NEGATIVE_INTEGER)) {
 			return compareNonNegativeIntegers(value1, value2);
-		} else if (datatype.equals(XMLSchema.POSITIVE_INTEGER)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.POSITIVE_INTEGER)) {
 			return comparePositiveIntegers(value1, value2);
-		} else if (datatype.equals(XMLSchema.LONG)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.LONG)) {
 			return compareLongs(value1, value2);
-		} else if (datatype.equals(XMLSchema.INT)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.INT)) {
 			return compareInts(value1, value2);
-		} else if (datatype.equals(XMLSchema.SHORT)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.SHORT)) {
 			return compareShorts(value1, value2);
-		} else if (datatype.equals(XMLSchema.BYTE)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.BYTE)) {
 			return compareBytes(value1, value2);
-		} else if (datatype.equals(XMLSchema.UNSIGNED_LONG)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_LONG)) {
 			return compareUnsignedLongs(value1, value2);
-		} else if (datatype.equals(XMLSchema.UNSIGNED_INT)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_INT)) {
 			return compareUnsignedInts(value1, value2);
-		} else if (datatype.equals(XMLSchema.UNSIGNED_SHORT)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_SHORT)) {
 			return compareUnsignedShorts(value1, value2);
-		} else if (datatype.equals(XMLSchema.UNSIGNED_BYTE)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.UNSIGNED_BYTE)) {
 			return compareUnsignedBytes(value1, value2);
-		} else if (datatype.equals(XMLSchema.FLOAT)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.FLOAT)) {
 			return compareFloats(value1, value2);
-		} else if (datatype.equals(XMLSchema.DOUBLE)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DOUBLE)) {
 			return compareDoubles(value1, value2);
-		} else if (datatype.equals(XMLSchema.DATETIME)) {
+		} else if (datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DATETIME)
+				|| datatype.equals(org.eclipse.rdf4j.model.vocabulary.XSD.DATETIMESTAMP)) {
 			return compareDateTime(value1, value2);
 		} else {
 			throw new IllegalArgumentException("datatype is not ordered");
@@ -1271,9 +1553,11 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Compares two decimals to eachother.
-	 * 
-	 * @return A negative number if <tt>dec1</tt> is smaller than <tt>dec2</tt>, <tt>0</tt> if they are equal, or
-	 *         positive (&gt;0) if <tt>dec1</tt> is larger than <tt>dec2</tt>.
+	 *
+	 * @param dec1
+	 * @param dec2
+	 * @return A negative number if <var>dec1</var> is smaller than <var>dec2</var>, <var>0</var> if they are equal, or
+	 *         positive (&gt;0) if <var>dec1</var> is larger than <var>dec2</var>.
 	 * @throws IllegalArgumentException If one of the supplied strings is not a legal decimal.
 	 */
 	public static int compareDecimals(String dec1, String dec2) {
@@ -1284,11 +1568,13 @@ public class XMLDatatypeUtil {
 	}
 
 	/**
-	 * Compares two canonical decimals to eachother.
-	 * 
-	 * @return A negative number if <tt>dec1</tt> is smaller than <tt>dec2</tt>, <tt>0</tt> if they are equal, or
-	 *         positive (&gt;0) if <tt>dec1</tt> is larger than <tt>dec2</tt>. The result is undefined when one or both
-	 *         of the arguments is not a canonical decimal.
+	 * Compares two canonical decimals to each other.
+	 *
+	 * @param dec1
+	 * @param dec2
+	 * @return A negative number if <var>dec1</var> is smaller than <var>dec2</var>, <var>0</var> if they are equal, or
+	 *         positive (&gt;0) if <var>dec1</var> is larger than <var>dec2</var>. The result is undefined when one or
+	 *         both of the arguments is not a canonical decimal.
 	 * @throws IllegalArgumentException If one of the supplied strings is not a legal decimal.
 	 */
 	public static int compareCanonicalDecimals(String dec1, String dec2) {
@@ -1321,7 +1607,7 @@ public class XMLDatatypeUtil {
 			// Continue comparing digits after the dot if necessary
 			int dec1Length = dec1.length();
 			int dec2Length = dec2.length();
-			int lastIdx = dec1Length <= dec2Length ? dec1Length : dec2Length;
+			int lastIdx = Math.min(dec1Length, dec2Length);
 
 			for (int i = dotIdx1 + 1; result == 0 && i < lastIdx; i++) {
 				result = dec1.charAt(i) - dec2.charAt(i);
@@ -1342,10 +1628,12 @@ public class XMLDatatypeUtil {
 	}
 
 	/**
-	 * Compares two integers to eachother.
-	 * 
-	 * @return A negative number if <tt>int1</tt> is smaller than <tt>int2</tt>, <tt>0</tt> if they are equal, or
-	 *         positive (&gt;0) if <tt>int1</tt> is larger than <tt>int2</tt>.
+	 * Compares two integers to each other.
+	 *
+	 * @param int1
+	 * @param int2
+	 * @return A negative number if <var>int1</var> is smaller than <var>int2</var>, <var>0</var> if they are equal, or
+	 *         positive (&gt;0) if <var>int1</var> is larger than <var>int2</var>.
 	 * @throws IllegalArgumentException If one of the supplied strings is not a legal integer.
 	 */
 	public static int compareIntegers(String int1, String int2) {
@@ -1356,11 +1644,13 @@ public class XMLDatatypeUtil {
 	}
 
 	/**
-	 * Compares two canonical integers to eachother.
-	 * 
-	 * @return A negative number if <tt>int1</tt> is smaller than <tt>int2</tt>, <tt>0</tt> if they are equal, or
-	 *         positive (&gt;0) if <tt>int1</tt> is larger than <tt>int2</tt>. The result is undefined when one or both
-	 *         of the arguments is not a canonical integer.
+	 * Compares two canonical integers to each other.
+	 *
+	 * @param int1
+	 * @param int2
+	 * @return A negative number if <var>int1</var> is smaller than <var>int2</var>, <var>0</var> if they are equal, or
+	 *         positive (&gt;0) if <var>int1</var> is larger than <var>int2</var>. The result is undefined when one or
+	 *         both of the arguments is not a canonical integer.
 	 * @throws IllegalArgumentException If one of the supplied strings is not a legal integer.
 	 */
 	public static int compareCanonicalIntegers(String int1, String int2) {
@@ -1481,12 +1771,14 @@ public class XMLDatatypeUtil {
 	}
 
 	/**
-	 * Compares two floats to eachother.
-	 * 
-	 * @return A negative number if <tt>float1</tt> is smaller than <tt>float2</tt>, <tt>0</tt> if they are equal, or
-	 *         positive (&gt;0) if <tt>float1</tt> is larger than <tt>float2</tt>.
-	 * @throws IllegalArgumentException If one of the supplied strings is not a legal float or if <tt>NaN</tt> is
-	 *                                  compared to a float other than <tt>NaN</tt>.
+	 * Compares two floats to each other.
+	 *
+	 * @param float1
+	 * @param float2
+	 * @return A negative number if <var>float1</var> is smaller than <var>float2</var>, <var>0</var> if they are equal,
+	 *         or positive (&gt;0) if <var>float1</var> is larger than <var>float2</var>.
+	 * @throws IllegalArgumentException If one of the supplied strings is not a legal float or if <var>NaN</var> is
+	 *                                  compared to a float other than <var>NaN</var>.
 	 */
 	public static int compareFloats(String float1, String float2) {
 		float1 = normalizeFloat(float1);
@@ -1496,25 +1788,29 @@ public class XMLDatatypeUtil {
 	}
 
 	/**
-	 * Compares two canonical floats to eachother.
-	 * 
-	 * @return A negative number if <tt>float1</tt> is smaller than <tt>float2</tt>, <tt>0</tt> if they are equal, or
-	 *         positive (&gt;0) if <tt>float1</tt> is larger than <tt>float2</tt>. The result is undefined when one or
-	 *         both of the arguments is not a canonical float.
-	 * @throws IllegalArgumentException If one of the supplied strings is not a legal float or if <tt>NaN</tt> is
-	 *                                  compared to a float other than <tt>NaN</tt>.
+	 * Compares two canonical floats to each other.
+	 *
+	 * @param float1
+	 * @param float2
+	 * @return A negative number if <var>float1</var> is smaller than <var>float2</var>, <var>0</var> if they are equal,
+	 *         or positive (&gt;0) if <var>float1</var> is larger than <var>float2</var>. The result is undefined when
+	 *         one or both of the arguments is not a canonical float.
+	 * @throws IllegalArgumentException If one of the supplied strings is not a legal float or if <var>NaN</var> is
+	 *                                  compared to a float other than <var>NaN</var>.
 	 */
 	public static int compareCanonicalFloats(String float1, String float2) {
 		return compareCanonicalFPNumbers(float1, float2);
 	}
 
 	/**
-	 * Compares two doubles to eachother.
-	 * 
-	 * @return A negative number if <tt>double1</tt> is smaller than <tt>double2</tt>, <tt>0</tt> if they are equal, or
-	 *         positive (&gt;0) if <tt>double1</tt> is larger than <tt>double2</tt>.
-	 * @throws IllegalArgumentException If one of the supplied strings is not a legal double or if <tt>NaN</tt> is
-	 *                                  compared to a double other than <tt>NaN</tt>.
+	 * Compares two doubles to each other.
+	 *
+	 * @param double1
+	 * @param double2
+	 * @return A negative number if <var>double1</var> is smaller than <var>double2</var>, <var>0</var> if they are
+	 *         equal, or positive (&gt;0) if <var>double1</var> is larger than <var>double2</var>.
+	 * @throws IllegalArgumentException If one of the supplied strings is not a legal double or if <var>NaN</var> is
+	 *                                  compared to a double other than <var>NaN</var>.
 	 */
 	public static int compareDoubles(String double1, String double2) {
 		double1 = normalizeDouble(double1);
@@ -1525,12 +1821,14 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Compares two canonical doubles to eachother.
-	 * 
-	 * @return A negative number if <tt>double1</tt> is smaller than <tt>double2</tt>, <tt>0</tt> if they are equal, or
-	 *         positive (&gt;0) if <tt>double1</tt> is larger than <tt>double2</tt>. The result is undefined when one or
-	 *         both of the arguments is not a canonical double.
-	 * @throws IllegalArgumentException If one of the supplied strings is not a legal double or if <tt>NaN</tt> is
-	 *                                  compared to a double other than <tt>NaN</tt>.
+	 *
+	 * @param double1
+	 * @param double2
+	 * @return A negative number if <var>double1</var> is smaller than <var>double2</var>, <var>0</var> if they are
+	 *         equal, or positive (&gt;0) if <var>double1</var> is larger than <var>double2</var>. The result is
+	 *         undefined when one or both of the arguments is not a canonical double.
+	 * @throws IllegalArgumentException If one of the supplied strings is not a legal double or if <var>NaN</var> is
+	 *                                  compared to a double other than <var>NaN</var>.
 	 */
 	public static int compareCanonicalDoubles(String double1, String double2) {
 		return compareCanonicalFPNumbers(double1, double2);
@@ -1538,27 +1836,28 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Compares two floating point numbers to eachother.
-	 * 
-	 * @return A negative number if <tt>float1</tt> is smaller than <tt>float2</tt>, <tt>0</tt> if they are equal, or
-	 *         positive (&gt;0) if <tt>float1</tt> is larger than <tt>float2</tt>.
-	 * @throws IllegalArgumentException If one of the supplied strings is not a legal floating point number or if
-	 *                                  <tt>NaN</tt> is compared to a floating point number other than <tt>NaN</tt>.
+	 *
+	 * @param fp1
+	 * @param fp2
+	 * @return A negative number if <var>float1</var> is smaller than <var>float2</var>, <var>0</var> if they are equal,
+	 *         or positive (&gt;0) if <var>float1</var> is larger than <var>float2</var>. &#64;throws
+	 *         IllegalArgumentException If one of the supplied strings is not a legal floating point number or if
+	 *         <var>NaN</var> is compared to a floating point number other than <var>NaN</var>.
 	 */
 	public static int compareFPNumbers(String fp1, String fp2) {
-		fp1 = normalizeFPNumber(fp1);
-		fp2 = normalizeFPNumber(fp2);
-
-		return compareCanonicalFPNumbers(fp1, fp2);
+		return compareCanonicalFPNumbers(normalizeFPNumber(fp1), normalizeFPNumber(fp2));
 	}
 
 	/**
-	 * Compares two canonical floating point numbers to eachother.
-	 * 
-	 * @return A negative number if <tt>float1</tt> is smaller than <tt>float2</tt>, <tt>0</tt> if they are equal, or
-	 *         positive (&gt;0) if <tt>float1</tt> is larger than <tt>float2</tt>. The result is undefined when one or
-	 *         both of the arguments is not a canonical floating point number.
-	 * @throws IllegalArgumentException If one of the supplied strings is not a legal floating point number or if
-	 *                                  <tt>NaN</tt> is compared to a floating point number other than <tt>NaN</tt>.
+	 * Compares two canonical floating point numbers to each other.
+	 *
+	 * @param float1
+	 * @param float2
+	 * @return A negative number if <var>float1</var> is smaller than <var>float2</var>, <var>0</var> if they are equal,
+	 *         or positive (&gt;0) if <var>float1</var> is larger than <var>float2</var>. The result is undefined when
+	 *         one or both of the arguments is not a canonical floating point number. &#64;throws
+	 *         IllegalArgumentException If one of the supplied strings is not a legal floating point number or if
+	 *         <var>NaN</var> is compared to a floating point number other than <var>NaN</var>.
 	 */
 	public static int compareCanonicalFPNumbers(String float1, String float2) {
 		// Handle special case NaN
@@ -1567,7 +1866,7 @@ public class XMLDatatypeUtil {
 				// NaN is equal to itself
 				return 0;
 			} else {
-				throwIAE("NaN cannot be compared to other floats");
+				throw NAN_COMPARE_EXCEPTION;
 			}
 		}
 
@@ -1622,12 +1921,12 @@ public class XMLDatatypeUtil {
 	/**
 	 * Compares two dateTime objects. <b>Important:</b> The comparison only works if both values have, or both values
 	 * don't have specified a valid value for the timezone.
-	 * 
+	 *
 	 * @param value1 An xsd:dateTime value.
 	 * @param value2 An xsd:dateTime value.
-	 * @return <tt>-1</tt> if <tt>value1</tt> is before <tt>value2</tt> (i.e. if the dateTime object represented by
-	 *         value1 is before the dateTime object represented by value2), <tt>0</tt> if both are equal and <tt>1</tt>
-	 *         if <tt>value2</tt> is before <tt>value1</tt><br>
+	 * @return <var>-1</var> if <var>value1</var> is before <var>value2</var> (i.e. if the dateTime object represented
+	 *         by value1 is before the dateTime object represented by value2), <var>0</var> if both are equal and
+	 *         <var>1</var> if <var>value2</var> is before <var>value1</var><br>
 	 *         .
 	 */
 	public static int compareDateTime(String value1, String value2) {
@@ -1646,9 +1945,9 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Parses the supplied xsd:boolean string and returns its value.
-	 * 
+	 *
 	 * @param s A string representation of an xsd:boolean value.
-	 * @return The <tt>boolean</tt> value represented by the supplied string argument.
+	 * @return The <var>boolean</var> value represented by the supplied string argument.
 	 * @throws NumberFormatException If the supplied string is not a valid xsd:boolean value.
 	 */
 	public static boolean parseBoolean(String s) {
@@ -1657,9 +1956,9 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Parses the supplied xsd:byte string and returns its value.
-	 * 
+	 *
 	 * @param s A string representation of an xsd:byte value.
-	 * @return The <tt>byte</tt> value represented by the supplied string argument.
+	 * @return The <var>byte</var> value represented by the supplied string argument.
 	 * @throws NumberFormatException If the supplied string is not a valid xsd:byte value.
 	 */
 	public static byte parseByte(String s) {
@@ -1669,9 +1968,9 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Parses the supplied xsd:short string and returns its value.
-	 * 
+	 *
 	 * @param s A string representation of an xsd:short value.
-	 * @return The <tt>short</tt> value represented by the supplied string argument.
+	 * @return The <var>short</var> value represented by the supplied string argument.
 	 * @throws NumberFormatException If the supplied string is not a valid xsd:short value.
 	 */
 	public static short parseShort(String s) {
@@ -1681,9 +1980,9 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Parses the supplied xsd:int strings and returns its value.
-	 * 
+	 *
 	 * @param s A string representation of an xsd:int value.
-	 * @return The <tt>int</tt> value represented by the supplied string argument.
+	 * @return The <var>int</var> value represented by the supplied string argument.
 	 * @throws NumberFormatException If the supplied string is not a valid xsd:int value.
 	 */
 	public static int parseInt(String s) {
@@ -1693,9 +1992,9 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Parses the supplied xsd:long string and returns its value.
-	 * 
+	 *
 	 * @param s A string representation of an xsd:long value.
-	 * @return The <tt>long</tt> value represented by the supplied string argument.
+	 * @return The <var>long</var> value represented by the supplied string argument.
 	 * @throws NumberFormatException If the supplied string is not a valid xsd:long value.
 	 */
 	public static long parseLong(String s) {
@@ -1705,9 +2004,9 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Parses the supplied xsd:float string and returns its value.
-	 * 
+	 *
 	 * @param s A string representation of an xsd:float value.
-	 * @return The <tt>float</tt> value represented by the supplied string argument.
+	 * @return The <var>float</var> value represented by the supplied string argument.
 	 * @throws NumberFormatException If the supplied string is not a valid xsd:float value.
 	 */
 	public static float parseFloat(String s) {
@@ -1725,9 +2024,9 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Parses the supplied xsd:double string and returns its value.
-	 * 
+	 *
 	 * @param s A string representation of an xsd:double value.
-	 * @return The <tt>double</tt> value represented by the supplied string argument.
+	 * @return The <var>double</var> value represented by the supplied string argument.
 	 * @throws NumberFormatException If the supplied string is not a valid xsd:double value.
 	 */
 	public static double parseDouble(String s) {
@@ -1745,7 +2044,7 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Parses the supplied xsd:integer string and returns its value.
-	 * 
+	 *
 	 * @param s A string representation of an xsd:integer value.
 	 * @return The integer value represented by the supplied string argument.
 	 * @throws NumberFormatException If the supplied string is not a valid xsd:integer value.
@@ -1757,7 +2056,7 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Parses the supplied decimal/floating point string and returns its value.
-	 * 
+	 *
 	 * @param s A string representation of an xsd:decimal or xsd:double value.
 	 * @return The decimal/floating point value represented by the supplied string argument.
 	 * @throws NumberFormatException If the supplied string is not a valid xsd:decimal or xsd:double value.
@@ -1769,7 +2068,7 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Parses the supplied calendar value string and returns its value.
-	 * 
+	 *
 	 * @param s A string representation of an xsd:dateTime, xsd:time, xsd:date, xsd:gYearMonth, xsd:gMonthDay,
 	 *          xsd:gYear, xsd:gMonth or xsd:gDay value.
 	 * @return The calendar value represented by the supplied string argument.
@@ -1781,7 +2080,7 @@ public class XMLDatatypeUtil {
 
 	/**
 	 * Parses the supplied xsd:duration value string and returns its value.
-	 * 
+	 *
 	 * @param s A string representation of an xsd:duration value.
 	 * @return The {@link Duration} value represented by the supplied string argument.
 	 * @throws IllegalArgumentException      If the supplied string is not a valid xsd:duration value.
@@ -1809,39 +2108,69 @@ public class XMLDatatypeUtil {
 	}
 
 	/**
-	 * Maps a datatype QName from the javax.xml.namespace package to an XML Schema URI for the corresponding datatype.
-	 * This method recognizes the XML Schema qname mentioned in {@link DatatypeConstants}.
-	 * 
+	 * Maps a datatype QName from the javax.xml.namespace package to an XML Schema 1.0 URI for the corresponding
+	 * datatype. This method recognizes the XML Schema qname mentioned in {@link DatatypeConstants}.
+	 * <p>
+	 * Note that Java 8 / 11 do not have constants for XML Schema 1.1 datatypes like xsd:dateTimeStamp.
+	 *
 	 * @param qname One of the XML Schema qnames from {@link DatatypeConstants}.
 	 * @return A URI for the specified datatype.
 	 * @throws IllegalArgumentException If the supplied qname was not recognized by this method.
 	 * @see DatatypeConstants
 	 */
 	public static IRI qnameToURI(QName qname) {
-		if (DatatypeConstants.DATETIME.equals(qname)) {
-			return XMLSchema.DATETIME;
-		} else if (DatatypeConstants.DATE.equals(qname)) {
-			return XMLSchema.DATE;
-		} else if (DatatypeConstants.TIME.equals(qname)) {
-			return XMLSchema.TIME;
-		} else if (DatatypeConstants.GYEARMONTH.equals(qname)) {
-			return XMLSchema.GYEARMONTH;
-		} else if (DatatypeConstants.GMONTHDAY.equals(qname)) {
-			return XMLSchema.GMONTHDAY;
-		} else if (DatatypeConstants.GYEAR.equals(qname)) {
-			return XMLSchema.GYEAR;
-		} else if (DatatypeConstants.GMONTH.equals(qname)) {
-			return XMLSchema.GMONTH;
-		} else if (DatatypeConstants.GDAY.equals(qname)) {
-			return XMLSchema.GDAY;
-		} else if (DatatypeConstants.DURATION.equals(qname)) {
-			return XMLSchema.DURATION;
-		} else if (DatatypeConstants.DURATION_DAYTIME.equals(qname)) {
-			return XMLSchema.DAYTIMEDURATION;
-		} else if (DatatypeConstants.DURATION_YEARMONTH.equals(qname)) {
-			return XMLSchema.YEARMONTHDURATION;
+		if (DatatypeConstants.DATETIME == qname) {
+			return XSD.DATETIME;
+		} else if (DatatypeConstants.DATE == qname) {
+			return XSD.DATE;
+		} else if (DatatypeConstants.TIME == qname) {
+			return XSD.TIME;
+		} else if (DatatypeConstants.GYEARMONTH == qname) {
+			return XSD.GYEARMONTH;
+		} else if (DatatypeConstants.GMONTHDAY == qname) {
+			return XSD.GMONTHDAY;
+		} else if (DatatypeConstants.GYEAR == qname) {
+			return XSD.GYEAR;
+		} else if (DatatypeConstants.GMONTH == qname) {
+			return XSD.GMONTH;
+		} else if (DatatypeConstants.GDAY == qname) {
+			return XSD.GDAY;
+		} else if (DatatypeConstants.DURATION == qname) {
+			return XSD.DURATION;
+		} else if (DatatypeConstants.DURATION_DAYTIME == qname) {
+			return XSD.DAYTIMEDURATION;
+		} else if (DatatypeConstants.DURATION_YEARMONTH == qname) {
+			return XSD.YEARMONTHDURATION;
 		} else {
-			throw new IllegalArgumentException("QName cannot be mapped to an XML Schema URI: " + qname.toString());
+			throw new IllegalArgumentException("QName cannot be mapped to an XML Schema IRI: " + qname.toString());
+		}
+	}
+
+	public static CoreDatatype.XSD qnameToCoreDatatype(QName qname) {
+		if (DatatypeConstants.DATETIME == qname) {
+			return CoreDatatype.XSD.DATETIME;
+		} else if (DatatypeConstants.DATE == qname) {
+			return CoreDatatype.XSD.DATE;
+		} else if (DatatypeConstants.TIME == qname) {
+			return CoreDatatype.XSD.TIME;
+		} else if (DatatypeConstants.GYEARMONTH == qname) {
+			return CoreDatatype.XSD.GYEARMONTH;
+		} else if (DatatypeConstants.GMONTHDAY == qname) {
+			return CoreDatatype.XSD.GMONTHDAY;
+		} else if (DatatypeConstants.GYEAR == qname) {
+			return CoreDatatype.XSD.GYEAR;
+		} else if (DatatypeConstants.GMONTH == qname) {
+			return CoreDatatype.XSD.GMONTH;
+		} else if (DatatypeConstants.GDAY == qname) {
+			return CoreDatatype.XSD.GDAY;
+		} else if (DatatypeConstants.DURATION == qname) {
+			return CoreDatatype.XSD.DURATION;
+		} else if (DatatypeConstants.DURATION_DAYTIME == qname) {
+			return CoreDatatype.XSD.DAYTIMEDURATION;
+		} else if (DatatypeConstants.DURATION_YEARMONTH == qname) {
+			return CoreDatatype.XSD.YEARMONTHDURATION;
+		} else {
+			throw new IllegalArgumentException("QName cannot be mapped to an XML Schema IRI: " + qname.toString());
 		}
 	}
 
@@ -1851,7 +2180,7 @@ public class XMLDatatypeUtil {
 			return XMLDatatypeUtil.POSITIVE_INFINITY;
 		} else if (Double.NEGATIVE_INFINITY == d) {
 			return XMLDatatypeUtil.NEGATIVE_INFINITY;
-		} else if (Double.NaN == d) {
+		} else if (Double.isNaN(d)) {
 			return XMLDatatypeUtil.NaN;
 		} else {
 			return value.toString();
@@ -1865,14 +2194,20 @@ public class XMLDatatypeUtil {
 	/**
 	 * Checks whether the supplied character is a digit.
 	 */
-	private static final boolean isDigit(char c) {
-		return c >= '0' && c <= '9';
+	private static boolean isNotDigit(char c) {
+		return c < '0' || c > '9';
 	}
 
-	/**
-	 * Throws an IllegalArgumentException that contains the supplied message.
-	 */
-	private static final void throwIAE(String msg) {
-		throw new IllegalArgumentException(msg);
+	private static class IllegalArgumentExceptionWithoutStackTrace extends IllegalArgumentException {
+		public IllegalArgumentExceptionWithoutStackTrace(String msg) {
+			super(msg);
+		}
+
+		@Override
+		public synchronized Throwable fillInStackTrace() {
+			// no-op because we don't need to have the entire stacktrace when we are just using these exceptions for
+			// control flow
+			return this;
+		}
 	}
 }

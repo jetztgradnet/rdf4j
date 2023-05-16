@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console.command;
 
@@ -17,21 +20,18 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 
-import org.eclipse.rdf4j.IsolationLevels;
-
+import org.eclipse.rdf4j.common.exception.ValidationException;
+import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.console.ConsoleIO;
 import org.eclipse.rdf4j.console.Util;
 import org.eclipse.rdf4j.console.VerificationListener;
 import org.eclipse.rdf4j.console.setting.ConsoleSetting;
 import org.eclipse.rdf4j.console.setting.WorkDir;
-
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.vocabulary.RDF4J;
-
 import org.eclipse.rdf4j.repository.RepositoryException;
 import org.eclipse.rdf4j.repository.sail.SailRepository;
 import org.eclipse.rdf4j.repository.sail.SailRepositoryConnection;
-
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.RDFHandlerException;
 import org.eclipse.rdf4j.rio.RDFParseException;
@@ -41,14 +41,12 @@ import org.eclipse.rdf4j.rio.UnsupportedRDFormatException;
 import org.eclipse.rdf4j.rio.WriterConfig;
 import org.eclipse.rdf4j.rio.helpers.BasicParserSettings;
 import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
-
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
 import org.eclipse.rdf4j.sail.shacl.ShaclSail;
-import org.eclipse.rdf4j.sail.shacl.ShaclSailValidationException;
 
 /**
  * Verify command
- * 
+ *
  * @author Dale Visser
  * @author Bart Hanssens
  */
@@ -78,7 +76,7 @@ public class Verify extends ConsoleCommand {
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * @param consoleIO
 	 * @param settings
 	 */
@@ -106,7 +104,7 @@ public class Verify extends ConsoleCommand {
 
 	/**
 	 * Get working dir setting.
-	 * 
+	 *
 	 * @return path of working dir
 	 */
 	private Path getWorkDir() {
@@ -115,7 +113,7 @@ public class Verify extends ConsoleCommand {
 
 	/**
 	 * Verify an RDF file, either a local file or URL.
-	 * 
+	 *
 	 * @param tokens parameters
 	 */
 	private void verify(String dataPath) {
@@ -171,75 +169,87 @@ public class Verify extends ConsoleCommand {
 
 	/**
 	 * Validate an RDF data source using a SHACL file or URL, writing the report to a file.
-	 * 
+	 *
 	 * @param dataPath   file or URL of the data to be validated
 	 * @param shaclPath  file or URL of the SHACL
 	 * @param reportFile file to write validation report to
 	 */
 	private void shacl(String dataPath, String shaclPath, String reportFile) {
-		ShaclSail sail = new ShaclSail(new MemoryStore());
-		SailRepository repo = new SailRepository(sail);
+		SailRepository repo = new SailRepository(new ShaclSail(new MemoryStore()));
 		repo.init();
 
-		sail.disableValidation();
-
-		// load shapes first from a file or URL, defaults to turtle, so one can use .shacl as file extension
-		boolean loaded = false;
 		try {
-			writeln("Loading shapes from " + shaclPath);
 
-			URL shaclURL = new URL(shaclPath);
-			RDFFormat format = Rio.getParserFormatForFileName(reportFile).orElse(RDFFormat.TURTLE);
+			// load shapes first from a file or URL, defaults to turtle, so one can use .shacl as file extension
+			boolean loaded = false;
+			try {
+				writeln("Loading shapes from " + shaclPath);
 
-			try (SailRepositoryConnection conn = repo.getConnection()) {
-				conn.begin(IsolationLevels.NONE);
-				conn.add(shaclURL, "", format, RDF4J.SHACL_SHAPE_GRAPH);
-				conn.commit();
+				URL shaclURL = new URL(shaclPath);
+				RDFFormat format = Rio.getParserFormatForFileName(reportFile).orElse(RDFFormat.TURTLE);
+
+				try (SailRepositoryConnection conn = repo.getConnection()) {
+					conn.begin(IsolationLevels.NONE, ShaclSail.TransactionSettings.ValidationApproach.Disabled);
+					conn.add(shaclURL, "", format, RDF4J.SHACL_SHAPE_GRAPH);
+					conn.commit();
+				}
+				loaded = true;
+			} catch (MalformedURLException e) {
+				writeError("Malformed URL: " + shaclPath, e);
+			} catch (IOException e) {
+				writeError("Failed to load shacl shapes", e);
 			}
-			loaded = true;
-		} catch (MalformedURLException e) {
-			writeError("Malformed URL: " + shaclPath, e);
-		} catch (IOException e) {
-			writeError("Failed to load shacl shapes", e);
-		}
 
-		if (!loaded) {
-			writeError("No shapes found");
+			if (!loaded) {
+				writeError("No shapes found");
+				return;
+			}
+
+			try {
+				URL dataURL = new URL(dataPath);
+				RDFFormat format = Rio.getParserFormatForFileName(dataPath)
+						.orElseThrow(Rio.unsupportedFormat(dataPath));
+
+				try (SailRepositoryConnection conn = repo.getConnection()) {
+					conn.begin(IsolationLevels.NONE, ShaclSail.TransactionSettings.ValidationApproach.Disabled);
+					conn.add(dataURL, "", format);
+					conn.commit();
+				}
+
+			} catch (MalformedURLException e) {
+				writeError("Malformed URL: " + dataPath);
+			} catch (IOException e) {
+				writeError("Failed to load data", e);
+			} catch (RepositoryException e) {
+				Throwable cause = e.getCause();
+			}
+
+			try {
+
+				try (SailRepositoryConnection conn = repo.getConnection()) {
+					// Bulk validation forces a full revalidation!
+					conn.begin(IsolationLevels.NONE, ShaclSail.TransactionSettings.ValidationApproach.Bulk);
+					conn.commit();
+				}
+
+				writeln("SHACL validation OK");
+			} catch (RepositoryException e) {
+				Throwable cause = e.getCause();
+				if (cause instanceof ValidationException) {
+					writeError("SHACL validation failed, writing report to " + reportFile);
+					ValidationException sv = (ValidationException) cause;
+					writeReport(sv.validationReportAsModel(), reportFile);
+				}
+			}
+		} finally {
 			repo.shutDown();
-			return;
 		}
 
-		sail.enableValidation();
-
-		try {
-			URL dataURL = new URL(dataPath);
-			RDFFormat format = Rio.getParserFormatForFileName(dataPath).orElseThrow(Rio.unsupportedFormat(dataPath));
-
-			try (SailRepositoryConnection conn = repo.getConnection()) {
-				conn.begin(IsolationLevels.NONE);
-				conn.add(dataURL, "", format);
-				conn.commit();
-			}
-
-			writeln("SHACL validation OK");
-		} catch (MalformedURLException e) {
-			writeError("Malformed URL: " + dataPath);
-		} catch (IOException e) {
-			writeError("Failed to load data", e);
-		} catch (RepositoryException e) {
-			Throwable cause = e.getCause();
-			if (cause instanceof ShaclSailValidationException) {
-				writeError("SHACL validation failed, writing report to " + reportFile);
-				ShaclSailValidationException sv = (ShaclSailValidationException) cause;
-				writeReport(sv.validationReportAsModel(), reportFile);
-			}
-		}
-		repo.shutDown();
 	}
 
 	/**
 	 * Parse URL or path to local file. Files will be prefixed with "file:" scheme
-	 * 
+	 *
 	 * @param str
 	 * @return URL path as string
 	 */
@@ -250,7 +260,7 @@ public class Verify extends ConsoleCommand {
 			// dataPath is a URI
 		} catch (MalformedURLException e) {
 			// File path specified, convert to URL
-			path = "file:" + Util.getNormalizedPath(getWorkDir(), str).toString();
+			path = "file:" + Util.getNormalizedPath(getWorkDir(), str);
 		}
 		return path;
 	}
@@ -258,7 +268,7 @@ public class Verify extends ConsoleCommand {
 	/**
 	 * Write SHACL validation report to a file. File extension is used to select the serialization format, TTL is used
 	 * as default.
-	 * 
+	 *
 	 * @param model      report
 	 * @param reportFile file name
 	 */

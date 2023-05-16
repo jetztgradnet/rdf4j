@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console;
 
@@ -14,7 +17,7 @@ import org.eclipse.rdf4j.rio.helpers.AbstractRDFHandler;
 
 /**
  * Listen to parser errors and warnings
- * 
+ *
  * @author Dale Visser
  */
 public class VerificationListener extends AbstractRDFHandler implements ParseErrorListener {
@@ -23,7 +26,7 @@ public class VerificationListener extends AbstractRDFHandler implements ParseErr
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * @param consoleIO
 	 */
 	public VerificationListener(ConsoleIO consoleIO) {
@@ -37,7 +40,7 @@ public class VerificationListener extends AbstractRDFHandler implements ParseErr
 
 	/**
 	 * Get number of warnings
-	 * 
+	 *
 	 * @return number of warnings
 	 */
 	public int getWarnings() {
@@ -46,7 +49,7 @@ public class VerificationListener extends AbstractRDFHandler implements ParseErr
 
 	/**
 	 * Get number of errors
-	 * 
+	 *
 	 * @return number of errors
 	 */
 	public int getErrors() {
@@ -55,7 +58,7 @@ public class VerificationListener extends AbstractRDFHandler implements ParseErr
 
 	/**
 	 * Get number of statements
-	 * 
+	 *
 	 * @return number of statements
 	 */
 	public int getStatements() {

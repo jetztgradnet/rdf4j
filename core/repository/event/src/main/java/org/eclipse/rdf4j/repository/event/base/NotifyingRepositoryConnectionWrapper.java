@@ -1,16 +1,20 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.event.base;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Namespace;
@@ -26,7 +30,6 @@ import org.eclipse.rdf4j.query.UpdateExecutionException;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryException;
-import org.eclipse.rdf4j.repository.RepositoryResult;
 import org.eclipse.rdf4j.repository.base.RepositoryConnectionWrapper;
 import org.eclipse.rdf4j.repository.event.NotifyingRepositoryConnection;
 import org.eclipse.rdf4j.repository.event.RepositoryConnectionListener;
@@ -34,7 +37,7 @@ import org.eclipse.rdf4j.repository.event.RepositoryConnectionListener;
 /**
  * This broadcaster is used by the RepositoryBroadcaster to wrap the delegate repository connection. Listeners are
  * notified of changes after they have occurred.
- * 
+ *
  * @author James Leigh
  * @author Herko ter Horst
  */
@@ -49,7 +52,7 @@ public class NotifyingRepositoryConnectionWrapper extends RepositoryConnectionWr
 
 	private boolean reportDeltas = false;
 
-	private Set<RepositoryConnectionListener> listeners = new CopyOnWriteArraySet<>();
+	private final Set<RepositoryConnectionListener> listeners = new CopyOnWriteArraySet<>();
 
 	/*--------------*
 	 * Constructors *
@@ -78,7 +81,7 @@ public class NotifyingRepositoryConnectionWrapper extends RepositoryConnectionWr
 	}
 
 	/**
-	 * Registers a <tt>RepositoryConnectionListener</tt> that will receive notifications of operations that are
+	 * Registers a <var>RepositoryConnectionListener</var> that will receive notifications of operations that are
 	 * performed on this connection.
 	 */
 	@Override
@@ -88,7 +91,7 @@ public class NotifyingRepositoryConnectionWrapper extends RepositoryConnectionWr
 	}
 
 	/**
-	 * Removes a registered <tt>RepositoryConnectionListener</tt> from this connection.
+	 * Removes a registered <var>RepositoryConnectionListener</var> from this connection.
 	 */
 	@Override
 	public void removeRepositoryConnectionListener(RepositoryConnectionListener listener) {
@@ -164,16 +167,12 @@ public class NotifyingRepositoryConnectionWrapper extends RepositoryConnectionWr
 	@Override
 	public void removeWithoutCommit(Resource subj, IRI pred, Value obj, Resource... ctx) throws RepositoryException {
 		if (activated && reportDeltas()) {
-			RepositoryResult<Statement> stmts;
-			stmts = getDelegate().getStatements(subj, pred, obj, false, ctx);
-			List<Statement> list = new ArrayList<>();
-			try {
-				while (stmts.hasNext()) {
-					list.add(stmts.next());
-				}
-			} finally {
-				stmts.close();
+
+			List<Statement> list;
+			try (Stream<Statement> stream = getDelegate().getStatements(subj, pred, obj, false, ctx).stream()) {
+				list = stream.collect(Collectors.toList());
 			}
+
 			getDelegate().remove(subj, pred, obj, ctx);
 			for (RepositoryConnectionListener listener : listeners) {
 				for (Statement stmt : list) {
@@ -208,17 +207,12 @@ public class NotifyingRepositoryConnectionWrapper extends RepositoryConnectionWr
 	@Override
 	public void clearNamespaces() throws RepositoryException {
 		if (activated && reportDeltas()) {
-			RepositoryResult<Namespace> namespaces;
-			namespaces = getDelegate().getNamespaces();
-			List<String> prefix = new ArrayList<>();
-			try {
-				while (namespaces.hasNext()) {
-					Namespace ns = namespaces.next();
-					prefix.add(ns.getPrefix());
-				}
-			} finally {
-				namespaces.close();
+
+			List<String> prefix;
+			try (Stream<Namespace> stream = getDelegate().getNamespaces().stream()) {
+				prefix = stream.map(Namespace::getPrefix).collect(Collectors.toList());
 			}
+
 			getDelegate().clearNamespaces();
 			for (String p : prefix) {
 				removeNamespace(p);
@@ -258,7 +252,7 @@ public class NotifyingRepositoryConnectionWrapper extends RepositoryConnectionWr
 	@Override
 	@Deprecated
 	public void setAutoCommit(boolean autoCommit) throws RepositoryException {
-		boolean wasAutoCommit = isAutoCommit();
+		boolean wasAutoCommit = !isActive();
 		getDelegate().setAutoCommit(autoCommit);
 
 		if (activated && wasAutoCommit != autoCommit) {
@@ -345,8 +339,8 @@ public class NotifyingRepositoryConnectionWrapper extends RepositoryConnectionWr
 				}
 
 				@Override
-				public void setMaxExecutionTime(int maxExecTime) {
-					delegate.setMaxExecutionTime(maxExecTime);
+				public void setMaxExecutionTime(int maxExecutionTimeSeconds) {
+					delegate.setMaxExecutionTime(maxExecutionTimeSeconds);
 				}
 
 				@Override

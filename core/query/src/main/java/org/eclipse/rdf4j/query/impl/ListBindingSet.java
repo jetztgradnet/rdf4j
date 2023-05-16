@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.impl;
 
@@ -20,7 +23,7 @@ import org.eclipse.rdf4j.query.BindingSet;
 
 /**
  * A List-based implementation of the {@link BindingSet} interface.
- * 
+ *
  * @author Arjohn Kampman
  */
 public class ListBindingSet extends AbstractBindingSet {
@@ -28,6 +31,7 @@ public class ListBindingSet extends AbstractBindingSet {
 	private static final long serialVersionUID = -2907809218835403743L;
 
 	private final List<String> bindingNames;
+	private Set<String> bindingNamesSetCache;
 
 	private final List<? extends Value> values;
 
@@ -35,7 +39,7 @@ public class ListBindingSet extends AbstractBindingSet {
 	 * Creates a new List-based BindingSet containing the supplied bindings. <em>The supplied list of binding names is
 	 * assumed to be constant</em>; care should be taken that the contents of this list doesn't change after supplying
 	 * it to this solution. The number of supplied values must be equal to the number of the binding names.
-	 * 
+	 *
 	 * @param names  The binding names.
 	 * @param values The binding values.
 	 */
@@ -47,7 +51,7 @@ public class ListBindingSet extends AbstractBindingSet {
 	 * Creates a new List-based BindingSet containing the supplied bindings. <em>The supplied lists are assumed to be
 	 * constant</em>; care should be taken that the contents of these lists don't change after supplying them to this
 	 * solution. The number of supplied values must be equal to the number of the binding names.
-	 * 
+	 *
 	 * @param bindingNames The binding names.
 	 * @param values       The binding values.
 	 */
@@ -60,7 +64,10 @@ public class ListBindingSet extends AbstractBindingSet {
 
 	@Override
 	public Set<String> getBindingNames() {
-		return new LinkedHashSet<>(bindingNames);
+		if (bindingNamesSetCache == null) {
+			bindingNamesSetCache = new LinkedHashSet<>(bindingNames);
+		}
+		return bindingNamesSetCache;
 	}
 
 	@Override

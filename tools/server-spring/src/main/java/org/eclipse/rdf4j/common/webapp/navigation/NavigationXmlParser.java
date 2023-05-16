@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.common.webapp.navigation;
 
@@ -22,12 +25,12 @@ import org.w3c.dom.NodeList;
 
 /**
  * XPath-based parser for NavigationModel configuration files.
- * 
+ *
  * @author Herko ter Horst
  */
 public class NavigationXmlParser {
 
-	private XPath xpath = XPathFactory.newInstance().newXPath();
+	private final XPath xpath = XPathFactory.newInstance().newXPath();
 
 	public NavigationModel parse(URL navigationXml) {
 		NavigationModel result = new NavigationModel();
@@ -40,9 +43,7 @@ public class NavigationXmlParser {
 			Document document = DocumentUtil.getDocument(navigationXml);
 			Node rootNode = (Node) xpath.evaluate("/navigation", document, XPathConstants.NODE);
 			fillModel(result, rootNode);
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (XPathExpressionException e) {
+		} catch (IOException | XPathExpressionException e) {
 			e.printStackTrace();
 		}
 	}
@@ -144,7 +145,7 @@ public class NavigationXmlParser {
 
 	private boolean getBooleanAttribute(String attrValue, boolean defaultValue) {
 		boolean result = defaultValue;
-		if (attrValue != null && !attrValue.trim().equals("")) {
+		if (attrValue != null && !attrValue.trim().isEmpty()) {
 			result = attrValue.equalsIgnoreCase("true") || attrValue.equalsIgnoreCase("yes")
 					|| attrValue.equalsIgnoreCase("on");
 		}

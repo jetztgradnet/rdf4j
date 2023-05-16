@@ -1,17 +1,20 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.model.impl;
 
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-import org.eclipse.rdf4j.OpenRDFUtil;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Namespace;
@@ -37,7 +40,7 @@ public abstract class FilteredModel extends AbstractModel {
 	protected Resource[] contexts;
 
 	protected FilteredModel(AbstractModel model, Resource subj, IRI pred, Value obj, Resource... contexts) {
-		OpenRDFUtil.verifyContextNotNull(contexts);
+		Objects.requireNonNull(contexts);
 
 		this.model = model;
 		this.subj = subj;
@@ -189,7 +192,7 @@ public abstract class FilteredModel extends AbstractModel {
 	/**
 	 * Called by aggregate sets when a term has been removed from a term iterator. At least one of the last four terms
 	 * will be non-empty.
-	 * 
+	 *
 	 * @param iter     The iterator used to navigate the live set (never null)
 	 * @param subj     the subject term to be removed or null
 	 * @param pred     the predicate term to be removed or null
@@ -212,12 +215,12 @@ public abstract class FilteredModel extends AbstractModel {
 		if (!matches(c, contexts)) {
 			return false;
 		}
-		return (s == null || s instanceof Resource) && (p == null || p instanceof IRI);
+		return true;
 	}
 
 	private boolean matches(Resource[] stContext, Resource... contexts) {
-		OpenRDFUtil.verifyContextNotNull(stContext);
-		if (stContext != null && stContext.length > 0) {
+		Objects.requireNonNull(stContext);
+		if (stContext.length > 0) {
 			for (Resource c : stContext) {
 				if (!matches(c, contexts)) {
 					return false;
@@ -228,11 +231,11 @@ public abstract class FilteredModel extends AbstractModel {
 	}
 
 	private boolean matches(Resource stContext, Resource... contexts) {
-		if (contexts != null && contexts.length == 0) {
+		Objects.requireNonNull(contexts);
+		if (contexts.length == 0) {
 			// Any context matches
-			return stContext == null || stContext instanceof Resource;
+			return true;
 		} else {
-			OpenRDFUtil.verifyContextNotNull(contexts);
 			// Accept if one of the contexts from the pattern matches
 			for (Resource context : contexts) {
 				if (context == null && stContext == null) {

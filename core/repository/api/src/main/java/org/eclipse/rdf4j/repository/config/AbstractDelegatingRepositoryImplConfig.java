@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.config;
 
@@ -77,7 +80,7 @@ public abstract class AbstractDelegatingRepositoryImplConfig extends AbstractRep
 	public void parse(Model model, Resource resource) throws RepositoryConfigException {
 		super.parse(model, resource);
 
-		Models.objectResource(model.filter(resource, DELEGATE, null))
+		Models.objectResource(model.getStatements(resource, DELEGATE, null))
 				.ifPresent(delegate -> setDelegate(create(model, delegate)));
 	}
 }

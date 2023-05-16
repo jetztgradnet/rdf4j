@@ -1,18 +1,23 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.workbench.proxy;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -23,7 +28,9 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.eclipse.rdf4j.common.exception.ValidationException;
 import org.eclipse.rdf4j.http.protocol.UnauthorizedException;
+import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.query.QueryResultHandlerException;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryException;
@@ -31,6 +38,10 @@ import org.eclipse.rdf4j.repository.config.RepositoryConfigException;
 import org.eclipse.rdf4j.repository.manager.LocalRepositoryManager;
 import org.eclipse.rdf4j.repository.manager.RemoteRepositoryManager;
 import org.eclipse.rdf4j.repository.manager.RepositoryManager;
+import org.eclipse.rdf4j.rio.RDFFormat;
+import org.eclipse.rdf4j.rio.Rio;
+import org.eclipse.rdf4j.rio.WriterConfig;
+import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
 import org.eclipse.rdf4j.workbench.base.AbstractServlet;
 import org.eclipse.rdf4j.workbench.exceptions.BadRequestException;
 import org.eclipse.rdf4j.workbench.exceptions.MissingInitParameterException;
@@ -66,9 +77,7 @@ public class WorkbenchServlet extends AbstractServlet {
 		}
 		try {
 			manager = createRepositoryManager(param);
-		} catch (IOException e) {
-			throw new ServletException(e);
-		} catch (RepositoryException e) {
+		} catch (IOException | RepositoryException e) {
 			throw new ServletException(e);
 		}
 	}
@@ -126,18 +135,36 @@ public class WorkbenchServlet extends AbstractServlet {
 		final String repoID = pathInfo.substring(1, idx);
 		try {
 			service(repoID, req, resp);
-		} catch (RepositoryConfigException e) {
-			throw new ServletException(e);
 		} catch (UnauthorizedException e) {
 			handleUnauthorizedException(req, resp);
+		} catch (RepositoryConfigException | RepositoryException e) {
+			if (e.getCause() instanceof ValidationException) {
+				Model model = ((ValidationException) e.getCause()).validationReportAsModel();
+
+				resp.setStatus(HttpServletResponse.SC_CONFLICT);
+				resp.setContentType(TEXT_PLAIN);
+				PrintWriter writer = resp.getWriter();
+
+				writer.println("SHACL validation failed with the following report:\n");
+				WriterConfig writerConfig = new WriterConfig();
+				writerConfig.set(BasicWriterSettings.PRETTY_PRINT, true);
+				writerConfig.set(BasicWriterSettings.INLINE_BLANK_NODES, true);
+				Rio.write(model, writer, RDFFormat.TURTLE, writerConfig);
+
+				writer.println(
+						"\n" +
+								"THIS ERROR MESSAGE IS EXPERIMENTAL AND IS SUBJECT TO CHANGE - " +
+								"DO NOT TRY TO PARSE THIS ERROR MESSAGE");
+
+			} else {
+				throw new ServletException(e);
+			}
 		} catch (ServletException e) {
 			if (e.getCause() instanceof UnauthorizedException) {
 				handleUnauthorizedException(req, resp);
 			} else {
 				throw e;
 			}
-		} catch (RepositoryException e) {
-			throw new ServletException(e);
 		}
 	}
 
@@ -166,12 +193,12 @@ public class WorkbenchServlet extends AbstractServlet {
 		} else {
 			manager = new RemoteRepositoryManager(param);
 		}
-		manager.initialize();
+		manager.init();
 		return manager;
 	}
 
 	private File asLocalFile(final URL rdf) throws UnsupportedEncodingException {
-		return new File(URLDecoder.decode(rdf.getFile(), "UTF-8"));
+		return new File(URLDecoder.decode(rdf.getFile(), StandardCharsets.UTF_8));
 	}
 
 	private void service(final String repoID, final HttpServletRequest req, final HttpServletResponse resp)
@@ -214,7 +241,7 @@ public class WorkbenchServlet extends AbstractServlet {
 
 	/**
 	 * Set the username and password for all requests to the repository.
-	 * 
+	 *
 	 * @param req  the servlet request
 	 * @param resp the servlet response
 	 * @throws MalformedURLException if the repository location is malformed
@@ -240,9 +267,9 @@ public class WorkbenchServlet extends AbstractServlet {
 				LOGGER.info("Setting user '{}' and their password.", user);
 				rrm.setUsernameAndPassword(user, password);
 			}
-			// initialize() required to push credentials to internal HTTP
+			// init() required to push credentials to internal HTTP
 			// client.
-			rrm.initialize();
+			rrm.init();
 		}
 	}
 }

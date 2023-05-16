@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.helpers;
 
@@ -11,7 +14,7 @@ import org.eclipse.rdf4j.rio.RioSetting;
 
 /**
  * A class encapsulating the basic writer settings that most writers may support.
- * 
+ *
  * @author Peter Ansell
  */
 public class BasicWriterSettings {
@@ -87,6 +90,32 @@ public class BasicWriterSettings {
 	 */
 	public static final RioSetting<Boolean> BASE_DIRECTIVE = new BooleanRioSetting(
 			"org.eclipse.rdf4j.rio.base_directive", "Serialize base directive", Boolean.TRUE);
+
+	/**
+	 * Boolean setting for writer to determine whether it should convert RDF-star statements to standard RDF
+	 * reification.
+	 * <p>
+	 * Defaults to false
+	 * <p>
+	 * Can be overridden by setting system property {@code org.eclipse.rdf4j.rio.convert_rdf_star}.
+	 */
+	public static final RioSetting<Boolean> CONVERT_RDF_STAR_TO_REIFICATION = new BooleanRioSetting(
+			"org.eclipse.rdf4j.rio.convert_rdf_star", "Convert RDF-star statements to RDF reification", Boolean.FALSE);
+
+	/**
+	 * Boolean setting for writer to determine whether it should encode RDF-star triple values to RDF-compatible special
+	 * IRIs. These IRIs start with urn:rdf4j:triple: followed by the base64-encoding of the N-Triples serialization of
+	 * the RDF-star triple value.
+	 * <p>
+	 * Writers that support RDF-star natively will ignore this setting and always serialize RDF-star triples.
+	 * <p>
+	 * Defaults to true.
+	 * <p>
+	 * Can be overridden by setting system property {@code org.eclipse.rdf4j.rio.encode_rdf_star}.
+	 */
+	public static final RioSetting<Boolean> ENCODE_RDF_STAR = new BooleanRioSetting(
+			"org.eclipse.rdf4j.rio.encode_rdf_star",
+			"Encodes RDF-star triples to special IRIs for compatibility with RDF", Boolean.TRUE);
 
 	/**
 	 * Private default constructor.

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.workbench.base;
 
@@ -68,12 +71,14 @@ public abstract class AbstractRepositoryServlet extends AbstractServlet implemen
 	public void init(ServletConfig config) throws ServletException {
 		super.init(config);
 		if (repository == null) {
-			if (config.getInitParameter(REPOSITORY_PARAM) != null)
+			if (config.getInitParameter(REPOSITORY_PARAM) != null) {
 				setRepository((Repository) lookup(config, REPOSITORY_PARAM));
+			}
 		}
 		if (manager == null) {
-			if (config.getInitParameter(MANAGER_PARAM) == null)
+			if (config.getInitParameter(MANAGER_PARAM) == null) {
 				throw new MissingInitParameterException(MANAGER_PARAM);
+			}
 			manager = (RepositoryManager) lookup(config, MANAGER_PARAM);
 		}
 		if (info == null) {
@@ -92,9 +97,7 @@ public abstract class AbstractRepositoryServlet extends AbstractServlet implemen
 				if (location != null && location.trim().length() > 0) {
 					info.setLocation(new URL(location));
 				}
-			} catch (MalformedURLException e) {
-				throw new ServletException(e);
-			} catch (RepositoryException e) {
+			} catch (MalformedURLException | RepositoryException e) {
 				throw new ServletException(e);
 			}
 		}

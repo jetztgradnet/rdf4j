@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.nativerdf;
 
@@ -17,41 +20,38 @@ import org.eclipse.rdf4j.common.iteration.EmptyIteration;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import org.eclipse.rdf4j.sail.SailException;
-import org.junit.Before;
-import org.junit.Test;
-
-import com.google.common.io.Files;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Unit tests for {@link ContextStore}
- * 
- * @author Jeen Broekstra
  *
+ * @author Jeen Broekstra
  */
 public class ContextStoreTest {
 
 	private ContextStore subject;
 
-	private static ValueFactory vf = SimpleValueFactory.getInstance();
+	private static final ValueFactory vf = SimpleValueFactory.getInstance();
 
-	private Resource g1 = vf.createIRI("http://example.org/g1");
-	private Resource g2 = vf.createBNode();
+	private final Resource g1 = vf.createIRI("http://example.org/g1");
+	private final Resource g2 = vf.createBNode();
 
-	private File dir;
+	@TempDir
+	File dataDir;
 
 	/**
 	 * @throws java.lang.Exception
 	 */
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
-		dir = Files.createTempDir();
 		NativeSailStore sailStore = mock(NativeSailStore.class);
 
 		when(sailStore.getValueFactory()).thenReturn(SimpleValueFactory.getInstance());
-		when(sailStore.getContexts()).thenReturn(new EmptyIteration<Resource, SailException>());
+		when(sailStore.getContexts()).thenReturn(new EmptyIteration<>());
 
-		subject = new ContextStore(sailStore, dir);
+		subject = new ContextStore(sailStore, dataDir);
 	}
 
 	@Test
@@ -114,7 +114,7 @@ public class ContextStoreTest {
 
 	@Test
 	public void testSync() throws Exception {
-		File datafile = new File(dir, "contexts.dat");
+		File datafile = new File(dataDir, "contexts.dat");
 		assertThat(datafile.exists());
 		long size = datafile.length();
 		assertThat(size).isEqualTo(8L); // empty contexts file is 8 bytes
@@ -133,5 +133,4 @@ public class ContextStoreTest {
 		}
 		return count;
 	}
-
 }

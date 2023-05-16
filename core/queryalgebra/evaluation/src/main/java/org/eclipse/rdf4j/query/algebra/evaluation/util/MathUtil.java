@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.util;
 
@@ -17,13 +20,13 @@ import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.datatypes.XMLDatatypeUtil;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.query.algebra.MathExpr.MathOp;
 import org.eclipse.rdf4j.query.algebra.evaluation.ValueExprEvaluationException;
 
 /**
  * A utility class for evaluation of mathematical expressions on RDF literals.
- * 
+ *
  * @author Jeen Broekstra
  */
 public class MathUtil {
@@ -39,7 +42,7 @@ public class MathUtil {
 
 	/**
 	 * Computes the result of applying the supplied math operator on the supplied left and right operand.
-	 * 
+	 *
 	 * @param leftLit  a numeric datatype literal
 	 * @param rightLit a numeric datatype literal
 	 * @param op       a mathematical operator, as definied by MathExpr.MathOp.
@@ -66,19 +69,19 @@ public class MathUtil {
 		// per the SPARQL/XPATH spec
 		IRI commonDatatype;
 
-		if (leftDatatype.equals(XMLSchema.DOUBLE) || rightDatatype.equals(XMLSchema.DOUBLE)) {
-			commonDatatype = XMLSchema.DOUBLE;
-		} else if (leftDatatype.equals(XMLSchema.FLOAT) || rightDatatype.equals(XMLSchema.FLOAT)) {
-			commonDatatype = XMLSchema.FLOAT;
-		} else if (leftDatatype.equals(XMLSchema.DECIMAL) || rightDatatype.equals(XMLSchema.DECIMAL)) {
-			commonDatatype = XMLSchema.DECIMAL;
+		if (leftDatatype.equals(XSD.DOUBLE) || rightDatatype.equals(XSD.DOUBLE)) {
+			commonDatatype = XSD.DOUBLE;
+		} else if (leftDatatype.equals(XSD.FLOAT) || rightDatatype.equals(XSD.FLOAT)) {
+			commonDatatype = XSD.FLOAT;
+		} else if (leftDatatype.equals(XSD.DECIMAL) || rightDatatype.equals(XSD.DECIMAL)) {
+			commonDatatype = XSD.DECIMAL;
 		} else if (op == MathOp.DIVIDE) {
 			// Result of integer divide is decimal and requires the arguments to
 			// be handled as such, see for details:
 			// http://www.w3.org/TR/xpath-functions/#func-numeric-divide
-			commonDatatype = XMLSchema.DECIMAL;
+			commonDatatype = XSD.DECIMAL;
 		} else {
-			commonDatatype = XMLSchema.INTEGER;
+			commonDatatype = XSD.INTEGER;
 		}
 
 		// Note: Java already handles cases like divide-by-zero appropriately
@@ -87,7 +90,7 @@ public class MathUtil {
 		// Chapter02/floatingPt2.html
 
 		try {
-			if (commonDatatype.equals(XMLSchema.DOUBLE)) {
+			if (commonDatatype.equals(XSD.DOUBLE)) {
 				double left = leftLit.doubleValue();
 				double right = rightLit.doubleValue();
 
@@ -103,7 +106,7 @@ public class MathUtil {
 				default:
 					throw new IllegalArgumentException("Unknown operator: " + op);
 				}
-			} else if (commonDatatype.equals(XMLSchema.FLOAT)) {
+			} else if (commonDatatype.equals(XSD.FLOAT)) {
 				float left = leftLit.floatValue();
 				float right = rightLit.floatValue();
 
@@ -119,7 +122,7 @@ public class MathUtil {
 				default:
 					throw new IllegalArgumentException("Unknown operator: " + op);
 				}
-			} else if (commonDatatype.equals(XMLSchema.DECIMAL)) {
+			} else if (commonDatatype.equals(XSD.DECIMAL)) {
 				BigDecimal left = leftLit.decimalValue();
 				BigDecimal right = rightLit.decimalValue();
 
@@ -132,7 +135,7 @@ public class MathUtil {
 					return vf.createLiteral(left.multiply(right));
 				case DIVIDE:
 					// Divide by zero handled through NumberFormatException
-					BigDecimal result = null;
+					BigDecimal result;
 					try {
 						// try to return the exact quotient if possible.
 						result = left.divide(right, MathContext.UNLIMITED);
@@ -164,9 +167,7 @@ public class MathUtil {
 					throw new IllegalArgumentException("Unknown operator: " + op);
 				}
 			}
-		} catch (NumberFormatException e) {
-			throw new ValueExprEvaluationException(e);
-		} catch (ArithmeticException e) {
+		} catch (NumberFormatException | ArithmeticException e) {
 			throw new ValueExprEvaluationException(e);
 		}
 	}
@@ -174,7 +175,7 @@ public class MathUtil {
 	/**
 	 * Returns the decimal expansion scale used in division operations resulting in a decimal value with non-terminating
 	 * decimal expansion. By default, this value is set to 24.
-	 * 
+	 *
 	 * @return The decimal expansion scale.
 	 */
 	public static int getDecimalExpansionScale() {
@@ -184,12 +185,11 @@ public class MathUtil {
 	/**
 	 * Sets the decimal expansion scale used in divisions resulting in a decimal value with non-terminating decimal
 	 * expansion.
-	 * 
+	 *
 	 * @param decimalExpansionScale The decimal expansion scale to set. Note that a mimimum of 18 is required to stay
 	 *                              compliant with the XPath specification of xsd:decimal operations.
 	 */
 	public static void setDecimalExpansionScale(int decimalExpansionScale) {
 		MathUtil.decimalExpansionScale = decimalExpansionScale;
 	}
-
 }

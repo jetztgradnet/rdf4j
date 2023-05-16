@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.endpoint.provider;
 
@@ -19,19 +22,19 @@ import org.eclipse.rdf4j.repository.RepositoryResolver;
  * Graph information for a {@link ResolvableEndpoint} where the {@link Repository} is looked up using the configured
  * {@link RepositoryResolver}.
  * <p>
- * 
+ *
  * Format:
  * <p>
- * 
+ *
  * <pre>
  * &#64;prefix sd: &lt;http://www.w3.org/ns/sparql-service-description#&gt; .
  * &#64;prefix fedx: &lt;http://www.fluidops.com/config/fedx#&gt; .
- * 
+ *
  * &lt;http://myname&gt; a sd:Service ;
  *  	fedx:store "ResolvableRepository";
  *  	fedx:repositoryName "myRepoId"
  * </pre>
- * 
+ *
  * @author Andreas Schwarte
  * @see ResolvableEndpoint
  * @see ResolvableRepositoryProvider

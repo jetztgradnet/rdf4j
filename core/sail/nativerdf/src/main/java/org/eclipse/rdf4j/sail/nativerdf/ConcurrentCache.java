@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.nativerdf;
 
@@ -61,16 +64,18 @@ public class ConcurrentCache<K, V> {
 		// This is not thread-safe, but the worst that can happen is that we may (rarely) get slightly longer
 		// cleanup intervals or run cleanUp twice
 		cleanupTick++;
-		if (cleanupTick <= CLEANUP_INTERVAL)
+		if (cleanupTick <= CLEANUP_INTERVAL) {
 			return;
+		}
 
 		cleanupTick %= CLEANUP_INTERVAL;
 
 		synchronized (cache) {
 
 			final int size = cache.size();
-			if (size < capacity + CLEANUP_INTERVAL / 2)
+			if (size < capacity + CLEANUP_INTERVAL / 2) {
 				return;
+			}
 
 			Iterator<K> iter = cache.keySet().iterator();
 
@@ -80,8 +85,9 @@ public class ConcurrentCache<K, V> {
 
 				K key = iter.next();
 
-				if (i % removeEachTh < 1)
+				if (i % removeEachTh < 1) {
 					cache.computeIfPresent(key, (k, v) -> onEntryRemoval(k) ? null : v);
+				}
 			}
 		}
 	}

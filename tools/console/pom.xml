@@ -1,59 +1,55 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-
 	<parent>
 		<groupId>org.eclipse.rdf4j</groupId>
 		<artifactId>rdf4j-tools</artifactId>
-		<version>3.1.0-SNAPSHOT</version>
+		<version>4.2.5-SNAPSHOT</version>
 	</parent>
-
 	<artifactId>rdf4j-console</artifactId>
-
 	<name>RDF4J: Console</name>
 	<description>Command line user interface to RDF4J repositories.</description>
-
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>rdf4j-client</artifactId>
-                        <version>${project.version}</version>
-                        <type>pom</type>
+			<version>${project.version}</version>
+			<type>pom</type>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>rdf4j-storage</artifactId>
 			<version>${project.version}</version>
-                        <type>pom</type>
+			<type>pom</type>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>rdf4j-config</artifactId>
 			<version>${project.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>${project.groupId}</groupId>
-					<artifactId>rdf4j-util</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
-
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>rdf4j-tools-federation</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.jline</groupId>
 			<artifactId>jline</artifactId>
 			<version>3.6.2</version>
 		</dependency>
-
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
 			<scope>compile</scope>
 		</dependency>
-		
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-params</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -68,6 +64,11 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
 			<groupId>commons-cli</groupId>
 			<artifactId>commons-cli</artifactId>
 		</dependency>
@@ -78,7 +79,6 @@
 			<optional>true</optional>
 		</dependency>
 	</dependencies>
-
 	<build>
 		<plugins>
 			<plugin>
@@ -90,8 +90,8 @@
 							<mainClass>org.eclipse.rdf4j.console.Console</mainClass>
 							<packageName>org.eclipse.rdf4j.console</packageName>
 							<addClasspath>true</addClasspath>
-							<addExtensions />
-							<classpathPrefix />
+							<addExtensions/>
+							<classpathPrefix/>
 						</manifest>
 					</archive>
 				</configuration>

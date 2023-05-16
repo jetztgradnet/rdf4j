@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.sail.config;
 
@@ -78,9 +81,9 @@ public class SailRepositoryConfig extends AbstractRepositoryImplConfig {
 	@Override
 	public void parse(Model model, Resource repImplNode) throws RepositoryConfigException {
 		try {
-			Optional<Resource> sailImplNode = Models.objectResource(model.filter(repImplNode, SAILIMPL, null));
+			Optional<Resource> sailImplNode = Models.objectResource(model.getStatements(repImplNode, SAILIMPL, null));
 			if (sailImplNode.isPresent()) {
-				Models.objectLiteral(model.filter(sailImplNode.get(), SAILTYPE, null)).ifPresent(typeLit -> {
+				Models.objectLiteral(model.getStatements(sailImplNode.get(), SAILTYPE, null)).ifPresent(typeLit -> {
 					SailFactory factory = SailRegistry.getInstance()
 							.get(typeLit.getLabel())
 							.orElseThrow(() -> new RepositoryConfigException(
@@ -90,9 +93,7 @@ public class SailRepositoryConfig extends AbstractRepositoryImplConfig {
 					sailImplConfig.parse(model, sailImplNode.get());
 				});
 			}
-		} catch (ModelException e) {
-			throw new RepositoryConfigException(e.getMessage(), e);
-		} catch (SailConfigException e) {
+		} catch (ModelException | SailConfigException e) {
 			throw new RepositoryConfigException(e.getMessage(), e);
 		}
 	}

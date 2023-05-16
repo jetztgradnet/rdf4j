@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.helpers;
 
@@ -19,7 +22,7 @@ import org.eclipse.rdf4j.sail.SailException;
 /**
  * A base {@link NotifyingSail} implementation that takes care of common sail tasks, including proper closing of active
  * connections and a grace period for active connections during shutdown of the store.
- * 
+ *
  * @author Herko ter Horst
  * @author jeen
  * @author Arjohn Kampman
@@ -33,7 +36,7 @@ public abstract class AbstractNotifyingSail extends AbstractSail implements Noti
 	/**
 	 * Objects that should be notified of changes to the data in this Sail.
 	 */
-	private Set<SailChangedListener> sailChangedListeners = new HashSet<>(0);
+	private final Set<SailChangedListener> sailChangedListeners = new HashSet<>(0);
 
 	/*---------*
 	 * Methods *

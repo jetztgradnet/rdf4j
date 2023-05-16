@@ -1,16 +1,19 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra;
 
 /**
  * The BOUND function, as defined in <a href="http://www.w3.org/TR/rdf-sparql-query/#func-bound">SPARQL Query Language
  * for RDF</a>; checks if a variable is bound.
- * 
+ *
  * @author Arjohn Kampman
  */
 public class Bound extends AbstractQueryModelNode implements ValueExpr {
@@ -41,7 +44,7 @@ public class Bound extends AbstractQueryModelNode implements ValueExpr {
 
 	/**
 	 * Gets the argument of this unary value operator.
-	 * 
+	 *
 	 * @return The operator's argument.
 	 */
 	public Var getArg() {
@@ -50,8 +53,8 @@ public class Bound extends AbstractQueryModelNode implements ValueExpr {
 
 	/**
 	 * Sets the argument of this unary value operator.
-	 * 
-	 * @param arg The (new) argument for this operator, must not be <tt>null</tt>.
+	 *
+	 * @param arg The (new) argument for this operator, must not be <var>null</var>.
 	 */
 	public void setArg(Var arg) {
 		assert arg != null : "arg must not be null";
@@ -73,8 +76,6 @@ public class Bound extends AbstractQueryModelNode implements ValueExpr {
 	public void replaceChildNode(QueryModelNode current, QueryModelNode replacement) {
 		if (arg == current) {
 			setArg((Var) replacement);
-		} else {
-			super.replaceChildNode(current, replacement);
 		}
 	}
 

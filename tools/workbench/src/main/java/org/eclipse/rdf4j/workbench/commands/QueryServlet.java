@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.workbench.commands;
 
@@ -22,13 +25,13 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.eclipse.rdf4j.RDF4JException;
+import org.eclipse.rdf4j.common.exception.RDF4JException;
 import org.eclipse.rdf4j.common.iteration.Iterations;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Namespace;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.query.MalformedQueryException;
 import org.eclipse.rdf4j.query.QueryLanguage;
 import org.eclipse.rdf4j.query.QueryResultHandlerException;
@@ -47,10 +50,11 @@ import org.eclipse.rdf4j.workbench.util.QueryEvaluator;
 import org.eclipse.rdf4j.workbench.util.QueryStorage;
 import org.eclipse.rdf4j.workbench.util.TupleResultBuilder;
 import org.eclipse.rdf4j.workbench.util.WorkbenchRequest;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class QueryServlet extends TransformationServlet {
 
@@ -72,17 +76,19 @@ public class QueryServlet extends TransformationServlet {
 
 	private static final QueryEvaluator EVAL = QueryEvaluator.INSTANCE;
 
+	private static final ObjectMapper mapper = new ObjectMapper();
+
 	private QueryStorage storage;
 
 	protected boolean writeQueryCookie;
 
 	// Poor Man's Cache: At the very least, garbage collection can clean up keys
 	// followed by values whenever the JVM faces memory pressure.
-	private static Map<String, String> queryCache = Collections.synchronizedMap(new WeakHashMap<String, String>());
+	private static Map<String, String> queryCache = Collections.synchronizedMap(new WeakHashMap<>());
 
 	/**
 	 * For testing purposes only.
-	 * 
+	 *
 	 * @param testQueryCache cache to use instead of the production cache instance
 	 */
 	protected static void substituteQueryCache(Map<String, String> testQueryCache) {
@@ -109,7 +115,7 @@ public class QueryServlet extends TransformationServlet {
 
 	/**
 	 * Initialize this instance of the servlet.
-	 * 
+	 *
 	 * @param config configuration passed in by the application container
 	 */
 	@Override
@@ -117,9 +123,7 @@ public class QueryServlet extends TransformationServlet {
 		super.init(config);
 		try {
 			this.storage = QueryStorage.getSingletonInstance(this.appConfig);
-		} catch (RepositoryException e) {
-			throw new ServletException(e);
-		} catch (IOException e) {
+		} catch (RepositoryException | IOException e) {
 			throw new ServletException(e);
 		}
 	}
@@ -150,7 +154,7 @@ public class QueryServlet extends TransformationServlet {
 	 * <p>
 	 * Note: This is a separate method for testing purposes.
 	 * </p>
-	 * 
+	 *
 	 * @param queryText the text received as the value for the parameter 'query'
 	 */
 	protected boolean shouldWriteQueryCookie(String queryText) {
@@ -159,7 +163,7 @@ public class QueryServlet extends TransformationServlet {
 
 	@Override
 	protected void service(final WorkbenchRequest req, final HttpServletResponse resp, final String xslPath)
-			throws IOException, RDF4JException, BadRequestException, JSONException {
+			throws IOException, RDF4JException, BadRequestException {
 		if (!writeQueryCookie) {
 			// If we suppressed putting the query text into the cookies before.
 			cookies.addCookie(req, resp, REF, "hash");
@@ -169,11 +173,11 @@ public class QueryServlet extends TransformationServlet {
 			cookies.addCookie(req, resp, QUERY, hash);
 		}
 		if ("get".equals(req.getParameter("action"))) {
-			JSONObject json = new JSONObject();
-			json.put("queryText", getQueryText(req));
+			ObjectNode jsonObject = mapper.createObjectNode();
+			jsonObject.put("queryText", getQueryText(req));
 			PrintWriter writer = new PrintWriter(new BufferedWriter(resp.getWriter()));
 			try {
-				writer.write(json.toString());
+				writer.write(mapper.writeValueAsString(jsonObject));
 			} finally {
 				writer.flush();
 			}
@@ -188,15 +192,7 @@ public class QueryServlet extends TransformationServlet {
 		OutputStream out = resp.getOutputStream();
 		try {
 			service(req, resp, out, xslPath);
-		} catch (BadRequestException exc) {
-			LOGGER.warn(exc.toString(), exc);
-			TupleResultBuilder builder = getTupleResultBuilder(req, resp, out);
-			builder.transform(xslPath, "query.xsl");
-			builder.start("error-message");
-			builder.link(Arrays.asList(INFO, "namespaces"));
-			builder.result(exc.getMessage());
-			builder.end();
-		} catch (HTTPQueryEvaluationException exc) {
+		} catch (BadRequestException | HTTPQueryEvaluationException exc) {
 			LOGGER.warn(exc.toString(), exc);
 			TupleResultBuilder builder = getTupleResultBuilder(req, resp, out);
 			builder.transform(xslPath, "query.xsl");
@@ -211,7 +207,7 @@ public class QueryServlet extends TransformationServlet {
 
 	@Override
 	protected void doPost(final WorkbenchRequest req, final HttpServletResponse resp, final String xslPath)
-			throws IOException, BadRequestException, RDF4JException, JSONException {
+			throws IOException, BadRequestException, RDF4JException {
 		final String action = req.getParameter("action");
 		if ("save".equals(action)) {
 			saveQuery(req, resp);
@@ -229,7 +225,7 @@ public class QueryServlet extends TransformationServlet {
 				final String query = getQueryText(req);
 				final Boolean infer = Boolean.valueOf(req.getParameter(EDIT_PARAMS[2]));
 				final Literal limit = SimpleValueFactory.getInstance()
-						.createLiteral(req.getParameter(EDIT_PARAMS[3]), XMLSchema.INTEGER);
+						.createLiteral(req.getParameter(EDIT_PARAMS[3]), XSD.INTEGER);
 				builder.result(queryLn, query, infer, limit);
 				builder.end();
 			} else {
@@ -247,17 +243,19 @@ public class QueryServlet extends TransformationServlet {
 	}
 
 	private void saveQuery(final WorkbenchRequest req, final HttpServletResponse resp)
-			throws IOException, BadRequestException, RDF4JException, JSONException {
+			throws IOException, BadRequestException, RDF4JException {
 		resp.setContentType("application/json");
-		final JSONObject json = new JSONObject();
+		ObjectNode jsonObject = mapper.createObjectNode();
+		jsonObject.put("queryText", getQueryText(req));
+
 		final HTTPRepository http = (HTTPRepository) repository;
 		final boolean accessible = storage.checkAccess(http);
-		json.put("accessible", accessible);
+		jsonObject.put("accessible", accessible);
 		if (accessible) {
 			final String queryName = req.getParameter("query-name");
 			String userName = getUserNameFromParameter(req, SERVER_USER);
 			final boolean existed = storage.askExists(http, queryName, userName);
-			json.put("existed", existed);
+			jsonObject.put("existed", existed);
 			final boolean written = Boolean.valueOf(req.getParameter("overwrite")) || !existed;
 			if (written) {
 				final boolean shared = !Boolean.valueOf(req.getParameter("save-private"));
@@ -272,10 +270,10 @@ public class QueryServlet extends TransformationServlet {
 					storage.saveQuery(http, queryName, userName, shared, queryLanguage, queryText, infer, rowsPerPage);
 				}
 			}
-			json.put("written", written);
+			jsonObject.put("written", written);
 		}
 		final PrintWriter writer = new PrintWriter(new BufferedWriter(resp.getWriter()));
-		writer.write(json.toString());
+		writer.write(mapper.writeValueAsString(jsonObject));
 		writer.flush();
 	}
 
@@ -324,9 +322,8 @@ public class QueryServlet extends TransformationServlet {
 	private void service(final WorkbenchRequest req, final HttpServletResponse resp, final OutputStream out,
 			final String xslPath)
 			throws BadRequestException, RDF4JException, UnsupportedQueryResultFormatException, IOException {
-		final RepositoryConnection con = repository.getConnection();
-		con.setParserConfig(NON_VERIFYING_PARSER_CONFIG);
-		try {
+		try (RepositoryConnection con = repository.getConnection()) {
+			con.setParserConfig(NON_VERIFYING_PARSER_CONFIG);
 			final TupleResultBuilder builder = getTupleResultBuilder(req, resp, resp.getOutputStream());
 			for (Namespace ns : Iterations.asList(con.getNamespaces())) {
 				builder.prefix(ns.getPrefix(), ns.getName());
@@ -349,8 +346,6 @@ public class QueryServlet extends TransformationServlet {
 					throw exc;
 				}
 			}
-		} finally {
-			con.close();
 		}
 	}
 

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio;
 
@@ -28,13 +31,14 @@ import org.slf4j.LoggerFactory;
  * by every type of {@link RioSetting}: boolean values, strings, and numeric (long) values are supported, but more
  * complex types are not</li>
  * </ol>
- * 
+ *
  * @author Peter Ansell
  * @see RioSetting
  */
 public class RioConfig implements Serializable {
 
 	/**
+	 *
 	 */
 	private static final long serialVersionUID = 2714L;
 
@@ -52,7 +56,7 @@ public class RioConfig implements Serializable {
 	protected final Logger log = LoggerFactory.getLogger(this.getClass());
 
 	/**
-	 * 
+	 *
 	 */
 	public RioConfig() {
 		super();
@@ -60,7 +64,7 @@ public class RioConfig implements Serializable {
 
 	/**
 	 * Return the value for a given {@link RioSetting} or the default value if it has not been set.
-	 * 
+	 *
 	 * @param setting The {@link RioSetting} to fetch a value for.
 	 * @return The value for the parser setting, or the default value if it is not set.
 	 */
@@ -95,7 +99,7 @@ public class RioConfig implements Serializable {
 	/**
 	 * Sets a {@link RioSetting} to have a new value. If the value is null, the parser setting is removed and the
 	 * default will be used instead.
-	 * 
+	 *
 	 * @param setting The setting to set a new value for.
 	 * @param value   The value for the parser setting, or null to reset the parser setting to use the default value.
 	 * @return Either a copy of this config, if it is immutable, or this object, to allow chaining of method calls.
@@ -125,7 +129,7 @@ public class RioConfig implements Serializable {
 	 * Checks for whether a {@link RioSetting} has been explicitly set by a user.
 	 * <p>
 	 * A setting can be set via {@link RioConfig#set(RioSetting, Object)}, or via use of a system property.
-	 * 
+	 *
 	 * @param setting The setting to check for.
 	 * @return True if the setting has been explicitly set, or false otherwise.
 	 */
@@ -140,7 +144,7 @@ public class RioConfig implements Serializable {
 
 	/**
 	 * Resets all settings back to their default values.
-	 * 
+	 *
 	 * @return Either a copy of this config, if it is immutable, or this object, to allow chaining of method calls.
 	 */
 	public RioConfig useDefaults() {

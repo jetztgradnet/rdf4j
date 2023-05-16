@@ -1,15 +1,19 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.http.server.repository.statements;
 
 import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
 import static javax.servlet.http.HttpServletResponse.SC_SERVICE_UNAVAILABLE;
 import static javax.servlet.http.HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE;
+
 import static org.eclipse.rdf4j.http.protocol.Protocol.BASEURI_PARAM_NAME;
 import static org.eclipse.rdf4j.http.protocol.Protocol.BINDING_PREFIX;
 import static org.eclipse.rdf4j.http.protocol.Protocol.CONTEXT_PARAM_NAME;
@@ -75,13 +79,13 @@ import org.xml.sax.SAXParseException;
 
 /**
  * Handles requests for manipulating the statements in a repository.
- * 
+ *
  * @author Herko ter Horst
  * @author Arjohn Kampman
  */
 public class StatementsController extends AbstractController {
 
-	private Logger logger = LoggerFactory.getLogger(this.getClass());
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 	public StatementsController() throws ApplicationContextException {
 		setSupportedMethods(new String[] { METHOD_GET, METHOD_POST, METHOD_HEAD, "PUT", "DELETE" });
@@ -144,10 +148,12 @@ public class StatementsController extends AbstractController {
 			} catch (IOException e) {
 				throw new ClientHTTPException(SC_BAD_REQUEST, "Error reading request message body", e);
 			}
-			if (sparqlUpdateString.isEmpty())
-				sparqlUpdateString = null;
 		} else {
 			sparqlUpdateString = request.getParameterValues(Protocol.UPDATE_PARAM_NAME)[0];
+		}
+
+		if (sparqlUpdateString.isEmpty()) {
+			throw new ClientHTTPException("Updates must be non-empty");
 		}
 
 		// default query language is SPARQL
@@ -256,7 +262,7 @@ public class StatementsController extends AbstractController {
 			return new ModelAndView(EmptySuccessView.getInstance());
 		} catch (QueryInterruptedException e) {
 			throw new ServerHTTPException(SC_SERVICE_UNAVAILABLE, "update execution took too long");
-		} catch (UpdateExecutionException e) {
+		} catch (UpdateExecutionException | RepositoryException e) {
 			if (e.getCause() != null && e.getCause() instanceof HTTPException) {
 				// custom signal from the backend, throw as HTTPException
 				// directly
@@ -265,30 +271,26 @@ public class StatementsController extends AbstractController {
 			} else {
 				throw new ServerHTTPException("Repository update error: " + e.getMessage(), e);
 			}
-		} catch (RepositoryException e) {
-			if (e.getCause() != null && e.getCause() instanceof HTTPException) {
-				// custom signal from the backend, throw as HTTPException
-				// directly
-				// (see SES-1016).
-				throw (HTTPException) e.getCause();
-			} else {
-				throw new ServerHTTPException("Repository update error: " + e.getMessage(), e);
-			}
-		} catch (MalformedQueryException e) {
+		}
+		// custom signal from the backend, throw as HTTPException
+		// directly
+		// (see SES-1016).
+		catch (MalformedQueryException e) {
 			ErrorInfo errInfo = new ErrorInfo(ErrorType.MALFORMED_QUERY, e.getMessage());
 			throw new ClientHTTPException(SC_BAD_REQUEST, errInfo.toString());
 		}
 	}
 
 	private IRI createURIOrNull(Repository repository, String graphURI) {
-		if ("null".equals(graphURI))
+		if ("null".equals(graphURI)) {
 			return null;
+		}
 		return repository.getValueFactory().createIRI(graphURI);
 	}
 
 	/**
 	 * Get all statements and export them as RDF.
-	 * 
+	 *
 	 * @return a model and view for exporting the statements.
 	 */
 	private ModelAndView getExportStatementsResult(Repository repository, HttpServletRequest request,
@@ -379,9 +381,9 @@ public class StatementsController extends AbstractController {
 		final boolean preserveNodeIds = ProtocolUtil.parseBooleanParam(request, Protocol.PRESERVE_BNODE_ID_PARAM_NAME,
 				false);
 
-		if (baseURI == null) {
-			baseURI = vf.createIRI("foo:bar");
-			logger.info("no base URI specified, using dummy '{}'", baseURI);
+		String baseURIString = null;
+		if (baseURI != null) {
+			baseURIString = baseURI.toString();
 		}
 
 		InputStream in = request.getInputStream();
@@ -395,7 +397,7 @@ public class StatementsController extends AbstractController {
 			if (replaceCurrent) {
 				repositoryCon.clear(contexts);
 			}
-			repositoryCon.add(in, baseURI.toString(), rdfFormat, contexts);
+			repositoryCon.add(in, baseURIString, rdfFormat, contexts);
 
 			repositoryCon.commit();
 

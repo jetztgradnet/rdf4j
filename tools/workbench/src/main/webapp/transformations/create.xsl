@@ -90,7 +90,8 @@
 								<option value="sparql">
 									SPARQL endpoint proxy
 								</option>
-								<option value="federate">Federation Store</option>
+								<option value="federate">Federation</option>
+								<option value="lmdb">LMDB Store</option>
 							</select>
 						</td>
 						<td></td>

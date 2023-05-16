@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.util;
 
@@ -17,7 +20,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Version utility: read the version from the Jar's manifest file.
- * 
+ *
  * @author Andreas Schwarte
  *
  */
@@ -39,7 +42,7 @@ public class Version {
 
 	/**
 	 * Return the version instance
-	 * 
+	 *
 	 * @return the {@link Version} instance
 	 */
 	public static Version getVersionInfo() {
@@ -142,7 +145,7 @@ public class Version {
 
 	/**
 	 * Prints the version info.
-	 * 
+	 *
 	 * @param args
 	 */
 	public static void main(String[] args) {

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.config;
 
@@ -32,6 +35,8 @@ public class AbstractRepositoryImplConfig implements RepositoryImplConfig {
 
 	/**
 	 * Create a new RepositoryConfigImpl.
+	 *
+	 * @param type
 	 */
 	public AbstractRepositoryImplConfig(String type) {
 		this();
@@ -67,15 +72,15 @@ public class AbstractRepositoryImplConfig implements RepositoryImplConfig {
 
 	@Override
 	public void parse(Model model, Resource resource) throws RepositoryConfigException {
-		Models.objectLiteral(model.filter(resource, REPOSITORYTYPE, null))
+		Models.objectLiteral(model.getStatements(resource, REPOSITORYTYPE, null))
 				.ifPresent(typeLit -> setType(typeLit.getLabel()));
 	}
 
 	/**
 	 * Utility method to create a new {@link RepositoryImplConfig} by reading data from the supplied {@link Model}.
-	 * 
+	 *
 	 * @param model    the {@link Model} to read configuration data from.
-	 * @param implNode the subject {@link Resource} identifying the configuration data in the Model.
+	 * @param resource the subject {@link Resource} identifying the configuration data in the Model.
 	 * @return a new {@link RepositoryImplConfig} initialized with the configuration from the input Model, or
 	 *         {@code null} if no {@link RepositoryConfigSchema#REPOSITORYTYPE} property was found in the configuration
 	 *         data..
@@ -86,7 +91,8 @@ public class AbstractRepositoryImplConfig implements RepositoryImplConfig {
 			// Literal typeLit = GraphUtil.getOptionalObjectLiteral(graph,
 			// implNode, REPOSITORYTYPE);
 
-			final Literal typeLit = Models.objectLiteral(model.filter(resource, REPOSITORYTYPE, null)).orElse(null);
+			final Literal typeLit = Models.objectLiteral(model.getStatements(resource, REPOSITORYTYPE, null))
+					.orElse(null);
 			if (typeLit != null) {
 				RepositoryFactory factory = RepositoryRegistry.getInstance()
 						.get(typeLit.getLabel())

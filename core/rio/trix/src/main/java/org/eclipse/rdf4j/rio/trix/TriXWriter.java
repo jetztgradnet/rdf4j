@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.trix;
 
@@ -22,6 +25,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Writer;
 
+import org.eclipse.rdf4j.common.io.CharSink;
 import org.eclipse.rdf4j.common.xml.XMLWriter;
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
@@ -32,46 +36,37 @@ import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.util.Literals;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.RDFHandlerException;
-import org.eclipse.rdf4j.rio.RDFWriter;
 import org.eclipse.rdf4j.rio.helpers.AbstractRDFWriter;
 import org.eclipse.rdf4j.rio.helpers.XMLWriterSettings;
 
 /**
  * An implementation of the RDFWriter interface that writes RDF documents in
  * <a href="http://www.w3.org/2004/03/trix/">TriX format</a>.
- * 
+ *
  * @author Arjohn Kampman
  */
-public class TriXWriter extends AbstractRDFWriter implements RDFWriter {
+public class TriXWriter extends AbstractRDFWriter implements CharSink {
 
-	/*-----------*
-	 * Variables *
-	 *-----------*/
+	private final XMLWriter xmlWriter;
 
-	private XMLWriter xmlWriter;
+	private boolean inActiveContext = false;
 
-	private boolean writingStarted;
-
-	private boolean inActiveContext;
-
-	private Resource currentContext;
-
-	/*--------------*
-	 * Constructors *
-	 *--------------*/
+	private boolean convertRDFStar;
+	private Resource currentContext = null;
 
 	/**
 	 * Creates a new TriXWriter that will write to the supplied OutputStream.
-	 * 
+	 *
 	 * @param out The OutputStream to write the RDF/XML document to.
 	 */
 	public TriXWriter(OutputStream out) {
-		this(new XMLWriter(out));
+		this.xmlWriter = new XMLWriter(out);
+		this.xmlWriter.setPrettyPrint(true);
 	}
 
 	/**
 	 * Creates a new TriXWriter that will write to the supplied Writer.
-	 * 
+	 *
 	 * @param writer The Writer to write the RDF/XML document to.
 	 */
 	public TriXWriter(Writer writer) {
@@ -81,15 +76,12 @@ public class TriXWriter extends AbstractRDFWriter implements RDFWriter {
 	protected TriXWriter(XMLWriter xmlWriter) {
 		this.xmlWriter = xmlWriter;
 		this.xmlWriter.setPrettyPrint(true);
-
-		writingStarted = false;
-		inActiveContext = false;
-		currentContext = null;
 	}
 
-	/*---------*
-	 * Methods *
-	 *---------*/
+	@Override
+	public Writer getWriter() {
+		return xmlWriter.getWriter();
+	}
 
 	@Override
 	public RDFFormat getRDFFormat() {
@@ -98,9 +90,7 @@ public class TriXWriter extends AbstractRDFWriter implements RDFWriter {
 
 	@Override
 	public void startRDF() throws RDFHandlerException {
-		if (writingStarted) {
-			throw new RDFHandlerException("Document writing has already started");
-		}
+		super.startRDF();
 
 		try {
 
@@ -112,17 +102,12 @@ public class TriXWriter extends AbstractRDFWriter implements RDFWriter {
 			xmlWriter.startTag(ROOT_TAG);
 		} catch (IOException e) {
 			throw new RDFHandlerException(e);
-		} finally {
-			writingStarted = true;
 		}
 	}
 
 	@Override
 	public void endRDF() throws RDFHandlerException {
-		if (!writingStarted) {
-			throw new RDFHandlerException("Document writing has not yet started");
-		}
-
+		checkWritingStarted();
 		try {
 			if (inActiveContext) {
 				xmlWriter.endTag(CONTEXT_TAG);
@@ -133,22 +118,17 @@ public class TriXWriter extends AbstractRDFWriter implements RDFWriter {
 			xmlWriter.endDocument();
 		} catch (IOException e) {
 			throw new RDFHandlerException(e);
-		} finally {
-			writingStarted = false;
 		}
 	}
 
 	@Override
 	public void handleNamespace(String prefix, String name) {
+		checkWritingStarted();
 		// ignore
 	}
 
 	@Override
-	public void handleStatement(Statement st) throws RDFHandlerException {
-		if (!writingStarted) {
-			throw new RDFHandlerException("Document writing has not yet been started");
-		}
-
+	protected void consumeStatement(Statement st) {
 		try {
 			Resource context = st.getContext();
 
@@ -184,6 +164,7 @@ public class TriXWriter extends AbstractRDFWriter implements RDFWriter {
 
 	@Override
 	public void handleComment(String comment) throws RDFHandlerException {
+		checkWritingStarted();
 		try {
 			xmlWriter.comment(comment);
 		} catch (IOException e) {
@@ -217,7 +198,7 @@ public class TriXWriter extends AbstractRDFWriter implements RDFWriter {
 		}
 	}
 
-	private static final boolean contextsEquals(Resource context1, Resource context2) {
+	private static boolean contextsEquals(Resource context1, Resource context2) {
 		if (context1 == null) {
 			return context2 == null;
 		} else {

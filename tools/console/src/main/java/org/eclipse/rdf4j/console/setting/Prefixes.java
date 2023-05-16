@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console.setting;
 
@@ -13,43 +16,22 @@ import java.util.stream.Collectors;
 
 import org.eclipse.rdf4j.model.Namespace;
 import org.eclipse.rdf4j.model.impl.SimpleNamespace;
+import org.eclipse.rdf4j.model.util.Namespaces;
 import org.eclipse.rdf4j.model.util.URIUtil;
-
-import org.eclipse.rdf4j.model.vocabulary.DCAT;
-import org.eclipse.rdf4j.model.vocabulary.DCTERMS;
-import org.eclipse.rdf4j.model.vocabulary.FOAF;
-import org.eclipse.rdf4j.model.vocabulary.ORG;
-import org.eclipse.rdf4j.model.vocabulary.OWL;
-import org.eclipse.rdf4j.model.vocabulary.RDF;
-import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.eclipse.rdf4j.model.vocabulary.ROV;
-import org.eclipse.rdf4j.model.vocabulary.SKOS;
-import org.eclipse.rdf4j.model.vocabulary.VCARD4;
-import org.eclipse.rdf4j.model.vocabulary.VOID;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
 
 /**
  * Namespace prefix setting
- * 
+ *
  * @author Bart Hanssens
  */
 public class Prefixes extends ConsoleSetting<Set<Namespace>> {
 	public final static String NAME = "prefixes";
 
-	public final static Set<Namespace> DEFAULT = new HashSet<>();
+	public final static Set<Namespace> DEFAULT = new HashSet<>(Namespaces.DEFAULT_RDFA11);
+
 	static {
-		DEFAULT.add(DCAT.NS);
-		DEFAULT.add(DCTERMS.NS);
-		DEFAULT.add(FOAF.NS);
-		DEFAULT.add(ORG.NS);
-		DEFAULT.add(OWL.NS);
-		DEFAULT.add(RDF.NS);
-		DEFAULT.add(RDFS.NS);
 		DEFAULT.add(ROV.NS);
-		DEFAULT.add(SKOS.NS);
-		DEFAULT.add(VCARD4.NS);
-		DEFAULT.add(VOID.NS);
-		DEFAULT.add(XMLSchema.NS);
 	}
 
 	@Override
@@ -62,7 +44,7 @@ public class Prefixes extends ConsoleSetting<Set<Namespace>> {
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * Default set of namespaces are well-known ones
 	 */
 	public Prefixes() {
@@ -71,7 +53,7 @@ public class Prefixes extends ConsoleSetting<Set<Namespace>> {
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * @param initValue
 	 */
 	public Prefixes(Set<Namespace> initValue) {
@@ -90,7 +72,7 @@ public class Prefixes extends ConsoleSetting<Set<Namespace>> {
 
 	/**
 	 * Remove the namespace with specified prefix
-	 * 
+	 *
 	 * @param prefix
 	 */
 	private void clearNamespace(String prefix) {
@@ -107,7 +89,7 @@ public class Prefixes extends ConsoleSetting<Set<Namespace>> {
 	/**
 	 * Set a namespace from a string, using one whitespace to separate prefix and namespace URI E.g. 'dcterms
 	 * http://purl.org/dc/terms/'
-	 * 
+	 *
 	 * @param namespace
 	 */
 	private void setNamespace(String namespace) {

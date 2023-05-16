@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.http.protocol.transaction;
 
@@ -30,21 +33,22 @@ import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.query.Binding;
 import org.eclipse.rdf4j.query.impl.SimpleBinding;
 import org.eclipse.rdf4j.query.impl.SimpleDataset;
+import org.eclipse.rdf4j.rio.helpers.RDFStarUtil;
 import org.xml.sax.SAXException;
 
 /**
  * Parses an RDF transaction document into a collection of {@link TransactionOperation} objects.
- * 
+ *
  * @author Arjohn Kampman
  * @author Leo Sauermann
  */
 class TransactionSAXParser extends SimpleSAXAdapter {
 
-	private ValueFactory valueFactory;
+	private final ValueFactory valueFactory;
 
 	protected Collection<TransactionOperation> txn;
 
-	private List<Value> parsedValues = new ArrayList<>();
+	private final List<Value> parsedValues = new ArrayList<>();
 
 	private List<Binding> bindings;
 
@@ -62,7 +66,7 @@ class TransactionSAXParser extends SimpleSAXAdapter {
 
 	/**
 	 * get the parsed transaction
-	 * 
+	 *
 	 * @return the parsed transaction
 	 */
 	public Collection<TransactionOperation> getTxn() {
@@ -76,7 +80,10 @@ class TransactionSAXParser extends SimpleSAXAdapter {
 
 	@Override
 	public void startTag(String tagName, Map<String, String> atts, String text) throws SAXException {
-		if (TransactionXMLConstants.URI_TAG.equals(tagName)) {
+		if (TransactionXMLConstants.TRIPLE_TAG.equals(tagName)) {
+			// fixes GH-3048
+			parsedValues.add(RDFStarUtil.fromRDFEncodedValue(valueFactory.createIRI(text)));
+		} else if (TransactionXMLConstants.URI_TAG.equals(tagName)) {
 			parsedValues.add(valueFactory.createIRI(text));
 		} else if (TransactionXMLConstants.BNODE_TAG.equals(tagName)) {
 			parsedValues.add(valueFactory.createBNode(text));

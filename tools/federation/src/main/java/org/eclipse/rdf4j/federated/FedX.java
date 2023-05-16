@@ -1,107 +1,167 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-import org.eclipse.rdf4j.IsolationLevel;
-import org.eclipse.rdf4j.IsolationLevels;
+import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.federated.endpoint.Endpoint;
+import org.eclipse.rdf4j.federated.endpoint.ResolvableEndpoint;
+import org.eclipse.rdf4j.federated.evaluation.FederationEvaluationStrategyFactory;
 import org.eclipse.rdf4j.federated.exception.ExceptionUtil;
 import org.eclipse.rdf4j.federated.exception.FedXException;
+import org.eclipse.rdf4j.federated.exception.FedXRuntimeException;
 import org.eclipse.rdf4j.federated.util.FedXUtil;
+import org.eclipse.rdf4j.federated.write.DefaultWriteStrategyFactory;
 import org.eclipse.rdf4j.federated.write.ReadOnlyWriteStrategy;
 import org.eclipse.rdf4j.federated.write.RepositoryWriteStrategy;
 import org.eclipse.rdf4j.federated.write.WriteStrategy;
+import org.eclipse.rdf4j.federated.write.WriteStrategyFactory;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.repository.RepositoryException;
-import org.eclipse.rdf4j.sail.Sail;
+import org.eclipse.rdf4j.repository.RepositoryResolver;
+import org.eclipse.rdf4j.repository.RepositoryResolverClient;
 import org.eclipse.rdf4j.sail.SailConnection;
 import org.eclipse.rdf4j.sail.SailException;
+import org.eclipse.rdf4j.sail.helpers.AbstractSail;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * FedX serves as implementation of the federation layer. It implements Sesame's Sail interface and can thus be used as
- * a normal repository in a Sesame environment. The federation layer enables transparent access to the underlying
- * members as if they were a central repository.
+ * FedX serves as implementation of the federation layer. It implements RDF4J's Sail interface and can thus be used as a
+ * normal repository in a RDF4J environment. The federation layer enables transparent access to the underlying members
+ * as if they were a central repository.
  * <p>
- * 
+ *
  * For initialization of the federation and usage see {@link FederationManager}.
- * 
+ *
  * @author Andreas Schwarte
- * 
+ *
  */
-public class FedX implements Sail {
+public class FedX extends AbstractSail implements RepositoryResolverClient {
 
 	private static final Logger log = LoggerFactory.getLogger(FedX.class);
 
-	protected final List<Endpoint> members = new ArrayList<Endpoint>();
-	protected boolean open = false;
+	private final List<Endpoint> members = new ArrayList<>();
 
-	protected FedX() {
-		this(null);
+	private FederationContext federationContext;
+
+	private RepositoryResolver repositoryResolver;
+
+	private FederationEvaluationStrategyFactory strategyFactory;
+
+	private WriteStrategyFactory writeStrategyFactory;
+
+	private File dataDir;
+
+	public FedX(List<Endpoint> endpoints) {
+		if (endpoints != null) {
+			members.addAll(endpoints);
+		}
+		setDefaultIsolationLevel(IsolationLevels.NONE);
 	}
 
-	protected FedX(List<Endpoint> endpoints) {
-		if (endpoints != null)
-			for (Endpoint e : endpoints)
-				addMember(e);
-		open = true;
+	public void setFederationContext(FederationContext federationContext) {
+		this.federationContext = federationContext;
 	}
 
 	/**
-	 * Add a member to the federation (internal)
-	 * 
+	 * Note: consumers must obtain the instance through
+	 * {@link FederationManager#getFederationEvaluationStrategyFactory()}
+	 *
+	 * @return the {@link FederationEvaluationStrategyFactory}
+	 */
+	/* package */ FederationEvaluationStrategyFactory getFederationEvaluationStrategyFactory() {
+		if (strategyFactory == null) {
+			strategyFactory = new FederationEvaluationStrategyFactory();
+		}
+		return strategyFactory;
+	}
+
+	public void setFederationEvaluationStrategy(FederationEvaluationStrategyFactory strategyFactory) {
+		this.strategyFactory = strategyFactory;
+	}
+
+	/**
+	 *
+	 * @param writeStrategyFactory the {@link WriteStrategyFactory}
+	 */
+	public void setWriteStrategyFactory(WriteStrategyFactory writeStrategyFactory) {
+		this.writeStrategyFactory = writeStrategyFactory;
+	}
+
+	/* package */ WriteStrategyFactory getWriteStrategyFactory() {
+		if (writeStrategyFactory == null) {
+			writeStrategyFactory = new DefaultWriteStrategyFactory();
+		}
+		return writeStrategyFactory;
+	}
+
+	/**
+	 * Add a member to the federation (internal).
+	 * <p>
+	 * If the federation is already initialized, the given endpoint is explicitly initialized as well.
+	 * </p>
+	 *
 	 * @param endpoint
 	 */
 	protected void addMember(Endpoint endpoint) {
+		if (isInitialized()) {
+			initializeMember(endpoint);
+		}
 		members.add(endpoint);
 	}
 
 	/**
 	 * Remove a member from the federation (internal)
-	 * 
+	 *
 	 * @param endpoint
 	 * @return whether the member was removed
 	 */
 	public boolean removeMember(Endpoint endpoint) {
+		endpoint.shutDown();
 		return members.remove(endpoint);
 	}
 
 	/**
 	 * Compute and return the {@link WriteStrategy} depending on the current federation configuration.
-	 * 
+	 * <p>
 	 * The default implementation uses the {@link RepositoryWriteStrategy} with the first discovered writable
 	 * {@link Endpoint}. In none is found, the {@link ReadOnlyWriteStrategy} is used.
-	 * 
+	 * </p>
+	 *
 	 * @return the {@link WriteStrategy}
+	 * @throws FedXRuntimeException if the {@link WriteStrategy} could not be created
+	 * @see FedXFactory#withWriteStrategyFactory(WriteStrategyFactory)
 	 */
-	public WriteStrategy getWriteStrategy() {
-		for (Endpoint e : members) {
-			if (e.isWritable()) {
-				return new RepositoryWriteStrategy(e.getRepository());
-			}
+	/* package */ WriteStrategy getWriteStrategy() {
+		try {
+			return getWriteStrategyFactory()
+					.create(members, federationContext);
+		} catch (Exception e) {
+			throw new FedXRuntimeException("Failed to instantiate write strategy: " + e.getMessage(), e);
 		}
-		return ReadOnlyWriteStrategy.INSTANCE;
 	}
 
 	@Override
-	public SailConnection getConnection() throws SailException {
-		return new FedXConnection(this);
+	protected SailConnection getConnectionInternal() throws SailException {
+		return new FedXConnection(this, federationContext);
 	}
 
 	@Override
 	public File getDataDir() {
-		throw new UnsupportedOperationException("Operation not supported yet.");
+		return dataDir;
 	}
 
 	@Override
@@ -110,17 +170,29 @@ public class FedX implements Sail {
 	}
 
 	@Override
-	public void initialize() throws SailException {
+	protected void initializeInternal() throws SailException {
 		log.debug("Initializing federation....");
 		for (Endpoint member : members) {
-			try {
-				member.initialize();
-			} catch (RepositoryException e) {
-				log.error("Initialization of endpoint " + member.getId() + " failed: " + e.getMessage());
-				throw new SailException(e);
+			initializeMember(member);
+		}
+	}
+
+	protected void initializeMember(Endpoint member) throws SailException {
+		if (member.isInitialized()) {
+			log.warn("Endpoint " + member.getId() + " was already initialized.");
+			return;
+		}
+		if (member instanceof ResolvableEndpoint) {
+			if (this.repositoryResolver != null) {
+				((ResolvableEndpoint) member).setRepositoryResolver(this.repositoryResolver);
 			}
 		}
-		open = true;
+		try {
+			member.init(federationContext);
+		} catch (RepositoryException e) {
+			log.error("Initialization of endpoint " + member.getId() + " failed: " + e.getMessage());
+			throw new SailException(e);
+		}
 	}
 
 	@Override
@@ -131,24 +203,16 @@ public class FedX implements Sail {
 
 	@Override
 	public void setDataDir(File dataDir) {
-		throw new UnsupportedOperationException("Operation not supported yet.");
-	}
-
-	@Override
-	public void shutDown() throws SailException {
-		try {
-			FederationManager.getInstance().shutDown();
-		} catch (FedXException e) {
-			throw new SailException(e);
-		}
+		this.dataDir = dataDir;
 	}
 
 	/**
 	 * Try to shut down all federation members.
-	 * 
+	 *
 	 * @throws FedXException if not all members could be shut down
 	 */
-	protected void shutDownInternal() throws FedXException {
+	@Override
+	protected void shutDownInternal() throws SailException {
 
 		List<Exception> errors = new ArrayList<>();
 		for (Endpoint member : members) {
@@ -160,30 +224,21 @@ public class FedX implements Sail {
 			}
 		}
 
-		if (errors.size() > 0)
+		if (errors.size() > 0) {
 			throw new SailException("Federation could not be shut down. See logs for details.");
-
-		open = false;
+		}
 	}
 
+	/**
+	 *
+	 * @return an unmodifiable view of the current members
+	 */
 	public List<Endpoint> getMembers() {
-		return new ArrayList<Endpoint>(members);
-	}
-
-	public boolean isOpen() {
-		return open;
+		return Collections.unmodifiableList(members);
 	}
 
 	@Override
-	public IsolationLevel getDefaultIsolationLevel() {
-		return IsolationLevels.NONE;
-	}
-
-	protected static final List<IsolationLevel> supportedIsolationLevels = new ArrayList<IsolationLevel>(
-			Arrays.asList(IsolationLevels.NONE));
-
-	@Override
-	public List<IsolationLevel> getSupportedIsolationLevels() {
-		return supportedIsolationLevels;
+	public void setRepositoryResolver(RepositoryResolver resolver) {
+		this.repositoryResolver = resolver;
 	}
 }

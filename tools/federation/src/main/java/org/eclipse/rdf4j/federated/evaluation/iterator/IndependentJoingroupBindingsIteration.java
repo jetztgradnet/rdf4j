@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.evaluation.iterator;
 
@@ -19,7 +22,7 @@ import org.eclipse.rdf4j.query.algebra.evaluation.QueryBindingSet;
 
 /**
  * Inserts original bindings into the result.
- * 
+ *
  * @author Andreas Schwarte
  */
 public class IndependentJoingroupBindingsIteration extends LookAheadIteration<BindingSet, QueryEvaluationException> {
@@ -42,16 +45,17 @@ public class IndependentJoingroupBindingsIteration extends LookAheadIteration<Bi
 			result = computeResult();
 		}
 
-		if (currentIdx >= result.size())
+		if (currentIdx >= result.size()) {
 			return null;
+		}
 
 		return result.get(currentIdx++);
 	}
 
 	protected ArrayList<BindingSet> computeResult() throws QueryEvaluationException {
 
-		List<Binding> a_res = new ArrayList<Binding>();
-		List<Binding> b_res = new ArrayList<Binding>();
+		List<Binding> a_res = new ArrayList<>();
+		List<Binding> b_res = new ArrayList<>();
 
 		// collect results XXX later asynchronously
 		// assumes that bindingset of iteration has exactly one binding
@@ -59,30 +63,32 @@ public class IndependentJoingroupBindingsIteration extends LookAheadIteration<Bi
 
 			BindingSet bIn = iter.next();
 
-			if (bIn.size() != 1)
+			if (bIn.size() != 1) {
 				throw new RuntimeException(
 						"For this optimization a bindingset needs to have exactly one binding, it has " + bIn.size()
 								+ ": " + bIn);
+			}
 
 			Binding b = bIn.getBinding(bIn.getBindingNames().iterator().next());
-			int bIndex = Integer.parseInt(b.getName().substring(b.getName().lastIndexOf("_") + 1));
+			int bIndex = Integer.parseInt(b.getName().substring(b.getName().lastIndexOf('_') + 1));
 
-			if (bIndex == 0)
+			if (bIndex == 0) {
 				a_res.add(b);
-			else if (bIndex == 1)
+			} else if (bIndex == 1) {
 				b_res.add(b);
-			else
+			} else {
 				throw new RuntimeException("Unexpected binding value.");
+			}
 		}
 
-		ArrayList<BindingSet> res = new ArrayList<BindingSet>(a_res.size() * b_res.size());
+		ArrayList<BindingSet> res = new ArrayList<>(a_res.size() * b_res.size());
 
 		for (Binding a : a_res) {
 			for (Binding b : b_res) {
 				QueryBindingSet newB = new QueryBindingSet(bindings.size() + 2);
 				newB.addAll(bindings);
-				newB.addBinding(a.getName().substring(0, a.getName().lastIndexOf("_")), a.getValue());
-				newB.addBinding(b.getName().substring(0, b.getName().lastIndexOf("_")), b.getValue());
+				newB.addBinding(a.getName().substring(0, a.getName().lastIndexOf('_')), a.getValue());
+				newB.addBinding(b.getName().substring(0, b.getName().lastIndexOf('_')), b.getValue());
 				res.add(newB);
 			}
 		}
@@ -90,4 +96,12 @@ public class IndependentJoingroupBindingsIteration extends LookAheadIteration<Bi
 		return res;
 	}
 
+	@Override
+	protected void handleClose() throws QueryEvaluationException {
+		try {
+			super.handleClose();
+		} finally {
+			iter.close();
+		}
+	}
 }

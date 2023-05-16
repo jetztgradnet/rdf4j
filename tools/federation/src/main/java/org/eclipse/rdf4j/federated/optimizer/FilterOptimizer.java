@@ -1,46 +1,61 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.optimizer;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.rdf4j.federated.algebra.EmptyResult;
+import org.eclipse.rdf4j.federated.algebra.ExclusiveGroup;
 import org.eclipse.rdf4j.federated.algebra.FilterExpr;
 import org.eclipse.rdf4j.federated.algebra.FilterTuple;
+import org.eclipse.rdf4j.federated.algebra.NUnion;
 import org.eclipse.rdf4j.federated.algebra.StatementTupleExpr;
 import org.eclipse.rdf4j.federated.exception.OptimizationException;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.query.algebra.And;
+import org.eclipse.rdf4j.query.algebra.BindingSetAssignment;
 import org.eclipse.rdf4j.query.algebra.Compare;
+import org.eclipse.rdf4j.query.algebra.Difference;
+import org.eclipse.rdf4j.query.algebra.Extension;
 import org.eclipse.rdf4j.query.algebra.Filter;
+import org.eclipse.rdf4j.query.algebra.LeftJoin;
 import org.eclipse.rdf4j.query.algebra.Not;
 import org.eclipse.rdf4j.query.algebra.Or;
 import org.eclipse.rdf4j.query.algebra.QueryModelNode;
 import org.eclipse.rdf4j.query.algebra.Service;
 import org.eclipse.rdf4j.query.algebra.TupleExpr;
+import org.eclipse.rdf4j.query.algebra.Union;
 import org.eclipse.rdf4j.query.algebra.ValueConstant;
 import org.eclipse.rdf4j.query.algebra.ValueExpr;
 import org.eclipse.rdf4j.query.algebra.Var;
-import org.eclipse.rdf4j.query.algebra.helpers.AbstractQueryModelVisitor;
+import org.eclipse.rdf4j.query.algebra.helpers.AbstractSimpleQueryModelVisitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Filter optimizer to push down FILTER expressions as far as possible.
- * 
+ *
  * @author Andreas Schwarte
  *
  */
-public class FilterOptimizer extends AbstractQueryModelVisitor<OptimizationException> implements FedXOptimizer {
+public class FilterOptimizer extends AbstractSimpleQueryModelVisitor<OptimizationException> implements FedXOptimizer {
 
 	private static final Logger log = LoggerFactory.getLogger(FilterOptimizer.class);
+
+	public FilterOptimizer() {
+		super(true);
+	}
 
 	@Override
 	public void optimize(TupleExpr tupleExpr) {
@@ -68,11 +83,11 @@ public class FilterOptimizer extends AbstractQueryModelVisitor<OptimizationExcep
 		 */
 
 		// determine conjunctive expressions
-		List<ValueExpr> conjunctiveExpressions = new ArrayList<ValueExpr>();
+		List<ValueExpr> conjunctiveExpressions = new ArrayList<>();
 		getConjunctiveExpressions(valueExpr, conjunctiveExpressions);
 
 		FilterExprInsertVisitor filterExprVst = new FilterExprInsertVisitor();
-		List<ValueExpr> remainingExpr = new ArrayList<ValueExpr>(conjunctiveExpressions.size());
+		List<ValueExpr> remainingExpr = new ArrayList<>(conjunctiveExpressions.size());
 
 		for (ValueExpr cond : conjunctiveExpressions) {
 
@@ -84,13 +99,18 @@ public class FilterOptimizer extends AbstractQueryModelVisitor<OptimizationExcep
 
 				HashSet<String> exprVars = new VarFinder().findVars(cond);
 				FilterExpr filterExpr = new FilterExpr(cond, exprVars);
-
+				if ((new FilterBindingFinder().isFilterOnAssignedBinding(filter, filterExpr.getVars()))) {
+					// make sure the filter remains in the new filter expression
+					remainingExpr.add(filterExpr.getExpression());
+					continue;
+				}
 				filterExprVst.initialize(filterExpr);
 				filter.getArg().visit(filterExprVst);
 
 				// if the filter expr. is handled in the stmt we do not have to keep it
-				if (filterExprVst.canRemove())
+				if (filterExprVst.canRemove()) {
 					continue;
+				}
 
 				remainingExpr.add(filterExpr.getExpression());
 
@@ -100,15 +120,11 @@ public class FilterOptimizer extends AbstractQueryModelVisitor<OptimizationExcep
 
 		}
 
-		if (remainingExpr.size() == 0) {
+		if (remainingExpr.isEmpty()) {
 			filter.replaceWith(filter.getArg()); // remove the filter
-		}
-
-		else if (remainingExpr.size() == 1) {
+		} else if (remainingExpr.size() == 1) {
 			filter.setCondition(remainingExpr.get(0)); // just apply the remaining condition
-		}
-
-		else {
+		} else {
 
 			// construct conjunctive value expr
 			And root = new And();
@@ -124,7 +140,7 @@ public class FilterOptimizer extends AbstractQueryModelVisitor<OptimizationExcep
 
 			filter.setCondition(root);
 		}
-
+		super.meet(filter);
 	}
 
 	@Override
@@ -143,14 +159,15 @@ public class FilterOptimizer extends AbstractQueryModelVisitor<OptimizationExcep
 			And and = (And) expr;
 			getConjunctiveExpressions(and.getLeftArg(), conjExpr);
 			getConjunctiveExpressions(and.getRightArg(), conjExpr);
-		} else
+		} else {
 			conjExpr.add(expr);
+		}
 	}
 
 	/**
 	 * returns true if this filter can be used for optimization. Currently no conjunctive or disjunctive expressions are
 	 * supported.
-	 * 
+	 *
 	 * @param e
 	 * @return whether the expression is compatible
 	 */
@@ -167,51 +184,121 @@ public class FilterOptimizer extends AbstractQueryModelVisitor<OptimizationExcep
 		return true;
 	}
 
-	protected static class VarFinder extends AbstractQueryModelVisitor<OptimizationException> {
+	protected static class VarFinder extends AbstractSimpleQueryModelVisitor<OptimizationException> {
 
 		protected HashSet<String> vars;
 
+		protected VarFinder() {
+			super(true);
+		}
+
 		public HashSet<String> findVars(ValueExpr expr) {
-			vars = new HashSet<String>();
+			vars = new HashSet<>();
 			expr.visit(this);
 			return vars;
 		}
 
 		@Override
 		public void meet(Var var) {
-			if (var.getValue() == null)
+			if (var.getValue() == null) {
 				vars.add(var.getName());
+			}
 			super.meet(var);
 		}
 	}
 
-	protected static class FilterExprInsertVisitor extends AbstractQueryModelVisitor<OptimizationException> {
+	protected static class FilterBindingFinder extends AbstractSimpleQueryModelVisitor<OptimizationException> {
+
+		protected Set<String> vars;
+
+		protected boolean isFilterOnAssignedBinding;
+
+		protected FilterBindingFinder() {
+			super(true);
+		}
+
+		public boolean isFilterOnAssignedBinding(TupleExpr expr, Set<String> filterArgs) {
+			this.vars = filterArgs;
+			expr.visit(this);
+			return isFilterOnAssignedBinding;
+		}
+
+		@Override
+		public void meet(Extension node) {
+			for (String var : vars) {
+				if (node.getBindingNames().contains(var)) {
+					isFilterOnAssignedBinding = true;
+					return;
+				}
+			}
+			super.meet(node);
+		}
+
+		@Override
+		public void meet(BindingSetAssignment node) {
+			for (String var : vars) {
+				if (node.getBindingNames().contains(var)) {
+					isFilterOnAssignedBinding = true;
+					return;
+				}
+			}
+			super.meet(node);
+		}
+	}
+
+	protected static class FilterExprInsertVisitor extends AbstractSimpleQueryModelVisitor<OptimizationException> {
 
 		protected FilterExpr filterExpr = null; // the current filter Expr
-		protected boolean isApplied = false;
+		protected int added = 0;
+		// determines whether the filter is static i.e. should not be pushed down as it would change
+		// the query semantically
+		protected boolean isStatic = false;
+
+		protected FilterExprInsertVisitor() {
+			super(true);
+		}
 
 		public void initialize(FilterExpr filterExpr) {
-			this.isApplied = false;
+			this.added = 0;
 			this.filterExpr = filterExpr;
+			this.isStatic = false;
 		}
 
 		public boolean canRemove() {
-			// if the filter is applied somewhere, it can be removed
-			return isApplied;
+			return added > 0 && !isStatic;
+		}
+
+		@Override
+		public void meet(LeftJoin node) {
+			isStatic = true;
+			super.meet(node);
+		}
+
+		@Override
+		public void meet(Union node) {
+			isStatic = true;
+			super.meet(node);
+		}
+
+		@Override
+		public void meet(Difference node) {
+			isStatic = true;
+			super.meet(node);
 		}
 
 		@Override
 		public void meetOther(QueryModelNode node) {
 
 			if (node instanceof FilterTuple) {
+				if (node instanceof ExclusiveGroup) {
+					// for ExclusiveGroup also visit the children to insert
+					// filter expressions and bound values
+					node.visitChildren(this);
+				}
 				handleFilter((FilterTuple) node, filterExpr);
-			}
-
-			else if (node instanceof StatementTupleExpr) {
+			} else if (node instanceof StatementTupleExpr) {
 				return;
-			}
-
-			else {
+			} else {
 				super.meetOther(node);
 			}
 		}
@@ -220,19 +307,20 @@ public class FilterOptimizer extends AbstractQueryModelVisitor<OptimizationExcep
 
 			/*
 			 * CompareEQ expressions are inserted as bindings if possible
-			 * 
+			 *
 			 * if the filtertuple contains all vars of the filterexpr, we can evaluate the filter expr safely on the
 			 * filterTuple
-			 * 
+			 *
 			 * if there is no intersection of variables, the filter is irrelevant for this expr
-			 * 
+			 *
 			 * if there is some intersection, we cannot remove the filter and have to keep it in the query plan for
 			 * postfiltering
 			 */
 			int intersected = 0;
 			for (String filterVar : expr.getVars()) {
-				if (filterTuple.getFreeVars().contains(filterVar))
+				if (filterTuple.getFreeVars().contains(filterVar)) {
 					intersected++;
+				}
 			}
 
 			// filter expression is irrelevant for this expression
@@ -244,25 +332,49 @@ public class FilterOptimizer extends AbstractQueryModelVisitor<OptimizationExcep
 			if (expr.isCompareEq()) {
 
 				if (bindCompareInExpression(filterTuple, (Compare) expr.getExpression())) {
-					isApplied = true;
+					added++;
 					return;
 				}
 			}
 
 			// filter contains all variables => push filter
 			if (intersected == expr.getVars().size()) {
-				if (!isApplied) {
+				if (shouldAddFilter(filterTuple)) {
 					// only push filter if it has not been applied to another statement
 					filterTuple.addFilterExpr(expr);
+					added++;
 				}
-				isApplied = true;
 			}
+		}
+
+		public boolean shouldAddFilter(FilterTuple filterTuple) {
+			if (filterTuple.getParentNode() instanceof ExclusiveGroup) {
+				return false;
+			} else if (hasUnionParent(filterTuple)) {
+				return true;
+			} else if (added > 0) {
+				// only push filter if it has not been applied to another statement
+				return false;
+			} else {
+				return added == 0;
+			}
+		}
+
+		private boolean hasUnionParent(FilterTuple pattern) {
+			QueryModelNode node = pattern.getParentNode();
+			while (node != null && node != filterExpr) {
+				if (node instanceof Union || node instanceof NUnion) {
+					return true;
+				}
+				node = node.getParentNode();
+			}
+			return false;
 		}
 
 		/**
 		 * Bind the given compare filter expression in the tuple expression, i.e. insert the value as binding for the
 		 * respective variable.
-		 * 
+		 *
 		 * @param filterTuple
 		 * @param cmp
 		 * @return
@@ -281,8 +393,9 @@ public class FilterOptimizer extends AbstractQueryModelVisitor<OptimizationExcep
 			// since for instance subj can only be URIs (i.e. literals are
 			// not allowed). For other types the Filter remains in place.
 
-			if (isVarLeft && isVarRight)
+			if (isVarLeft && isVarRight) {
 				return false;
+			}
 
 			if (isVarLeft && cmp.getRightArg() instanceof ValueConstant) {
 				String varName = ((Var) cmp.getLeftArg()).getName();

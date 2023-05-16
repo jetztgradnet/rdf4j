@@ -1,28 +1,33 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 
 package org.eclipse.rdf4j.sail.shacl.mock;
 
-import org.eclipse.rdf4j.common.iteration.CloseableIteration;
-import org.eclipse.rdf4j.sail.SailException;
-import org.eclipse.rdf4j.sail.shacl.planNodes.PlanNode;
-import org.eclipse.rdf4j.sail.shacl.planNodes.Tuple;
-import org.eclipse.rdf4j.sail.shacl.planNodes.ValidationExecutionLogger;
-
 import java.util.ArrayList;
 import java.util.List;
+
+import org.eclipse.rdf4j.common.iteration.CloseableIteration;
+import org.eclipse.rdf4j.sail.SailException;
+import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNode;
+import org.eclipse.rdf4j.sail.shacl.ast.planNodes.ValidationExecutionLogger;
+import org.eclipse.rdf4j.sail.shacl.ast.planNodes.ValidationTuple;
 
 /**
  * @author Håvard Ottestad
  */
 public class MockConsumePlanNode {
 
-	private static final ValidationExecutionLogger VALIDATION_EXECUTION_LOGGER = new ValidationExecutionLogger();
+	// set to true to enable logging
+	private final ValidationExecutionLogger VALIDATION_EXECUTION_LOGGER = ValidationExecutionLogger.getInstance(false);
+
 	PlanNode innerNode;
 
 	public MockConsumePlanNode(PlanNode innerNode) {
@@ -30,19 +35,19 @@ public class MockConsumePlanNode {
 		innerNode.receiveLogger(VALIDATION_EXECUTION_LOGGER);
 	}
 
-	public List<Tuple> asList() {
+	public List<ValidationTuple> asList() {
 
-		CloseableIteration<Tuple, SailException> iterator = innerNode.iterator();
+		try (CloseableIteration<? extends ValidationTuple, SailException> iterator = innerNode.iterator()) {
 
-		List<Tuple> ret = new ArrayList<>();
+			List<ValidationTuple> ret = new ArrayList<>();
 
-		while (iterator.hasNext()) {
-			ret.add(iterator.next());
+			while (iterator.hasNext()) {
+				ret.add(iterator.next());
+			}
+
+			VALIDATION_EXECUTION_LOGGER.flush();
+
+			return ret;
 		}
-
-		VALIDATION_EXECUTION_LOGGER.flush();
-
-		return ret;
-
 	}
 }

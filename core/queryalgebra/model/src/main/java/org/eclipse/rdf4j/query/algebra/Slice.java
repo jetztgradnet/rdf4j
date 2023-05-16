@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra;
 
@@ -11,7 +14,7 @@ package org.eclipse.rdf4j.query.algebra;
  * The SLICE operator, as defined in <a href="http://www.w3.org/TR/rdf-sparql-query/#defn_algSlice">SPARQL Query
  * Language for RDF</a>. The SLICE operator selects specific results from the underlying tuple expression based on an
  * offset and limit value (both optional).
- * 
+ *
  * @author Arjohn Kampman
  */
 public class Slice extends UnaryTupleOperator {
@@ -56,8 +59,8 @@ public class Slice extends UnaryTupleOperator {
 
 	/**
 	 * Checks whether the row selection has a (valid) offset.
-	 * 
-	 * @return <tt>true</tt> when <tt>offset &gt; 0</tt>
+	 *
+	 * @return <var>true</var> when <var>offset &gt; 0</var>
 	 */
 	public boolean hasOffset() {
 		return offset > 0L;
@@ -73,8 +76,8 @@ public class Slice extends UnaryTupleOperator {
 
 	/**
 	 * Checks whether the row selection has a (valid) limit.
-	 * 
-	 * @return <tt>true</tt> when <tt>offset &gt;= 0</tt>
+	 *
+	 * @return <var>true</var> when <var>offset &gt;= 0</var>
 	 */
 	public boolean hasLimit() {
 		return limit >= 0L;
@@ -90,7 +93,7 @@ public class Slice extends UnaryTupleOperator {
 		StringBuilder sb = new StringBuilder(256);
 
 		sb.append(super.getSignature());
-		sb.append(" ( ");
+		sb.append(" (");
 
 		if (hasLimit()) {
 			sb.append("limit=").append(getLimit());
@@ -99,7 +102,7 @@ public class Slice extends UnaryTupleOperator {
 			sb.append("offset=").append(getOffset());
 		}
 
-		sb.append(" )");
+		sb.append(")");
 
 		return sb.toString();
 	}

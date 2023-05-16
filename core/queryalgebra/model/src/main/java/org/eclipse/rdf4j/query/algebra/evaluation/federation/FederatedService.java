@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.federation;
 
@@ -15,12 +18,12 @@ import org.eclipse.rdf4j.query.QueryEvaluationException;
 import org.eclipse.rdf4j.query.algebra.Service;
 
 /**
- * FederatedService to allow for customized evaluation of SERVICE expression. By default {@link SPARQLFederatedService}
- * is used.
- * 
+ * FederatedService to allow for customized evaluation of SERVICE expression. By default
+ * {@link org.eclipse.rdf4j.query.algebra.evaluation.federation.SPARQLFederatedService} is used.
+ *
  * @author Andreas Schwarte
  * @author James Leigh
- * @see SPARQLFederatedService
+ * @see org.eclipse.rdf4j.query.algebra.evaluation.federation.SPARQLFederatedService
  */
 public interface FederatedService {
 
@@ -28,18 +31,18 @@ public interface FederatedService {
 	 * <p>
 	 * Evaluate the provided SPARQL ASK query at this federated service.
 	 * </p>
-	 * 
+	 *
 	 * <pre>
 	 * Expected behavior: evaluate boolean query using the bindings as constraints
 	 * </pre>
-	 * 
+	 *
 	 * @param service  the reference to the service node, contains additional meta information (vars, prefixes)
 	 * @param bindings the bindings serving as additional constraints
 	 * @param baseUri
 	 * @return <code>true</code> if at least one result exists
 	 * @throws QueryEvaluationException If there was an exception generated while evaluating the query.
 	 */
-	public boolean ask(Service service, BindingSet bindings, String baseUri) throws QueryEvaluationException;
+	boolean ask(Service service, BindingSet bindings, String baseUri) throws QueryEvaluationException;
 
 	/**
 	 * <p>
@@ -48,11 +51,11 @@ public interface FederatedService {
 	 * <p>
 	 * <b>Important:</b> The original bindings need to be inserted into the result.
 	 * </p>
-	 * 
+	 *
 	 * <pre>
 	 * Expected behavior: evaluate the given SPARQL query using the bindings as constraints
 	 * </pre>
-	 * 
+	 *
 	 * @param service        the reference to the service node, contains additional meta information (vars, prefixes)
 	 * @param projectionVars The variables with unknown value that should be projected from this evaluation
 	 * @param bindings       the bindings serving as additional constraints
@@ -60,7 +63,7 @@ public interface FederatedService {
 	 * @return an iteration over the results of the query
 	 * @throws QueryEvaluationException If there was an exception generated while evaluating the query.
 	 */
-	public CloseableIteration<BindingSet, QueryEvaluationException> select(Service service, Set<String> projectionVars,
+	CloseableIteration<BindingSet, QueryEvaluationException> select(Service service, Set<String> projectionVars,
 			BindingSet bindings, String baseUri) throws QueryEvaluationException;
 
 	/**
@@ -72,9 +75,10 @@ public interface FederatedService {
 	 * <li>SILENT service must be dealt with in the method</li>
 	 * </ul>
 	 * <p>
-	 * Compare {@link SPARQLFederatedService} for a reference implementation
+	 * Compare {@link org.eclipse.rdf4j.query.algebra.evaluation.federation.SPARQLFederatedService} for a reference
+	 * implementation
 	 * </p>
-	 * 
+	 *
 	 * @param service  the reference to the service node, contains information to construct the query
 	 * @param bindings the bindings serving as additional constraints (for vectored evaluation)
 	 * @param baseUri  the baseUri
@@ -82,26 +86,26 @@ public interface FederatedService {
 	 *         inserted into the results!
 	 * @throws QueryEvaluationException If there was an exception generated while evaluating the query.
 	 */
-	public CloseableIteration<BindingSet, QueryEvaluationException> evaluate(Service service,
+	CloseableIteration<BindingSet, QueryEvaluationException> evaluate(Service service,
 			CloseableIteration<BindingSet, QueryEvaluationException> bindings, String baseUri)
 			throws QueryEvaluationException;
 
 	/**
 	 * Method to check if {@link #initialize()} had been called.
 	 */
-	public boolean isInitialized();
+	boolean isInitialized();
 
 	/**
 	 * Method to perform any initializations, invoked after construction.
-	 * 
+	 *
 	 * @throws QueryEvaluationException If there was an exception generated while initializing the service.
 	 */
-	public void initialize() throws QueryEvaluationException;
+	void initialize() throws QueryEvaluationException;
 
 	/**
 	 * Method to perform any shutDown code, invoked at unregistering.
-	 * 
+	 *
 	 * @throws QueryEvaluationException If there was an exception generated while shutting down the service.
 	 */
-	public void shutdown() throws QueryEvaluationException;
+	void shutdown() throws QueryEvaluationException;
 }

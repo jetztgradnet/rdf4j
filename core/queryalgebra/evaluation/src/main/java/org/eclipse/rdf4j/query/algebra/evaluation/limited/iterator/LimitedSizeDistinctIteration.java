@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.limited.iterator;
 
@@ -17,6 +20,7 @@ import org.eclipse.rdf4j.query.QueryEvaluationException;
 /**
  * @author Jerven Bolleman, SIB Swiss Institute of Bioinformatics
  */
+@Deprecated(since = "4.1.0")
 public class LimitedSizeDistinctIteration extends DistinctIteration<BindingSet, QueryEvaluationException> {
 
 	private final AtomicLong used;
@@ -36,8 +40,9 @@ public class LimitedSizeDistinctIteration extends DistinctIteration<BindingSet, 
 	@Override
 	protected boolean add(BindingSet object) throws QueryEvaluationException {
 		boolean add = super.add(object);
-		if (add && used.incrementAndGet() > maxSize)
+		if (add && used.incrementAndGet() > maxSize) {
 			throw new QueryEvaluationException("Size limited reached inside query operator.");
+		}
 		return add;
 	}
 

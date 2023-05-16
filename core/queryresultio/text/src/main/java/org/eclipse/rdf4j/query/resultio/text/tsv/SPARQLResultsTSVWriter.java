@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.resultio.text.tsv;
 
@@ -15,15 +18,17 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import org.eclipse.rdf4j.common.io.CharSink;
 import org.eclipse.rdf4j.common.text.StringUtil;
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Resource;
+import org.eclipse.rdf4j.model.Triple;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.datatypes.XMLDatatypeUtil;
 import org.eclipse.rdf4j.model.util.Literals;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.QueryResultHandlerException;
 import org.eclipse.rdf4j.query.TupleQueryResultHandlerException;
@@ -33,13 +38,13 @@ import org.eclipse.rdf4j.query.resultio.TupleQueryResultWriter;
 
 /**
  * TupleQueryResultWriter for the SPARQL TSV (Tab-Separated Values) format.
- * 
- * @see <a href="http://www.w3.org/TR/sparql11-results-csv-tsv/#tsv">SPARQL 1.1 Query Results TSV Format</a>
+ *
  * @author Jeen Broekstra
+ * @see <a href="http://www.w3.org/TR/sparql11-results-csv-tsv/#tsv">SPARQL 1.1 Query Results TSV Format</a>
  */
-public class SPARQLResultsTSVWriter extends AbstractQueryResultWriter implements TupleQueryResultWriter {
+public class SPARQLResultsTSVWriter extends AbstractQueryResultWriter implements TupleQueryResultWriter, CharSink {
 
-	private Writer writer;
+	protected Writer writer;
 
 	private List<String> bindingNames;
 
@@ -49,12 +54,22 @@ public class SPARQLResultsTSVWriter extends AbstractQueryResultWriter implements
 	 * @param out
 	 */
 	public SPARQLResultsTSVWriter(OutputStream out) {
-		Writer w = new OutputStreamWriter(out, StandardCharsets.UTF_8);
-		writer = new BufferedWriter(w, 1024);
+		this(new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8), 1024));
+	}
+
+	public SPARQLResultsTSVWriter(Writer writer) {
+		this.writer = writer;
+	}
+
+	@Override
+	public Writer getWriter() {
+		return writer;
 	}
 
 	@Override
 	public void startQueryResult(List<String> bindingNames) throws TupleQueryResultHandlerException {
+		super.startQueryResult(bindingNames);
+
 		tupleVariablesFound = true;
 
 		this.bindingNames = bindingNames;
@@ -88,7 +103,7 @@ public class SPARQLResultsTSVWriter extends AbstractQueryResultWriter implements
 	}
 
 	@Override
-	public void handleSolution(BindingSet bindingSet) throws TupleQueryResultHandlerException {
+	protected void handleSolutionImpl(BindingSet bindingSet) throws TupleQueryResultHandlerException {
 		if (!tupleVariablesFound) {
 			throw new IllegalStateException("Must call startQueryResult before handleSolution");
 		}
@@ -112,7 +127,7 @@ public class SPARQLResultsTSVWriter extends AbstractQueryResultWriter implements
 	}
 
 	@Override
-	public final TupleQueryResultFormat getTupleQueryResultFormat() {
+	public TupleQueryResultFormat getTupleQueryResultFormat() {
 		return TupleQueryResultFormat.TSV;
 	}
 
@@ -122,7 +137,15 @@ public class SPARQLResultsTSVWriter extends AbstractQueryResultWriter implements
 	}
 
 	protected void writeValue(Value val) throws IOException {
-		if (val instanceof Resource) {
+		if (val instanceof Triple) {
+			writer.write("<<");
+			writeValue(((Triple) val).getSubject());
+			writer.write(' ');
+			writeValue(((Triple) val).getPredicate());
+			writer.write(' ');
+			writeValue(((Triple) val).getObject());
+			writer.write(">>");
+		} else if (val instanceof Resource) {
 			writeResource((Resource) val);
 		} else {
 			writeLiteral((Literal) val);
@@ -152,8 +175,8 @@ public class SPARQLResultsTSVWriter extends AbstractQueryResultWriter implements
 
 		IRI datatype = lit.getDatatype();
 
-		if (XMLSchema.INTEGER.equals(datatype) || XMLSchema.DECIMAL.equals(datatype)
-				|| XMLSchema.DOUBLE.equals(datatype)) {
+		if (XSD.INTEGER.equals(datatype) || XSD.DECIMAL.equals(datatype)
+				|| XSD.DOUBLE.equals(datatype)) {
 			try {
 				writer.write(XMLDatatypeUtil.normalize(label, datatype));
 				return; // done
@@ -172,7 +195,7 @@ public class SPARQLResultsTSVWriter extends AbstractQueryResultWriter implements
 			// Append the literal's language
 			writer.write("@");
 			writer.write(lit.getLanguage().get());
-		} else if (!XMLSchema.STRING.equals(datatype) || !xsdStringToPlainLiteral()) {
+		} else if (!XSD.STRING.equals(datatype) || !xsdStringToPlainLiteral()) {
 			writer.write("\"");
 			writer.write(encoded);
 			writer.write("\"");

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.evaluation.iterator;
 
@@ -21,7 +24,7 @@ import org.eclipse.rdf4j.repository.RepositoryResult;
 /**
  * Converts Statement iteration (i.e. RepositoryResult) into the corresponding binding set. Note that exceptions are
  * converted appropriately as well.
- * 
+ *
  * @author Andreas Schwarte
  */
 public class StatementConversionIteration extends AbstractCloseableIteration<BindingSet, QueryEvaluationException> {
@@ -65,9 +68,7 @@ public class StatementConversionIteration extends AbstractCloseableIteration<Bin
 
 		try {
 			return convert(repoResult.next());
-		} catch (NoSuchElementException e) {
-			throw e;
-		} catch (IllegalStateException e) {
+		} catch (NoSuchElementException | IllegalStateException e) {
 			throw e;
 		} catch (RepositoryException e) {
 			throw convertException(e);
@@ -79,9 +80,7 @@ public class StatementConversionIteration extends AbstractCloseableIteration<Bin
 
 		try {
 			repoResult.remove();
-		} catch (UnsupportedOperationException e) {
-			throw e;
-		} catch (IllegalStateException e) {
+		} catch (UnsupportedOperationException | IllegalStateException e) {
 			throw e;
 		} catch (RepositoryException e) {
 			throw convertException(e);

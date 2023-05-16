@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2017 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.http.server.repository;
 
@@ -100,9 +103,9 @@ public class RepositoryConfigRepository extends AbstractRepository {
 
 			private Model committed = loadModel();
 
-			private Model added = new TreeModel();
+			private final Model added = new TreeModel();
 
-			private Model removed = new TreeModel();
+			private final Model removed = new TreeModel();
 
 			@Override
 			public RepositoryResult<Resource> getContextIDs() throws RepositoryException {
@@ -118,9 +121,8 @@ public class RepositoryConfigRepository extends AbstractRepository {
 			@Override
 			public RepositoryResult<Statement> getStatements(Resource subj, IRI pred, Value obj,
 					boolean includeInferred, Resource... contexts) throws RepositoryException {
-				Model model = committed.filter(subj, pred, obj, contexts);
-				CloseableIteration<Statement, RepositoryException> iter;
-				iter = new CloseableIteratorIteration<>(model.iterator());
+				CloseableIteration<Statement, RepositoryException> iter = new CloseableIteratorIteration<>(
+						committed.getStatements(subj, pred, obj, contexts).iterator());
 				return new RepositoryResult<>(iter);
 			}
 
@@ -151,6 +153,11 @@ public class RepositoryConfigRepository extends AbstractRepository {
 			@Override
 			public void begin() throws RepositoryException {
 				active = true;
+			}
+
+			@Override
+			public void prepare() throws RepositoryException {
+				// no-op
 			}
 
 			@Override
@@ -311,6 +318,7 @@ public class RepositoryConfigRepository extends AbstractRepository {
 			private UnsupportedOperationException unsupported() {
 				return new UnsupportedOperationException("Query operations are not supported on the SYSTEM repository");
 			}
+
 		};
 	}
 

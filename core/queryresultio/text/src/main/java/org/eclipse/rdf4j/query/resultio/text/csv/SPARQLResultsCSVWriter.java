@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.resultio.text.csv;
 
@@ -15,13 +18,14 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import org.eclipse.rdf4j.common.io.CharSink;
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.datatypes.XMLDatatypeUtil;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.QueryResultHandlerException;
 import org.eclipse.rdf4j.query.TupleQueryResultHandlerException;
@@ -31,13 +35,13 @@ import org.eclipse.rdf4j.query.resultio.TupleQueryResultWriter;
 
 /**
  * TupleQueryResultWriter for the SPARQL CSV (Comma-Separated Values) format.
- * 
- * @see <a href="http://www.w3.org/TR/sparql11-results-csv-tsv/#csv">SPARQL 1.1 Query Results CSV Format</a>
+ *
  * @author Jeen Broekstra
+ * @see <a href="http://www.w3.org/TR/sparql11-results-csv-tsv/#csv">SPARQL 1.1 Query Results CSV Format</a>
  */
-public class SPARQLResultsCSVWriter extends AbstractQueryResultWriter implements TupleQueryResultWriter {
+public class SPARQLResultsCSVWriter extends AbstractQueryResultWriter implements TupleQueryResultWriter, CharSink {
 
-	private Writer writer;
+	private final Writer writer;
 
 	private List<String> bindingNames;
 
@@ -45,12 +49,21 @@ public class SPARQLResultsCSVWriter extends AbstractQueryResultWriter implements
 	 * @param out
 	 */
 	public SPARQLResultsCSVWriter(OutputStream out) {
-		Writer w = new OutputStreamWriter(out, StandardCharsets.UTF_8);
-		writer = new BufferedWriter(w, 1024);
+		this(new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8), 1024));
+	}
+
+	public SPARQLResultsCSVWriter(Writer writer) {
+		this.writer = writer;
+	}
+
+	public Writer getWriter() {
+		return writer;
 	}
 
 	@Override
 	public void startQueryResult(List<String> bindingNames) throws TupleQueryResultHandlerException {
+		super.startQueryResult(bindingNames);
+
 		this.bindingNames = bindingNames;
 
 		try {
@@ -80,7 +93,7 @@ public class SPARQLResultsCSVWriter extends AbstractQueryResultWriter implements
 	}
 
 	@Override
-	public void handleSolution(BindingSet bindingSet) throws TupleQueryResultHandlerException {
+	protected void handleSolutionImpl(BindingSet bindingSet) throws TupleQueryResultHandlerException {
 		if (bindingNames == null) {
 			throw new IllegalStateException("Must call startQueryResult before handleSolution");
 		}
@@ -157,7 +170,7 @@ public class SPARQLResultsCSVWriter extends AbstractQueryResultWriter implements
 		boolean quoted = false;
 
 		if (XMLDatatypeUtil.isIntegerDatatype(datatype) || XMLDatatypeUtil.isDecimalDatatype(datatype)
-				|| XMLSchema.DOUBLE.equals(datatype)) {
+				|| XSD.DOUBLE.equals(datatype)) {
 			try {
 				String normalized = XMLDatatypeUtil.normalize(label, datatype);
 				writer.write(normalized);
@@ -172,11 +185,7 @@ public class SPARQLResultsCSVWriter extends AbstractQueryResultWriter implements
 			quoted = true;
 
 			// escape quotes inside the string
-			label = label.replaceAll("\"", "\"\"");
-
-			// add quotes around the string (escaped with a second quote for the
-			// CSV parser)
-			// label = "\"\"" + label + "\"\"";
+			label = label.replace("\"", "\"\"");
 		}
 
 		if (quoted) {

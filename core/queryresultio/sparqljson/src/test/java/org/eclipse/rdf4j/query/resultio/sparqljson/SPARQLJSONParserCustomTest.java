@@ -1,13 +1,21 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.resultio.sparqljson;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -17,25 +25,25 @@ import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.resultio.QueryResultIO;
 import org.eclipse.rdf4j.query.resultio.QueryResultParseException;
 import org.eclipse.rdf4j.query.resultio.QueryResultParser;
 import org.eclipse.rdf4j.query.resultio.TupleQueryResultFormat;
 import org.eclipse.rdf4j.query.resultio.helpers.QueryResultCollector;
+import org.eclipse.rdf4j.rio.ParserConfig;
 import org.eclipse.rdf4j.rio.helpers.JSONSettings;
 import org.eclipse.rdf4j.rio.helpers.ParseErrorCollector;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.io.ContentReference;
 
 /**
  * Custom (non-manifest) tests for SPARQL/JSON parser.
- * 
+ *
  * @author Peter Ansell
  */
 public class SPARQLJSONParserCustomTest {
@@ -92,9 +100,6 @@ public class SPARQLJSONParserCustomTest {
 
 	private QueryResultParser parser;
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
-
 	private QueryResultCollector results;
 
 	private ParseErrorCollector errors;
@@ -104,15 +109,15 @@ public class SPARQLJSONParserCustomTest {
 	private final IRI testBindingValueIRI = SimpleValueFactory.getInstance().createIRI("http://example.com/Obj1");
 
 	private final Literal testBindingValueNotANumber = SimpleValueFactory.getInstance()
-			.createLiteral("NaN", XMLSchema.DOUBLE);
+			.createLiteral("NaN", XSD.DOUBLE);
 
 	private final Literal testBindingValueLiteralNumber = SimpleValueFactory.getInstance()
-			.createLiteral("42", XMLSchema.INTEGER);
+			.createLiteral("42", XSD.INTEGER);
 
 	private final Literal testBindingValueLiteralUnquotedControlChar = SimpleValueFactory.getInstance()
-			.createLiteral("42\u0009", XMLSchema.STRING);
+			.createLiteral("42\u0009", XSD.STRING);
 
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
 		parser = QueryResultIO.createTupleParser(TupleQueryResultFormat.JSON);
 		errors = new ParseErrorCollector();
@@ -144,9 +149,9 @@ public class SPARQLJSONParserCustomTest {
 
 	@Test
 	public void testAllowBackslashEscapingAnyCharacterDefault() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
-		parser.parseQueryResult(stringToInputStream(BACKSLASH_ESCAPED_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(BACKSLASH_ESCAPED_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
@@ -158,17 +163,17 @@ public class SPARQLJSONParserCustomTest {
 
 	@Test
 	public void testAllowBackslashEscapingAnyCharacterDisabled() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
 		parser.set(JSONSettings.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, false);
-		parser.parseQueryResult(stringToInputStream(BACKSLASH_ESCAPED_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(BACKSLASH_ESCAPED_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
 	public void testAllowCommentsDefault() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
-		parser.parseQueryResult(stringToInputStream(COMMENTS_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(COMMENTS_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
@@ -180,17 +185,17 @@ public class SPARQLJSONParserCustomTest {
 
 	@Test
 	public void testAllowCommentsDisabled() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
 		parser.set(JSONSettings.ALLOW_COMMENTS, false);
-		parser.parseQueryResult(stringToInputStream(COMMENTS_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(COMMENTS_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
 	public void testAllowNonNumericNumbersDefault() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
-		parser.parseQueryResult(stringToInputStream(NON_NUMERIC_NUMBERS_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(NON_NUMERIC_NUMBERS_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
@@ -202,17 +207,17 @@ public class SPARQLJSONParserCustomTest {
 
 	@Test
 	public void testAllowNonNumericNumbersDisabled() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
 		parser.set(JSONSettings.ALLOW_NON_NUMERIC_NUMBERS, false);
-		parser.parseQueryResult(stringToInputStream(NON_NUMERIC_NUMBERS_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(NON_NUMERIC_NUMBERS_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
 	public void testAllowNumericLeadingZeroesDefault() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
-		parser.parseQueryResult(stringToInputStream(NUMERIC_LEADING_ZEROES_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(NUMERIC_LEADING_ZEROES_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
@@ -224,17 +229,17 @@ public class SPARQLJSONParserCustomTest {
 
 	@Test
 	public void testAllowNumericLeadingZeroesDisabled() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
 		parser.set(JSONSettings.ALLOW_NUMERIC_LEADING_ZEROS, false);
-		parser.parseQueryResult(stringToInputStream(NUMERIC_LEADING_ZEROES_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(NUMERIC_LEADING_ZEROES_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
 	public void testAllowSingleQuotesDefault() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
-		parser.parseQueryResult(stringToInputStream(SINGLE_QUOTES_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(SINGLE_QUOTES_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
@@ -246,17 +251,17 @@ public class SPARQLJSONParserCustomTest {
 
 	@Test
 	public void testAllowSingleQuotesDisabled() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
 		parser.set(JSONSettings.ALLOW_SINGLE_QUOTES, false);
-		parser.parseQueryResult(stringToInputStream(SINGLE_QUOTES_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(SINGLE_QUOTES_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
 	public void testAllowUnquotedControlCharactersDefault() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
-		parser.parseQueryResult(stringToInputStream(UNQUOTED_CONTROL_CHARS_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(UNQUOTED_CONTROL_CHARS_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
@@ -268,17 +273,17 @@ public class SPARQLJSONParserCustomTest {
 
 	@Test
 	public void testAllowUnquotedControlCharactersDisabled() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
 		parser.set(JSONSettings.ALLOW_UNQUOTED_CONTROL_CHARS, false);
-		parser.parseQueryResult(stringToInputStream(UNQUOTED_CONTROL_CHARS_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(UNQUOTED_CONTROL_CHARS_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
 	public void testAllowUnquotedFieldNamesDefault() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
-		parser.parseQueryResult(stringToInputStream(UNQUOTED_FIELD_NAMES_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(UNQUOTED_FIELD_NAMES_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
@@ -290,17 +295,17 @@ public class SPARQLJSONParserCustomTest {
 
 	@Test
 	public void testAllowUnquotedFieldNamesDisabled() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
 		parser.set(JSONSettings.ALLOW_UNQUOTED_FIELD_NAMES, false);
-		parser.parseQueryResult(stringToInputStream(UNQUOTED_FIELD_NAMES_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(UNQUOTED_FIELD_NAMES_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
 	public void testAllowYamlCommentsDefault() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
-		parser.parseQueryResult(stringToInputStream(YAML_COMMENTS_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(YAML_COMMENTS_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
@@ -312,17 +317,17 @@ public class SPARQLJSONParserCustomTest {
 
 	@Test
 	public void testAllowYamlCommentsDisabled() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
 		parser.set(JSONSettings.ALLOW_YAML_COMMENTS, false);
-		parser.parseQueryResult(stringToInputStream(YAML_COMMENTS_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(YAML_COMMENTS_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
 	public void testAllowTrailingCommaDefault() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
-		parser.parseQueryResult(stringToInputStream(TRAILING_COMMA_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(TRAILING_COMMA_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
@@ -334,10 +339,10 @@ public class SPARQLJSONParserCustomTest {
 
 	@Test
 	public void testAllowTrailingCommaDisabled() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
 		parser.set(JSONSettings.ALLOW_TRAILING_COMMA, false);
-		parser.parseQueryResult(stringToInputStream(TRAILING_COMMA_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(TRAILING_COMMA_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
@@ -352,8 +357,8 @@ public class SPARQLJSONParserCustomTest {
 			JsonProcessingException cause = (JsonProcessingException) e.getCause();
 			assertEquals(2, cause.getLocation().getLineNr());
 			assertEquals(2, cause.getLocation().getColumnNr());
-			assertNotNull(cause.getLocation().getSourceRef());
-			assertEquals(source, cause.getLocation().getSourceRef());
+			assertNotEquals(ContentReference.unknown(), cause.getLocation().contentReference());
+			assertEquals(source, cause.getLocation().contentReference().getRawContent());
 		}
 	}
 
@@ -370,8 +375,8 @@ public class SPARQLJSONParserCustomTest {
 			JsonProcessingException cause = (JsonProcessingException) e.getCause();
 			assertEquals(2, cause.getLocation().getLineNr());
 			assertEquals(2, cause.getLocation().getColumnNr());
-			assertNotNull(cause.getLocation().getSourceRef());
-			assertEquals(source, cause.getLocation().getSourceRef());
+			assertNotEquals(ContentReference.unknown(), cause.getLocation().contentReference());
+			assertEquals(source, cause.getLocation().contentReference().getRawContent());
 		}
 	}
 
@@ -387,31 +392,53 @@ public class SPARQLJSONParserCustomTest {
 			JsonProcessingException cause = (JsonProcessingException) e.getCause();
 			assertEquals(2, cause.getLocation().getLineNr());
 			assertEquals(2, cause.getLocation().getColumnNr());
-			assertNull(cause.getLocation().getSourceRef());
+			assertEquals(ContentReference.unknown(), cause.getLocation().contentReference());
 		}
 	}
 
 	@Test
 	public void testStrictDuplicateDetectionDefault() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
 		parser.set(JSONSettings.STRICT_DUPLICATE_DETECTION, false);
-		parser.parseQueryResult(stringToInputStream(STRICT_DUPLICATE_DETECTION_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(STRICT_DUPLICATE_DETECTION_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
 	public void testStrictDuplicateDetectionEnabled() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
 		parser.set(JSONSettings.STRICT_DUPLICATE_DETECTION, true);
-		parser.parseQueryResult(stringToInputStream(STRICT_DUPLICATE_DETECTION_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(STRICT_DUPLICATE_DETECTION_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
 	}
 
 	@Test
 	public void testStrictDuplicateDetectionDisabled() throws Exception {
-		thrown.expect(QueryResultParseException.class);
-		thrown.expectMessage("Could not parse SPARQL/JSON");
 		parser.set(JSONSettings.STRICT_DUPLICATE_DETECTION, false);
-		parser.parseQueryResult(stringToInputStream(STRICT_DUPLICATE_DETECTION_TEST_STRING));
+		assertThatThrownBy(() -> parser.parseQueryResult(stringToInputStream(STRICT_DUPLICATE_DETECTION_TEST_STRING)))
+				.isInstanceOf(QueryResultParseException.class)
+				.hasMessage("Could not parse SPARQL/JSON");
+	}
+
+	@Test
+	public void testLangMissingOnStringLang() throws Exception {
+		ParserConfig config = new ParserConfig();
+		QueryResultCollector handler = new QueryResultCollector();
+		ParseErrorCollector errorCollector = new ParseErrorCollector();
+		QueryResultParser aParser = QueryResultIO.createTupleParser(TupleQueryResultFormat.JSON)
+				.setQueryResultHandler(handler)
+				.setParserConfig(config)
+				.setParseErrorListener(errorCollector);
+
+		aParser.parseQueryResult(this.getClass()
+				.getResourceAsStream("/sparqljson/dbpedia-stringlang-bug.srj"));
+
+		assertEquals(2, handler.getBindingSets().size());
+		assertEquals("Altin Lala", handler.getBindingSets().get(0).getBinding("lc").getValue().stringValue());
+		assertEquals("http://de.dbpedia.org/resource/Altin_Lala",
+				handler.getBindingSets().get(0).getBinding("subj").getValue().stringValue());
+		assertEquals("Hans Lala", handler.getBindingSets().get(1).getBinding("lc").getValue().stringValue());
+		assertEquals("http://de.dbpedia.org/resource/Hans_Lala",
+				handler.getBindingSets().get(1).getBinding("subj").getValue().stringValue());
 	}
 }

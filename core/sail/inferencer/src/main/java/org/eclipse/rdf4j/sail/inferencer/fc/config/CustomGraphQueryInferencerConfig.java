@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.inferencer.fc.config;
 
@@ -15,7 +18,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.eclipse.rdf4j.RDF4JException;
+import org.eclipse.rdf4j.common.exception.RDF4JException;
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -36,17 +39,16 @@ import org.eclipse.rdf4j.sail.config.SailImplConfig;
 
 /**
  * Configuration handling for {@link org.eclipse.rdf4j.sail.inferencer.fc.CustomGraphQueryInferencer}.
- * 
+ *
  * @author Dale Visser
  */
 public final class CustomGraphQueryInferencerConfig extends AbstractDelegatingSailImplConfig {
 
-	public static final Pattern SPARQL_PATTERN, SERQL_PATTERN;
+	public static final Pattern SPARQL_PATTERN;
 
 	static {
 		int flags = Pattern.CASE_INSENSITIVE | Pattern.DOTALL;
 		SPARQL_PATTERN = Pattern.compile("^(.*construct\\s+)(\\{.*\\}\\s*)where.*$", flags);
-		SERQL_PATTERN = Pattern.compile("^\\s*construct(\\s+.*)from\\s+.*(\\s+using\\s+namespace.*)$", flags);
 	}
 
 	private QueryLanguage language;
@@ -79,7 +81,7 @@ public final class CustomGraphQueryInferencerConfig extends AbstractDelegatingSa
 
 	/**
 	 * Set the optional matcher query.
-	 * 
+	 *
 	 * @param matcherQuery if null, internal value will be set to the empty string
 	 */
 	public void setMatcherQuery(String matcherQuery) {
@@ -96,7 +98,7 @@ public final class CustomGraphQueryInferencerConfig extends AbstractDelegatingSa
 
 		try {
 
-			Optional<Literal> language = Models.objectLiteral(m.filter(implNode, QUERY_LANGUAGE, null));
+			Optional<Literal> language = Models.objectLiteral(m.getStatements(implNode, QUERY_LANGUAGE, null));
 
 			if (language.isPresent()) {
 				setQueryLanguage(QueryLanguage.valueOf(language.get().stringValue()));
@@ -108,15 +110,15 @@ public final class CustomGraphQueryInferencerConfig extends AbstractDelegatingSa
 				setQueryLanguage(QueryLanguage.SPARQL);
 			}
 
-			Optional<Resource> object = Models.objectResource(m.filter(implNode, RULE_QUERY, null));
+			Optional<Resource> object = Models.objectResource(m.getStatements(implNode, RULE_QUERY, null));
 			if (object.isPresent()) {
-				Models.objectLiteral(m.filter(object.get(), SP.TEXT_PROPERTY, null))
+				Models.objectLiteral(m.getStatements(object.get(), SP.TEXT_PROPERTY, null))
 						.ifPresent(lit -> setRuleQuery(lit.stringValue()));
 			}
 
-			object = Models.objectResource(m.filter(implNode, MATCHER_QUERY, null));
+			object = Models.objectResource(m.getStatements(implNode, MATCHER_QUERY, null));
 			if (object.isPresent()) {
-				Models.objectLiteral(m.filter(object.get(), SP.TEXT_PROPERTY, null))
+				Models.objectLiteral(m.getStatements(object.get(), SP.TEXT_PROPERTY, null))
 						.ifPresent(lit -> setMatcherQuery(lit.stringValue()));
 			}
 		} catch (ModelException e) {
@@ -168,11 +170,6 @@ public final class CustomGraphQueryInferencerConfig extends AbstractDelegatingSa
 			Matcher matcher = SPARQL_PATTERN.matcher(ruleQuery);
 			if (matcher.matches()) {
 				result = matcher.group(1) + "WHERE" + matcher.group(2);
-			}
-		} else if (QueryLanguage.SERQL == language) {
-			Matcher matcher = SERQL_PATTERN.matcher(ruleQuery);
-			if (matcher.matches()) {
-				result = "CONSTRUCT * FROM" + matcher.group(1) + matcher.group(2);
 			}
 		} else {
 			throw new IllegalStateException("language");

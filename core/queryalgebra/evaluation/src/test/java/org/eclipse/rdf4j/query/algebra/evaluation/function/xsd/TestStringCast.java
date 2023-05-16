@@ -1,26 +1,29 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.function.xsd;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.datatypes.XMLDatatypeUtil;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.query.algebra.evaluation.ValueExprEvaluationException;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author jeen
@@ -29,12 +32,12 @@ public class TestStringCast {
 
 	private StringCast stringCast;
 
-	private ValueFactory f = SimpleValueFactory.getInstance();
+	private final ValueFactory f = SimpleValueFactory.getInstance();
 
 	/**
 	 * @throws java.lang.Exception
 	 */
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
 		stringCast = new StringCast();
 	}
@@ -42,7 +45,7 @@ public class TestStringCast {
 	/**
 	 * @throws java.lang.Exception
 	 */
-	@After
+	@AfterEach
 	public void tearDown() throws Exception {
 	}
 
@@ -52,7 +55,7 @@ public class TestStringCast {
 		try {
 			Literal result = stringCast.evaluate(f, plainLit);
 			assertNotNull(result);
-			assertEquals(XMLSchema.STRING, result.getDatatype());
+			assertEquals(XSD.STRING, result.getDatatype());
 		} catch (ValueExprEvaluationException e) {
 			fail(e.getMessage());
 		}
@@ -75,7 +78,7 @@ public class TestStringCast {
 		try {
 			Literal result = stringCast.evaluate(f, intLit);
 			assertNotNull(result);
-			assertEquals(XMLSchema.STRING, result.getDatatype());
+			assertEquals(XSD.STRING, result.getDatatype());
 			assertFalse(result.getLanguage().isPresent());
 			assertEquals("10", result.getLabel());
 		} catch (ValueExprEvaluationException e) {
@@ -90,7 +93,7 @@ public class TestStringCast {
 		try {
 			Literal result = stringCast.evaluate(f, dtLit);
 			assertNotNull(result);
-			assertEquals(XMLSchema.STRING, result.getDatatype());
+			assertEquals(XSD.STRING, result.getDatatype());
 			assertFalse(result.getLanguage().isPresent());
 			assertEquals(lexVal, result.getLabel());
 		} catch (ValueExprEvaluationException e) {
@@ -105,7 +108,7 @@ public class TestStringCast {
 		try {
 			Literal result = stringCast.evaluate(f, dtLit);
 			assertNotNull(result);
-			assertEquals(XMLSchema.STRING, result.getDatatype());
+			assertEquals(XSD.STRING, result.getDatatype());
 			assertFalse(result.getLanguage().isPresent());
 			assertEquals(lexVal, result.getLabel());
 		} catch (ValueExprEvaluationException e) {

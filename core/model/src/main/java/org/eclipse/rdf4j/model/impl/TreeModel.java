@@ -1,20 +1,14 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.model.impl;
-
-import org.eclipse.rdf4j.model.IRI;
-import org.eclipse.rdf4j.model.Model;
-import org.eclipse.rdf4j.model.Namespace;
-import org.eclipse.rdf4j.model.Resource;
-import org.eclipse.rdf4j.model.Statement;
-import org.eclipse.rdf4j.model.Value;
-import org.eclipse.rdf4j.model.util.LexicalValueComparator;
-import org.eclipse.rdf4j.model.util.PatternIterator;
 
 import java.io.Serializable;
 import java.util.AbstractSet;
@@ -31,18 +25,25 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.Model;
+import org.eclipse.rdf4j.model.Namespace;
+import org.eclipse.rdf4j.model.Resource;
+import org.eclipse.rdf4j.model.Statement;
+import org.eclipse.rdf4j.model.Value;
+import org.eclipse.rdf4j.model.util.LexicalValueComparator;
+import org.eclipse.rdf4j.model.util.PatternIterator;
+
 /**
  * A Red-Black tree based {@link Model} implementation. The model is sorted according to the lexical ordering of terms.
  * <p>
  * This implementation provides guaranteed log(n) time cost for filtered access by any number of terms. If an index is
  * not yet available for a set of positions, it is created at runtime using a {@link TreeSet}.
  * <p>
- * <b>Note that this implementation is not synchronized.</b> If multiple threads access a model concurrently, and at
- * least one of the threads modifies the model, it must be synchronized externally. This is typically accomplished by
- * synchronizing on some object that naturally encapsulates the model. If no such object exists, the set should be
- * "wrapped" using the Collections.synchronizedSet method. This is best done at creation time, to prevent accidental
- * unsynchronized access to the LinkedHashModel instance (though the synchronization guarantee is only when accessing
- * via the Set interface methods):
+ * <b>Note that this implementation is not synchronized.</b> If multiple threads access a model concurrently, even if
+ * all of them are read operations, it must be synchronized externally. This is typically accomplished by synchronizing
+ * on some object that naturally encapsulates the model. If no such object exists, the set should be "wrapped" using the
+ * Models.synchronizedModel method.
  * </p>
  *
  * @author James Leigh
@@ -50,8 +51,6 @@ import java.util.TreeSet;
 public class TreeModel extends AbstractModel implements SortedSet<Statement> {
 
 	private static final long serialVersionUID = 7893197431354524479L;
-
-	static final Resource[] NULL_CTX = new Resource[] { null };
 
 	static final IRI BEFORE = new SimpleIRI("urn:from");
 
@@ -119,9 +118,7 @@ public class TreeModel extends AbstractModel implements SortedSet<Statement> {
 	@Override
 	public Optional<Namespace> removeNamespace(String prefix) {
 		Optional<Namespace> result = getNamespace(prefix);
-		if (result.isPresent()) {
-			namespaces.remove(result.get());
-		}
+		result.ifPresent(namespaces::remove);
 		return result;
 	}
 
@@ -484,6 +481,7 @@ public class TreeModel extends AbstractModel implements SortedSet<Statement> {
 			index[idx++] = 's';
 		}
 		StatementTree tree = new StatementTree(index);
+
 		tree.addAll(trees.get(0));
 		trees.add(tree);
 		return tree;
@@ -499,9 +497,9 @@ public class TreeModel extends AbstractModel implements SortedSet<Statement> {
 
 	private class ModelIterator implements Iterator<Statement> {
 
-		private Iterator<Statement> iter;
+		private final Iterator<Statement> iter;
 
-		private TreeSet<Statement> owner;
+		private final TreeSet<Statement> owner;
 
 		private Statement last;
 

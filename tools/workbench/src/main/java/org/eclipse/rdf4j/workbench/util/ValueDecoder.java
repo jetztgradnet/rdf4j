@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.workbench.util;
 
@@ -30,7 +33,7 @@ class ValueDecoder {
 
 	/**
 	 * Creates an instance of ValueDecoder.
-	 * 
+	 *
 	 * @param repository to get namespaces from
 	 * @param factory    to generate values
 	 */
@@ -41,7 +44,7 @@ class ValueDecoder {
 
 	/**
 	 * Decode the given string into a {@link org.eclipse.rdf4j.model.Value}.
-	 * 
+	 *
 	 * @param string representation of an RDF value
 	 * @return the parsed value, or null if the string is null, empty, only whitespace, or
 	 *         {@link java.lang.String#equals(Object)} "null".

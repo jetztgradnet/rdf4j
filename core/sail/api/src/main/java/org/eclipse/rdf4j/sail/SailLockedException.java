@@ -1,15 +1,18 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail;
 
 /**
  * Indicates that a SAIL cannot be initialised because the configured persisted location is locked.
- * 
+ *
  * @author James Leigh
  */
 public class SailLockedException extends SailException {
@@ -18,7 +21,7 @@ public class SailLockedException extends SailException {
 
 	private String lockedBy;
 
-	private String requestedBy;
+	private final String requestedBy;
 
 	private LockManager manager;
 
@@ -42,7 +45,7 @@ public class SailLockedException extends SailException {
 
 	/**
 	 * Returns the name representing the Java virtual machine that acquired the lock.
-	 * 
+	 *
 	 * @return the name representing the Java virtual machine that acquired the lock.
 	 */
 	public String getLockedBy() {
@@ -51,7 +54,7 @@ public class SailLockedException extends SailException {
 
 	/**
 	 * Returns the name representing the Java virtual machine that requested the lock.
-	 * 
+	 *
 	 * @return the name representing the Java virtual machine that requested the lock.
 	 */
 	public String getRequestedBy() {

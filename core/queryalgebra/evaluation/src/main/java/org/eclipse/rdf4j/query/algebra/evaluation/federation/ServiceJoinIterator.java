@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.federation;
 
@@ -16,7 +19,7 @@ import org.eclipse.rdf4j.query.algebra.evaluation.EvaluationStrategy;
 
 /**
  * Iterator for efficient SERVICE evaluation (vectored). SERVICE is the right handside argument of this join.
- * 
+ *
  * @author Andreas Schwarte
  */
 public class ServiceJoinIterator extends JoinExecutorBase<BindingSet> {
@@ -27,7 +30,7 @@ public class ServiceJoinIterator extends JoinExecutorBase<BindingSet> {
 
 	/**
 	 * Construct a service join iteration to use vectored evaluation. The constructor automatically starts evaluation.
-	 * 
+	 *
 	 * @param leftIter
 	 * @param service
 	 * @param bindings
@@ -47,9 +50,9 @@ public class ServiceJoinIterator extends JoinExecutorBase<BindingSet> {
 		Var serviceRef = service.getServiceRef();
 
 		String serviceUri;
-		if (serviceRef.hasValue())
+		if (serviceRef.hasValue()) {
 			serviceUri = serviceRef.getValue().stringValue();
-		else {
+		} else {
 			// case 2: the service ref is not defined beforehand
 			// => use a fallback to the naive evaluation.
 			// exceptions occurring here must NOT be silenced!

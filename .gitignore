@@ -7,6 +7,7 @@
 **/.settings
 bin
 **/bin
+**/.factorypath
 
 # Eclipse Plug-In Settings
 .pmd
@@ -14,6 +15,7 @@ bin
 # Maven generated stuff
 target/
 */target/
+**/.cache
 pom.xml.versionsBackup
 dependency-reduced-pom.xml
 
@@ -26,6 +28,9 @@ dependency-reduced-pom.xml
 *.ipr
 *.iws
 
+# Hugo
+.hugo_build.lock 
+
 # Mac nonsense
 .DS_Store
 
@@ -35,3 +40,10 @@ dependency-reduced-pom.xml
 *.jfr
 compliance/repository/overlays
 **/webapp/META-INF/context.xml
+/core/sail/elasticsearch-store/tempElasticsearchDownload/*
+tempElasticsearchDownload
+cache.db
+formatter-maven-cache.properties
+compliance/*/overlays
+docker/ignore
+/core/queryparser/sparql/JavaCC/javacc/

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated;
 
@@ -34,7 +37,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Base class for any federation test, this class is self-contained with regard to testing if run in a distinct JVM.
- * 
+ *
  * @author as
  *
  */
@@ -46,7 +49,7 @@ public abstract class SPARQLServerBaseTest extends FedXBaseTest {
 	public enum REPOSITORY_TYPE {
 		SPARQLREPOSITORY,
 		REMOTEREPOSITORY,
-		NATIVE;
+		NATIVE
 	}
 
 	protected static final int MAX_ENDPOINTS = 4;
@@ -69,8 +72,9 @@ public abstract class SPARQLServerBaseTest extends FedXBaseTest {
 
 		log = LoggerFactory.getLogger(SPARQLServerBaseTest.class);
 
-		if (System.getProperty("repositoryType") != null)
+		if (System.getProperty("repositoryType") != null) {
 			repositoryType = REPOSITORY_TYPE.valueOf(System.getProperty("repositoryType"));
+		}
 
 		switch (repositoryType) {
 		case NATIVE:
@@ -85,8 +89,10 @@ public abstract class SPARQLServerBaseTest extends FedXBaseTest {
 
 	@AfterAll
 	public static void afterTest() throws Exception {
-		if (server != null)
+		if (server != null) {
 			server.shutdown();
+		}
+		System.setProperty("org.eclipse.rdf4j.repository.debug", "false");
 	}
 
 	@BeforeEach
@@ -106,15 +112,16 @@ public abstract class SPARQLServerBaseTest extends FedXBaseTest {
 	/**
 	 * Initialization of the embedded web server hosting an openrdf workbench. Used for remote and sparql repository
 	 * setting
-	 * 
+	 *
 	 * @throws Exception
 	 */
 	private static void initializeServer() throws Exception {
 
 		// set up the server: the maximal number of endpoints must be known
-		List<String> repositoryIds = new ArrayList<String>(MAX_ENDPOINTS);
-		for (int i = 1; i <= MAX_ENDPOINTS; i++)
+		List<String> repositoryIds = new ArrayList<>(MAX_ENDPOINTS);
+		for (int i = 1; i <= MAX_ENDPOINTS; i++) {
 			repositoryIds.add("endpoint" + i);
+		}
 		File dataDir = new File(tempDir.toFile(), "datadir");
 		server = new SPARQLEmbeddedServer(dataDir, repositoryIds, repositoryType == REPOSITORY_TYPE.REMOTEREPOSITORY);
 
@@ -124,7 +131,7 @@ public abstract class SPARQLServerBaseTest extends FedXBaseTest {
 	/**
 	 * Initialization of the embedded web server hosting an openrdf workbench. Used for remote and sparql repository
 	 * setting
-	 * 
+	 *
 	 * @throws Exception
 	 */
 	private static void initializeLocalNativeStores() throws Exception {
@@ -136,9 +143,9 @@ public abstract class SPARQLServerBaseTest extends FedXBaseTest {
 
 	/**
 	 * Get the repository, initialized repositories are called
-	 * 
+	 *
 	 * endpoint1 endpoint2 .. endpoint%MAX_ENDPOINTS%
-	 * 
+	 *
 	 * @param i the index of the repository, starting with 1
 	 * @return
 	 */
@@ -148,14 +155,14 @@ public abstract class SPARQLServerBaseTest extends FedXBaseTest {
 
 	protected List<Endpoint> prepareTest(List<String> sparqlEndpointData) throws Exception {
 
-		// clear federation and cache
-		super.prepareTest();
-		FederationManager.getInstance().removeAll();
+		// clear federation
+		federationContext().getManager().removeAll();
 
 		// prepare the test endpoints (i.e. load data)
-		if (sparqlEndpointData.size() > MAX_ENDPOINTS)
+		if (sparqlEndpointData.size() > MAX_ENDPOINTS) {
 			throw new RuntimeException("MAX_ENDPOINTs to low, " + sparqlEndpointData.size()
 					+ " repositories needed. Adjust configuration");
+		}
 
 		int i = 1; // endpoint id, start with 1
 		for (String s : sparqlEndpointData) {
@@ -167,14 +174,14 @@ public abstract class SPARQLServerBaseTest extends FedXBaseTest {
 		for (i = 1; i <= sparqlEndpointData.size(); i++) {
 			Endpoint e = server.loadEndpoint(i);
 			endpoints.add(e);
-			FederationManager.getInstance().addEndpoint(e, true);
+			federationContext().getManager().addEndpoint(e, true);
 		}
 		return endpoints;
 	}
 
 	/**
 	 * Load a dataset. Note: the repositories are cleared before loading data
-	 * 
+	 *
 	 * @param rep
 	 * @param datasetFile
 	 * @throws RDFParseException
@@ -222,11 +229,12 @@ public abstract class SPARQLServerBaseTest extends FedXBaseTest {
 
 	/**
 	 * Return the {@link RepositorySettings} for configuring the repository
-	 * 
+	 *
 	 * @param endpoint the endpoint index, starting with 1
 	 * @return
 	 */
 	protected RepositorySettings repoSettings(int endpoint) {
 		return server.getRepository(endpoint);
 	}
+
 }

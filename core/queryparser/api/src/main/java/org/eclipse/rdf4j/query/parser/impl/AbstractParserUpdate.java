@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.parser.impl;
 
@@ -39,7 +42,7 @@ public abstract class AbstractParserUpdate extends AbstractUpdate {
 	 * Determines the active dataset by appropriately merging the pre-set dataset and the dataset defined in the SPARQL
 	 * operation itself. If the SPARQL operation contains WITH, USING, or USING NAMED clauses, these should override
 	 * whatever is preset.
-	 * 
+	 *
 	 * @param sparqlDefinedDataset the dataset as defined in the SPARQL update itself.
 	 * @return a {@link Dataset} comprised of a merge between the pre-set dataset and the SPARQL-defined dataset.
 	 */

@@ -1,21 +1,25 @@
 /*******************************************************************************
  * Copyright (c) 2016 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.util;
 
-import org.eclipse.rdf4j.model.IRI;
+import javax.xml.datatype.DatatypeConstants;
+import javax.xml.datatype.Duration;
+import javax.xml.datatype.XMLGregorianCalendar;
+
 import org.eclipse.rdf4j.model.Literal;
+import org.eclipse.rdf4j.model.base.CoreDatatype;
 import org.eclipse.rdf4j.model.datatypes.XMLDatatypeUtil;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
 import org.eclipse.rdf4j.query.algebra.MathExpr.MathOp;
 import org.eclipse.rdf4j.query.algebra.evaluation.ValueExprEvaluationException;
-
-import javax.xml.datatype.*;
 
 /**
  * A utility class for evaluation of extended "mathematical" expressions on RDF literals. They do not work only on
@@ -34,29 +38,27 @@ public class XMLDatatypeMathUtil {
 	 * @return a datatype literal
 	 */
 	public static Literal compute(Literal leftLit, Literal rightLit, MathOp op) throws ValueExprEvaluationException {
-		IRI leftDatatype = leftLit.getDatatype();
-		IRI rightDatatype = rightLit.getDatatype();
+		CoreDatatype.XSD leftDatatype = leftLit.getCoreDatatype().asXSDDatatype().orElse(null);
+		CoreDatatype.XSD rightDatatype = rightLit.getCoreDatatype().asXSDDatatype().orElse(null);
 
-		if (XMLDatatypeUtil.isNumericDatatype(leftDatatype) && XMLDatatypeUtil.isNumericDatatype(rightDatatype)) {
-			return MathUtil.compute(leftLit, rightLit, op);
-		} else if (XMLDatatypeUtil.isDurationDatatype(leftDatatype)
-				&& XMLDatatypeUtil.isDurationDatatype(rightDatatype)) {
-			return operationsBetweenDurations(leftLit, rightLit, op);
-		} else if (XMLDatatypeUtil.isDecimalDatatype(leftDatatype)
-				&& XMLDatatypeUtil.isDurationDatatype(rightDatatype)) {
-			return operationsBetweenDurationAndDecimal(rightLit, leftLit, op);
-		} else if (XMLDatatypeUtil.isDurationDatatype(leftDatatype)
-				&& XMLDatatypeUtil.isDecimalDatatype(rightDatatype)) {
-			return operationsBetweenDurationAndDecimal(leftLit, rightLit, op);
-		} else if (XMLDatatypeUtil.isCalendarDatatype(leftDatatype)
-				&& XMLDatatypeUtil.isDurationDatatype(rightDatatype)) {
-			return operationsBetweenCalendarAndDuration(leftLit, rightLit, op);
-		} else if (XMLDatatypeUtil.isDurationDatatype(leftDatatype)
-				&& XMLDatatypeUtil.isCalendarDatatype(rightDatatype)) {
-			return operationsBetweenDurationAndCalendar(leftLit, rightLit, op);
-		} else {
-			throw new ValueExprEvaluationException("Mathematical operators are not supported on these operands");
+		if (leftDatatype != null && rightDatatype != null) {
+			if (leftDatatype.isNumericDatatype() && rightDatatype.isNumericDatatype()) {
+				return MathUtil.compute(leftLit, rightLit, op);
+			} else if (leftDatatype.isDurationDatatype() && rightDatatype.isDurationDatatype()) {
+				return operationsBetweenDurations(leftLit, rightLit, op);
+			} else if (leftDatatype.isDecimalDatatype() && rightDatatype.isDurationDatatype()) {
+				return operationsBetweenDurationAndDecimal(rightLit, leftLit, op);
+			} else if (leftDatatype.isDurationDatatype() && rightDatatype.isDecimalDatatype()) {
+				return operationsBetweenDurationAndDecimal(leftLit, rightLit, op);
+			} else if (leftDatatype.isCalendarDatatype() && rightDatatype.isDurationDatatype()) {
+				return operationsBetweenCalendarAndDuration(leftLit, rightLit, op);
+			} else if (leftDatatype.isDurationDatatype() && rightDatatype.isCalendarDatatype()) {
+				return operationsBetweenDurationAndCalendar(leftLit, rightLit, op);
+			}
 		}
+
+		throw new ValueExprEvaluationException("Mathematical operators are not supported on these operands");
+
 	}
 
 	private static Literal operationsBetweenDurations(Literal leftLit, Literal rightLit, MathOp op) {
@@ -154,7 +156,7 @@ public class XMLDatatypeMathUtil {
 		return SimpleValueFactory.getInstance().createLiteral(duration.toString(), getDatatypeForDuration(duration));
 	}
 
-	private static IRI getDatatypeForDuration(Duration duration) {
+	private static CoreDatatype.XSD getDatatypeForDuration(Duration duration) {
 		// Could not be implemented with Duration.getXMLSchemaType that is too strict ("P1Y" is considered invalid)
 
 		boolean yearSet = duration.isSet(DatatypeConstants.YEARS);
@@ -165,11 +167,11 @@ public class XMLDatatypeMathUtil {
 		boolean secondSet = duration.isSet(DatatypeConstants.SECONDS);
 
 		if (!yearSet && !monthSet) {
-			return XMLSchema.DAYTIMEDURATION;
+			return CoreDatatype.XSD.DAYTIMEDURATION;
 		}
 		if (!daySet && !hourSet && !minuteSet && !secondSet) {
-			return XMLSchema.YEARMONTHDURATION;
+			return CoreDatatype.XSD.YEARMONTHDURATION;
 		}
-		return XMLSchema.DURATION;
+		return CoreDatatype.XSD.DURATION;
 	}
 }

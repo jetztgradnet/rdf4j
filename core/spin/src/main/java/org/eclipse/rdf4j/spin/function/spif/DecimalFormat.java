@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.spin.function.spif;
 
@@ -11,7 +14,7 @@ import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.vocabulary.SPIF;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.query.algebra.evaluation.ValueExprEvaluationException;
 import org.eclipse.rdf4j.query.algebra.evaluation.function.BinaryFunction;
 
@@ -32,12 +35,12 @@ public class DecimalFormat extends BinaryFunction {
 
 		java.text.DecimalFormat formatter = new java.text.DecimalFormat(format.getLabel());
 		String value;
-		if (XMLSchema.INT.equals(number.getDatatype()) || XMLSchema.LONG.equals(number.getDatatype())
-				|| XMLSchema.SHORT.equals(number.getDatatype()) || XMLSchema.BYTE.equals(number.getDatatype())) {
+		if (XSD.INT.equals(number.getDatatype()) || XSD.LONG.equals(number.getDatatype())
+				|| XSD.SHORT.equals(number.getDatatype()) || XSD.BYTE.equals(number.getDatatype())) {
 			value = formatter.format(number.longValue());
-		} else if (XMLSchema.DECIMAL.equals(number.getDatatype())) {
+		} else if (XSD.DECIMAL.equals(number.getDatatype())) {
 			value = formatter.format(number.decimalValue());
-		} else if (XMLSchema.INTEGER.equals(number.getDatatype())) {
+		} else if (XSD.INTEGER.equals(number.getDatatype())) {
 			value = formatter.format(number.integerValue());
 		} else {
 			value = formatter.format(number.doubleValue());

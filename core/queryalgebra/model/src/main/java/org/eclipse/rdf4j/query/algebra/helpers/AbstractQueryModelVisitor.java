@@ -1,13 +1,17 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.helpers;
 
 import org.eclipse.rdf4j.query.algebra.Add;
+import org.eclipse.rdf4j.query.algebra.AggregateFunctionCall;
 import org.eclipse.rdf4j.query.algebra.And;
 import org.eclipse.rdf4j.query.algebra.ArbitraryLengthPath;
 import org.eclipse.rdf4j.query.algebra.Avg;
@@ -87,19 +91,21 @@ import org.eclipse.rdf4j.query.algebra.StatementPattern;
 import org.eclipse.rdf4j.query.algebra.Str;
 import org.eclipse.rdf4j.query.algebra.SubQueryValueOperator;
 import org.eclipse.rdf4j.query.algebra.Sum;
+import org.eclipse.rdf4j.query.algebra.TripleRef;
 import org.eclipse.rdf4j.query.algebra.UnaryTupleOperator;
 import org.eclipse.rdf4j.query.algebra.UnaryValueOperator;
 import org.eclipse.rdf4j.query.algebra.Union;
 import org.eclipse.rdf4j.query.algebra.UpdateExpr;
 import org.eclipse.rdf4j.query.algebra.ValueConstant;
+import org.eclipse.rdf4j.query.algebra.ValueExprTripleRef;
 import org.eclipse.rdf4j.query.algebra.Var;
 import org.eclipse.rdf4j.query.algebra.ZeroLengthPath;
 
 /**
- * Base class for {@link QueryModelVisitor}s. This class implements all <tt>meet(... node)</tt> methods from the visitor
- * interface, forwarding the call to a method for the node's supertype. This is done recursively until {@link #meetNode}
- * is reached. This allows subclasses to easily define default behaviour for visited nodes of a certain type. The
- * default implementation of {@link #meetNode} is to visit the node's children.
+ * Base class for {@link QueryModelVisitor}s. This class implements all <var>meet(... node)</var> methods from the
+ * visitor interface, forwarding the call to a method for the node's supertype. This is done recursively until
+ * {@link #meetNode} is reached. This allows subclasses to easily define default behaviour for visited nodes of a
+ * certain type. The default implementation of {@link #meetNode} is to visit the node's children.
  */
 public abstract class AbstractQueryModelVisitor<X extends Exception> implements QueryModelVisitor<X> {
 
@@ -234,6 +240,11 @@ public abstract class AbstractQueryModelVisitor<X extends Exception> implements 
 	}
 
 	@Override
+	public void meet(AggregateFunctionCall node) throws X {
+		meetNode(node);
+	}
+
+	@Override
 	public void meet(Group node) throws X {
 		meetUnaryTupleOperator(node);
 	}
@@ -324,8 +335,9 @@ public abstract class AbstractQueryModelVisitor<X extends Exception> implements 
 	}
 
 	@Override
+	@Deprecated(forRemoval = true)
 	public void meet(Like node) throws X {
-		meetUnaryValueOperator(node);
+		// From SERQL should not be seen
 	}
 
 	@Override
@@ -489,6 +501,16 @@ public abstract class AbstractQueryModelVisitor<X extends Exception> implements 
 	}
 
 	@Override
+	public void meet(TripleRef node) throws X {
+		meetNode(node);
+	}
+
+	@Override
+	public void meet(ValueExprTripleRef node) throws X {
+		meetNode(node);
+	}
+
+	@Override
 	public void meetOther(QueryModelNode node) throws X {
 		if (node instanceof UnaryTupleOperator) {
 			meetUnaryTupleOperator((UnaryTupleOperator) node);
@@ -510,9 +532,9 @@ public abstract class AbstractQueryModelVisitor<X extends Exception> implements 
 	}
 
 	/**
-	 * Method called by all <tt>meet</tt> methods with a {@link BinaryTupleOperator} node as argument. Forwards the call
-	 * to {@link #meetNode} by default.
-	 * 
+	 * Method called by all <var>meet</var> methods with a {@link BinaryTupleOperator} node as argument. Forwards the
+	 * call to {@link #meetNode} by default.
+	 *
 	 * @param node The node that is being visited.
 	 */
 	protected void meetBinaryTupleOperator(BinaryTupleOperator node) throws X {
@@ -520,9 +542,9 @@ public abstract class AbstractQueryModelVisitor<X extends Exception> implements 
 	}
 
 	/**
-	 * Method called by all <tt>meet</tt> methods with a {@link BinaryValueOperator} node as argument. Forwards the call
-	 * to {@link #meetNode} by default.
-	 * 
+	 * Method called by all <var>meet</var> methods with a {@link BinaryValueOperator} node as argument. Forwards the
+	 * call to {@link #meetNode} by default.
+	 *
 	 * @param node The node that is being visited.
 	 */
 	protected void meetBinaryValueOperator(BinaryValueOperator node) throws X {
@@ -530,9 +552,9 @@ public abstract class AbstractQueryModelVisitor<X extends Exception> implements 
 	}
 
 	/**
-	 * Method called by all <tt>meet</tt> methods with a {@link CompareSubQueryValueOperator} node as argument. Forwards
-	 * the call to {@link #meetSubQueryValueOperator} by default.
-	 * 
+	 * Method called by all <var>meet</var> methods with a {@link CompareSubQueryValueOperator} node as argument.
+	 * Forwards the call to {@link #meetSubQueryValueOperator} by default.
+	 *
 	 * @param node The node that is being visited.
 	 */
 	protected void meetCompareSubQueryValueOperator(CompareSubQueryValueOperator node) throws X {
@@ -540,9 +562,9 @@ public abstract class AbstractQueryModelVisitor<X extends Exception> implements 
 	}
 
 	/**
-	 * Method called by all <tt>meet</tt> methods with a {@link org.eclipse.rdf4j.query.algebra.NAryValueOperator} node
-	 * as argument. Forwards the call to {@link #meetNode} by default.
-	 * 
+	 * Method called by all <var>meet</var> methods with a {@link org.eclipse.rdf4j.query.algebra.NAryValueOperator}
+	 * node as argument. Forwards the call to {@link #meetNode} by default.
+	 *
 	 * @param node The node that is being visited.
 	 */
 	protected void meetNAryValueOperator(NAryValueOperator node) throws X {
@@ -550,10 +572,10 @@ public abstract class AbstractQueryModelVisitor<X extends Exception> implements 
 	}
 
 	/**
-	 * Method called by all of the other <tt>meet</tt> methods that are not overridden in subclasses. This method can be
-	 * overridden in subclasses to define default behaviour when visiting nodes. The default behaviour of this method is
-	 * to visit the node's children.
-	 * 
+	 * Method called by all of the other <var>meet</var> methods that are not overridden in subclasses. This method can
+	 * be overridden in subclasses to define default behaviour when visiting nodes. The default behaviour of this method
+	 * is to visit the node's children.
+	 *
 	 * @param node The node that is being visited.
 	 */
 	protected void meetNode(QueryModelNode node) throws X {
@@ -561,9 +583,9 @@ public abstract class AbstractQueryModelVisitor<X extends Exception> implements 
 	}
 
 	/**
-	 * Method called by all <tt>meet</tt> methods with a {@link SubQueryValueOperator} node as argument. Forwards the
+	 * Method called by all <var>meet</var> methods with a {@link SubQueryValueOperator} node as argument. Forwards the
 	 * call to {@link #meetNode} by default.
-	 * 
+	 *
 	 * @param node The node that is being visited.
 	 */
 	protected void meetSubQueryValueOperator(SubQueryValueOperator node) throws X {
@@ -571,9 +593,9 @@ public abstract class AbstractQueryModelVisitor<X extends Exception> implements 
 	}
 
 	/**
-	 * Method called by all <tt>meet</tt> methods with a {@link UnaryTupleOperator} node as argument. Forwards the call
-	 * to {@link #meetNode} by default.
-	 * 
+	 * Method called by all <var>meet</var> methods with a {@link UnaryTupleOperator} node as argument. Forwards the
+	 * call to {@link #meetNode} by default.
+	 *
 	 * @param node The node that is being visited.
 	 */
 	protected void meetUnaryTupleOperator(UnaryTupleOperator node) throws X {
@@ -581,9 +603,9 @@ public abstract class AbstractQueryModelVisitor<X extends Exception> implements 
 	}
 
 	/**
-	 * Method called by all <tt>meet</tt> methods with a {@link UnaryValueOperator} node as argument. Forwards the call
-	 * to {@link #meetNode} by default.
-	 * 
+	 * Method called by all <var>meet</var> methods with a {@link UnaryValueOperator} node as argument. Forwards the
+	 * call to {@link #meetNode} by default.
+	 *
 	 * @param node The node that is being visited.
 	 */
 	protected void meetUnaryValueOperator(UnaryValueOperator node) throws X {
@@ -591,9 +613,9 @@ public abstract class AbstractQueryModelVisitor<X extends Exception> implements 
 	}
 
 	/**
-	 * Method called by all <tt>meet</tt> methods with a {@link UpdateExpr} node as argument. Forwards the call to
+	 * Method called by all <var>meet</var> methods with a {@link UpdateExpr} node as argument. Forwards the call to
 	 * {@link #meetNode} by default.
-	 * 
+	 *
 	 * @param node The node that is being visited.
 	 */
 	protected void meetUpdateExpr(UpdateExpr node) throws X {

@@ -1,15 +1,16 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.parser.sparql;
 
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.Map;
 
 import org.eclipse.rdf4j.common.annotation.InternalUseOnly;
 import org.eclipse.rdf4j.model.ValueFactory;
@@ -18,12 +19,14 @@ import org.eclipse.rdf4j.query.algebra.Clear;
 import org.eclipse.rdf4j.query.algebra.Copy;
 import org.eclipse.rdf4j.query.algebra.Create;
 import org.eclipse.rdf4j.query.algebra.DeleteData;
+import org.eclipse.rdf4j.query.algebra.Extension;
+import org.eclipse.rdf4j.query.algebra.ExtensionElem;
 import org.eclipse.rdf4j.query.algebra.InsertData;
 import org.eclipse.rdf4j.query.algebra.Load;
 import org.eclipse.rdf4j.query.algebra.Modify;
 import org.eclipse.rdf4j.query.algebra.Move;
-import org.eclipse.rdf4j.query.algebra.StatementPattern;
 import org.eclipse.rdf4j.query.algebra.StatementPattern.Scope;
+import org.eclipse.rdf4j.query.algebra.TripleRef;
 import org.eclipse.rdf4j.query.algebra.TupleExpr;
 import org.eclipse.rdf4j.query.algebra.UpdateExpr;
 import org.eclipse.rdf4j.query.algebra.ValueConstant;
@@ -45,6 +48,7 @@ import org.eclipse.rdf4j.query.parser.sparql.ast.ASTLoad;
 import org.eclipse.rdf4j.query.parser.sparql.ast.ASTModify;
 import org.eclipse.rdf4j.query.parser.sparql.ast.ASTMove;
 import org.eclipse.rdf4j.query.parser.sparql.ast.ASTQuadsNotTriples;
+import org.eclipse.rdf4j.query.parser.sparql.ast.ASTTripleRef;
 import org.eclipse.rdf4j.query.parser.sparql.ast.ASTUnparsedQuadDataBlock;
 import org.eclipse.rdf4j.query.parser.sparql.ast.ASTUpdate;
 import org.eclipse.rdf4j.query.parser.sparql.ast.ASTWhereClause;
@@ -54,13 +58,13 @@ import org.eclipse.rdf4j.query.parser.sparql.ast.VisitorException;
  * Extension of TupleExprBuilder that builds Update Expressions.
  *
  * @author Jeen Broekstra
- * 
- * @deprecated since 3.0. This feature is for internal use only: its existence, signature or behavior may change without
- *             warning from one release to the next.
+ * @apiNote This feature is for internal use only: its existence, signature or behavior may change without warning from
+ *          one release to the next.
  */
-@Deprecated
 @InternalUseOnly
 public class UpdateExprBuilder extends TupleExprBuilder {
+
+	TupleExpr where;
 
 	/**
 	 * @param valueFactory
@@ -137,24 +141,28 @@ public class UpdateExprBuilder extends TupleExprBuilder {
 			node.jjtGetChild(i).jjtAccept(this, data);
 		}
 
-		TupleExpr whereExpr = graphPattern.buildTupleExpr();
+		where = graphPattern.buildTupleExpr();
 		graphPattern = parentGP;
+		Map<String, Object> tripleVars = TripleRefCollector.process(where);
 
-		TupleExpr deleteExpr = whereExpr.clone();
+		TupleExpr deleteExpr = where.clone();
 
 		// FIXME we should adapt the grammar so we can avoid doing this
 		// post-processing.
 		VarCollector collector = new VarCollector();
 		deleteExpr.visit(collector);
 		for (Var var : collector.getCollectedVars()) {
+			// skip vars that are provided by ValueExprTripleRef - added as Extentsion
+			if (tripleVars.containsKey(var.getName())) {
+				continue;
+			}
+
 			if (var.isAnonymous() && !var.hasValue()) {
 				throw new VisitorException("DELETE WHERE may not contain blank nodes");
 			}
 		}
 
-		Modify modify = new Modify(deleteExpr, null, whereExpr);
-
-		return modify;
+		return new Modify(deleteExpr, null, where);
 	}
 
 	@Override
@@ -286,7 +294,7 @@ public class UpdateExprBuilder extends TupleExprBuilder {
 	public Modify visit(ASTModify node, Object data) throws VisitorException {
 		ASTWhereClause whereClause = node.getWhereClause();
 
-		TupleExpr where = null;
+		where = null;
 		if (whereClause != null) {
 			where = (TupleExpr) whereClause.jjtAccept(this, data);
 		}
@@ -303,14 +311,11 @@ public class UpdateExprBuilder extends TupleExprBuilder {
 			insert = (TupleExpr) insertNode.jjtAccept(this, data);
 		}
 
-		Modify modifyExpr = new Modify(delete, insert, where);
-
-		return modifyExpr;
+		return new Modify(delete, insert, where);
 	}
 
 	@Override
 	public TupleExpr visit(ASTDeleteClause node, Object data) throws VisitorException {
-		TupleExpr result = (TupleExpr) data;
 
 		// Collect construct triples
 		GraphPattern parentGP = graphPattern;
@@ -326,12 +331,17 @@ public class UpdateExprBuilder extends TupleExprBuilder {
 		}
 
 		TupleExpr deleteExpr = graphPattern.buildTupleExpr();
+		Map<String, Object> tripleVars = TripleRefCollector.process(where);
 
 		// FIXME we should adapt the grammar so we can avoid doing this in
 		// post-processing.
 		VarCollector collector = new VarCollector();
 		deleteExpr.visit(collector);
 		for (Var var : collector.getCollectedVars()) {
+			// skip vars that are provided by ValueExprTripleRef - added as Extentsion
+			if (tripleVars.containsKey(var.getName())) {
+				continue;
+			}
 			if (var.isAnonymous() && !var.hasValue()) {
 				// blank node in delete pattern, not allowed by SPARQL spec.
 				throw new VisitorException("DELETE clause may not contain blank nodes");
@@ -346,7 +356,6 @@ public class UpdateExprBuilder extends TupleExprBuilder {
 
 	@Override
 	public TupleExpr visit(ASTInsertClause node, Object data) throws VisitorException {
-		TupleExpr result = (TupleExpr) data;
 
 		// Collect insert clause triples
 		GraphPattern parentGP = graphPattern;
@@ -368,18 +377,20 @@ public class UpdateExprBuilder extends TupleExprBuilder {
 
 	}
 
-	private Set<Var> getProjectionVars(Collection<StatementPattern> statementPatterns) {
-		Set<Var> vars = new LinkedHashSet<>(statementPatterns.size() * 2);
-
-		for (StatementPattern sp : statementPatterns) {
-			vars.add(sp.getSubjectVar());
-			vars.add(sp.getPredicateVar());
-			vars.add(sp.getObjectVar());
-			if (sp.getContextVar() != null) {
-				vars.add(sp.getContextVar());
-			}
+	@Override
+	public TupleExpr visit(ASTTripleRef node, Object data) throws VisitorException {
+		if (where == null) {
+			return super.visit(node, data);
 		}
+		TripleRef ret = new TripleRef();
+		ret.setSubjectVar(mapValueExprToVar(node.getSubj().jjtAccept(this, ret)));
+		ret.setPredicateVar(mapValueExprToVar(node.getPred().jjtAccept(this, ret)));
+		ret.setObjectVar(mapValueExprToVar(node.getObj().jjtAccept(this, ret)));
+		ret.setExprVar(createAnonVar());
+		Extension ext = new Extension(where);
+		ext.addElement(new ExtensionElem(castToValueExpr(ret), ret.getExprVar().getName()));
+		where = ext;
 
-		return vars;
+		return ret;
 	}
 }

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.performance;
 
@@ -12,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.eclipse.rdf4j.federated.SPARQLBaseTest;
-import org.eclipse.rdf4j.federated.evaluation.SparqlFederationEvalStrategyWithValues;
 import org.eclipse.rdf4j.federated.generator.DataGenerator;
 import org.eclipse.rdf4j.federated.generator.ResultGenerator;
 import org.junit.jupiter.api.Disabled;
@@ -27,16 +29,16 @@ import com.google.common.collect.Maps;
  * Can be applied against a scenario created with {@link DataGenerator} and {@link ResultGenerator}. An example scenario
  * is on the classpath in "build/test/fedxPerformanceScenario.jar"
  * </p>
- * 
+ *
  * <p>
  * Note that the performance scenario does include the correctness check, i.e. it does not only evaluate the pure query
  * duration, but also checks the query results against a prepared result.
  * </p>
- * 
+ *
  * <p>
  * Example performance run in local environment:
  * </p>
- * 
+ *
  * <pre>
  * query01: avg=916, min=858, max=984
  * query02: avg=5, min=5, max=6
@@ -50,8 +52,8 @@ import com.google.common.collect.Maps;
  * query10: avg=785, min=664, max=1006
  * query11: avg=2465, min=2249, max=3707
  * </pre>
- * 
- * 
+ *
+ *
  * @author Andreas Schwarte
  *
  */
@@ -64,10 +66,7 @@ public class FedXPerformanceTest extends SPARQLBaseTest {
 
 	@Test
 	@Disabled
-	public void testPerformance() throws Throwable
-
-	{
-		fedxRule.setConfig("sparqlEvaluationStrategy", SparqlFederationEvalStrategyWithValues.class.getName());
+	public void testPerformance() throws Throwable {
 		String basePackage = "/tests/performance/";
 
 		/* prepare endpoints */
@@ -77,7 +76,7 @@ public class FedXPerformanceTest extends SPARQLBaseTest {
 		// warm-up
 		for (String query : queries) {
 			long start = System.currentTimeMillis();
-			execute(basePackage + query + ".rq", basePackage + query + ".srx", false);
+			execute(basePackage + query + ".rq", basePackage + query + ".srx", false, true);
 			long duration = System.currentTimeMillis() - start;
 			System.out.println("Warmup " + query + " (Duration: " + duration + ")");
 		}
@@ -93,7 +92,7 @@ public class FedXPerformanceTest extends SPARQLBaseTest {
 				SingleQueryRun queryRun = new SingleQueryRun(query);
 				run.addRun(queryRun);
 				long start = System.currentTimeMillis();
-				execute(basePackage + query + ".rq", basePackage + query + ".srx", false);
+				execute(basePackage + query + ".rq", basePackage + query + ".srx", false, true);
 				long duration = System.currentTimeMillis() - start;
 				queryRun.duration = duration;
 			}
@@ -129,7 +128,7 @@ public class FedXPerformanceTest extends SPARQLBaseTest {
 				basePackage + "data4.ttl"));
 
 		String query = "query12";
-		execute(basePackage + query + ".rq", basePackage + query + ".srx", false);
+		execute(basePackage + query + ".rq", basePackage + query + ".srx", false, true);
 	}
 
 	static class Run {

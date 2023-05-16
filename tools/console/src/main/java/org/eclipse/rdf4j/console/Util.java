@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console;
 
@@ -17,19 +20,20 @@ import java.util.Map;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Resource;
+import org.eclipse.rdf4j.model.Triple;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.repository.Repository;
-import org.eclipse.rdf4j.rio.ntriples.NTriplesUtil;
+import org.eclipse.rdf4j.rio.helpers.NTriplesUtil;
 
 /**
  * Helper class
- * 
+ *
  * @author Bart Hanssens
  */
 public class Util {
 	/**
 	 * Get context IRI from string representation
-	 * 
+	 *
 	 * @param repository repository
 	 * @param ctxID      context as string
 	 * @return context IRI
@@ -46,7 +50,7 @@ public class Util {
 
 	/**
 	 * Get context IRIs from a series of tokens, starting from (zero-based) position within the series.
-	 * 
+	 *
 	 * @param tokens     command as series of tokens
 	 * @param pos        position to start from
 	 * @param repository repository
@@ -68,7 +72,7 @@ public class Util {
 
 	/**
 	 * Get path from file or URI
-	 * 
+	 *
 	 * @param file file name
 	 * @return path or null
 	 */
@@ -89,7 +93,7 @@ public class Util {
 
 	/**
 	 * Check if a string looks like a HTTP, HTTPS or file URI.
-	 * 
+	 *
 	 * @param str string
 	 * @return true if
 	 */
@@ -100,7 +104,7 @@ public class Util {
 
 	/**
 	 * Get path from file string if it's absolute, or from working directory if the file is relative.
-	 * 
+	 *
 	 * @param workDir working dir
 	 * @param file    file name
 	 * @return path normalized path
@@ -116,7 +120,7 @@ public class Util {
 	/**
 	 * Get string representation for a value. If the value is an IRI and is part of a known namespace, the prefix will
 	 * be used to shorten it.
-	 * 
+	 *
 	 * @param value      value
 	 * @param namespaces mapping (uri,prefix)
 	 * @return string representation
@@ -143,13 +147,18 @@ public class Util {
 				return "\"" + lit.getLabel() + "\"^^" + prefix + ":" + uri.getLocalName();
 			}
 		}
+		if (value instanceof Triple) {
+			return "<<" + getPrefixedValue(((Triple) value).getSubject(), namespaces) + " "
+					+ getPrefixedValue(((Triple) value).getPredicate(), namespaces) + " "
+					+ getPrefixedValue(((Triple) value).getObject(), namespaces) + ">>";
+		}
 		return NTriplesUtil.toNTriplesString(value);
 	}
 
 	/**
 	 * Format a string of values, starting new line(s) when the joined values exceed the width. Primarily used for
 	 * displaying formatted help (e.g namespaces, config files) to the console. To be replaced by a commons text method
-	 * 
+	 *
 	 * @param width     maximum column width
 	 * @param padding   left padding
 	 * @param str       joined string

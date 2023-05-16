@@ -1,14 +1,23 @@
+/*******************************************************************************
+ * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Distribution License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *******************************************************************************/
 package org.eclipse.rdf4j.sail.base;
+
+import java.util.Iterator;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.common.iteration.LookAheadIteration;
-import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.sail.SailException;
-
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.function.Function;
 
 /**
  * <p>
@@ -33,34 +42,36 @@ import java.util.function.Function;
  **/
 public class DistinctModelReducingUnionIteration extends LookAheadIteration<Statement, SailException> {
 
-	DistinctModelReducingUnionIteration(CloseableIteration<? extends Statement, SailException> iterator, Model model,
-			Function<Model, Model> filterable) {
+	private final CloseableIteration<? extends Statement, SailException> iterator;
+	private final Consumer<Statement> approvedRemover;
+	private final Supplier<Iterable<Statement>> approvedSupplier;
+
+	DistinctModelReducingUnionIteration(CloseableIteration<? extends Statement, SailException> iterator,
+			Consumer<Statement> approvedRemover,
+			Supplier<Iterable<Statement>> approvedSupplier) {
 		this.iterator = iterator;
-		this.model = model;
-		this.filterable = filterable;
+		this.approvedRemover = approvedRemover;
+		this.approvedSupplier = approvedSupplier;
 	}
 
-	private final CloseableIteration<? extends Statement, SailException> iterator;
-	private final Model model;
-	private final Function<Model, Model> filterable;
-
-	private Iterator<Statement> filteredStatementsIterator;
+	private Iterator<? extends Statement> filteredStatementsIterator;
 
 	@Override
 	protected Statement getNextElement() throws SailException {
 		Statement next = null;
 
+		// first run through the statements from the base store
 		if (iterator.hasNext()) {
 			next = iterator.next();
-			synchronized (model) {
-				model.remove(next);
-			}
+
+			// remove the statement from the approved model in the Changeset, in case the approved model has a duplicate
+			approvedRemover.accept(next);
 		} else {
+			// we have now exhausted the base store and will start returning data added in this transaction but not yet
+			// committed, eg. approved model in the Changeset
 
 			if (filteredStatementsIterator == null) {
-				synchronized (model) {
-					filteredStatementsIterator = new ArrayList<>(filterable.apply(model)).iterator();
-				}
+				filteredStatementsIterator = approvedSupplier.get().iterator();
 			}
 
 			if (filteredStatementsIterator.hasNext()) {

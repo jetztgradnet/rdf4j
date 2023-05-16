@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console.command;
 
@@ -12,7 +15,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
-
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -22,7 +24,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.eclipse.rdf4j.RDF4JException;
+import org.eclipse.rdf4j.common.exception.RDF4JException;
 import org.eclipse.rdf4j.common.io.IOUtil;
 import org.eclipse.rdf4j.console.ConsoleIO;
 import org.eclipse.rdf4j.console.ConsoleState;
@@ -48,30 +50,29 @@ import org.eclipse.rdf4j.rio.RDFParser;
 import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.rio.UnsupportedRDFormatException;
 import org.eclipse.rdf4j.rio.helpers.StatementCollector;
-
-import org.junit.After;
-import org.junit.Rule;
-import org.junit.rules.TemporaryFolder;
-
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 /**
  * @author Dale Visser
  */
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class AbstractCommandTest {
 
 	/*
 	 * Switch off .silent() to debug specific tests and reenable it afterwards.
-	 * 
+	 *
 	 * Note, .silent() was added in Mockito 2, so has been removed until we update.
 	 */
-	@Rule
-	public MockitoRule abstractCommandTestMockitoRule = MockitoJUnit.rule(); // .silent();
 
-	@Rule
-	public final TemporaryFolder LOCATION = new TemporaryFolder();
+	@TempDir
+	public File locationFile;
 
 	protected RepositoryManager manager;
 
@@ -89,7 +90,7 @@ public class AbstractCommandTest {
 			{ WorkDir.NAME, new WorkDir() }
 	}).collect(Collectors.toMap(m -> (String) m[0], m -> (ConsoleSetting) m[1]));
 
-	@After
+	@AfterEach
 	public void tearDown() throws Exception {
 		if (manager != null) {
 			manager.shutDown();
@@ -98,7 +99,7 @@ public class AbstractCommandTest {
 
 	/**
 	 * Copy file from resource to a specific path
-	 * 
+	 *
 	 * @param fromRes file to load from resources
 	 * @param toFile  target file
 	 * @throws IOException
@@ -112,7 +113,7 @@ public class AbstractCommandTest {
 
 	/**
 	 * Load triples or quads from a resource file into the repository
-	 * 
+	 *
 	 * @param repId repository ID
 	 * @param data  URL of the resource
 	 * @param file  name of the file
@@ -130,7 +131,7 @@ public class AbstractCommandTest {
 
 	/**
 	 * Add one or more repositories to the repository manager, and load some content (if any).
-	 * 
+	 *
 	 * @param command    command / directory to load data from
 	 * @param identities name of the repository / file to load
 	 * @throws IOException
@@ -160,7 +161,7 @@ public class AbstractCommandTest {
 
 	/***
 	 * Add a new repository to the manager.
-	 * 
+	 *
 	 * @param configStream input stream of the repository configuration
 	 * @return ID of the repository as string
 	 * @throws IOException
@@ -192,11 +193,11 @@ public class AbstractCommandTest {
 
 	/**
 	 * Set working dir setting to root of temporarily folder
-	 * 
+	 *
 	 * @param cmd console command
 	 */
 	protected void setWorkingDir(ConsoleCommand cmd) {
-		WorkDir location = new WorkDir(Paths.get(LOCATION.getRoot().getAbsolutePath()));
+		WorkDir location = new WorkDir(Paths.get(locationFile.getAbsolutePath()));
 		cmd.settings.put(WorkDir.NAME, location);
 	}
 }

@@ -1,15 +1,18 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console.setting;
 
 /**
  * Console value setting
- * 
+ *
  * @author Bart Hanssens
  */
 public class ConsoleWidth extends ConsoleSetting<Integer> {
@@ -22,7 +25,7 @@ public class ConsoleWidth extends ConsoleSetting<Integer> {
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * Default width is 80.
 	 */
 	public ConsoleWidth() {
@@ -31,7 +34,7 @@ public class ConsoleWidth extends ConsoleSetting<Integer> {
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * @param initValue
 	 */
 	public ConsoleWidth(Integer initValue) {

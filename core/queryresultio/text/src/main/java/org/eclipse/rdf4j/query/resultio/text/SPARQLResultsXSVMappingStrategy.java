@@ -1,25 +1,27 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.resultio.text;
 
-import com.opencsv.bean.BeanField;
-import com.opencsv.bean.MappingStrategy;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
+
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.datatypes.XMLDatatypeUtil;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.query.BindingSet;
 
-import java.beans.PropertyDescriptor;
-import java.util.List;
-import java.util.Locale;
-import java.util.regex.Pattern;
+import com.opencsv.bean.MappingStrategy;
 
 /**
  * This serves as a base class for mapping strategies for character separated inputs. Specifically, it is meant for
@@ -43,35 +45,12 @@ abstract public class SPARQLResultsXSVMappingStrategy implements MappingStrategy
 		return bindingNames;
 	}
 
-	@Deprecated
-	public PropertyDescriptor findDescriptor(int col) {
-		return null;
-	}
-
-	@Deprecated
-	public BeanField<BindingSet> findField(int col) {
-		return null;
-	}
-
-	@Deprecated
-	public int findMaxFieldIndex() {
-		return 0;
-	}
-
-	@Deprecated
-	public BindingSet createBean() {
-		return null;
-	}
-
+	@Override
 	public String[] generateHeader(BindingSet bean) {
 		throw new UnsupportedOperationException(WRITING_UNSUPPORTED);
 	}
 
-	@Deprecated
-	public Integer getColumnIndex(String name) {
-		return null;
-	}
-
+	@Override
 	public boolean isAnnotationDriven() {
 		// This is a bald-faced lie, but it determines whether populateNewBean()
 		// or populateNewBeanWithIntrospection() is used.
@@ -89,27 +68,18 @@ abstract public class SPARQLResultsXSVMappingStrategy implements MappingStrategy
 
 		if (XMLDatatypeUtil.isValidInteger(valueString)) {
 			if (XMLDatatypeUtil.isValidNegativeInteger(valueString)) {
-				dataType = XMLSchema.NEGATIVE_INTEGER;
+				dataType = XSD.NEGATIVE_INTEGER;
 			} else {
-				dataType = XMLSchema.INTEGER;
+				dataType = XSD.INTEGER;
 			}
 		} else if (XMLDatatypeUtil.isValidDecimal(valueString)) {
-			dataType = XMLSchema.DECIMAL;
+			dataType = XSD.DECIMAL;
 		} else if (XMLDatatypeUtil.isValidDouble(valueString)) {
-			dataType = XMLSchema.DOUBLE;
+			dataType = XSD.DOUBLE;
 		}
 
 		return dataType != null ? valueFactory.createLiteral(valueString, dataType)
 				: valueFactory.createLiteral(valueString);
-	}
-
-	@Deprecated
-	public BindingSet populateNewBeanWithIntrospection(String[] line) {
-		throw new UnsupportedOperationException("Please use populateNewBean() instead.");
-	}
-
-	@Deprecated
-	public void verifyLineLength(int numberOfFields) {
 	}
 
 	@Override

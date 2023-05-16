@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.workbench.proxy;
 
@@ -15,6 +18,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 
 import javax.servlet.ServletConfig;
 
@@ -51,7 +55,7 @@ class ServerValidator {
 
 	/**
 	 * Returns whether the given server can be connected to.
-	 * 
+	 *
 	 * @param server   the server path
 	 * @param password the optional password
 	 * @param user     the optional username
@@ -72,7 +76,7 @@ class ServerValidator {
 	/**
 	 * Returns whether the server prefix is in the list of acceptable prefixes, as given by the space-separated
 	 * configuration parameter value for 'accepted-server-prefixes'.
-	 * 
+	 *
 	 * @param server the server for which to check the prefix
 	 * @return whether the server prefix is in the list of acceptable prefixes
 	 */
@@ -105,17 +109,13 @@ class ServerValidator {
 				Integer.parseInt(reader.readLine());
 				success = true;
 			}
-		} catch (NumberFormatException e) {
-			LOGGER.warn(e.toString(), e);
-		} catch (MalformedURLException e) {
-			LOGGER.warn(e.toString(), e);
-		} catch (IOException e) {
+		} catch (NumberFormatException | IOException e) {
 			LOGGER.warn(e.toString(), e);
 		}
 		return success;
 	}
 
 	private File asLocalFile(final URL rdf) throws UnsupportedEncodingException {
-		return new File(URLDecoder.decode(rdf.getFile(), "UTF-8"));
+		return new File(URLDecoder.decode(rdf.getFile(), StandardCharsets.UTF_8));
 	}
 }

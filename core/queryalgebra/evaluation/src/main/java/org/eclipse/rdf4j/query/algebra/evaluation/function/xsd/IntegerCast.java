@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2016 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.function.xsd;
 
@@ -14,19 +17,19 @@ import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.datatypes.XMLDatatypeUtil;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
-import org.eclipse.rdf4j.query.algebra.evaluation.function.Function;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 
 /**
- * A {@link Function} that tries to cast its argument to an <tt>xsd:integer</tt> .
- * 
+ * A {@link org.eclipse.rdf4j.query.algebra.evaluation.function.Function} that tries to cast its argument to an
+ * <var>xsd:integer</var> .
+ *
  * @author Jeen Broekstra
  */
 public class IntegerCast extends IntegerCastFunction {
 
 	@Override
 	protected IRI getXsdDatatype() {
-		return XMLSchema.INTEGER;
+		return XSD.INTEGER;
 	}
 
 	@Override

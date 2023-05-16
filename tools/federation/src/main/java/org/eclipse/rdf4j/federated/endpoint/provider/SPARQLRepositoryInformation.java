@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.endpoint.provider;
 
@@ -20,32 +23,32 @@ import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
  * <p>
  * Format:
  * </p>
- * 
+ *
  * <pre>
  * &#64;prefix sd: <http://www.w3.org/ns/sparql-service-description#> .
  * &#64;prefix fedx: <http://www.fluidops.com/config/fedx#>.
- * 
+ *
  * <%name%> a sd:Service ;
  *  	fedx:store "SPARQLEndpoint";
  *  	sd:endpoint "%location%"
- * 
+ *
  * <http://DBpedia> a sd:Service ;
  *  	fedx:store "SPARQLEndpoint";
  *  	sd:endpoint "http://dbpedia.org/sparql".
  * </pre>
- * 
+ *
  * Note: the id is constructed from the name: http://dbpedia.org/ => sparql_dbpedia.org
  * <p>
- * 
- * 
+ *
+ *
  * The following properties can be used to define additional endpoint settings.
  * <p>
- * 
+ *
  * <pre>
  * fedx:supportsASKQueries => "true"|"false" (default: true)
  * </pre>
- * 
- * 
+ *
+ *
  * @author Andreas Schwarte
  *
  */
@@ -68,7 +71,6 @@ public class SPARQLRepositoryInformation extends RepositoryInformation {
 		// location
 		Model location = graph.filter(repNode, Vocabulary.SD.ENDPOINT, null);
 		String repoLocation = location.iterator().next().getObject().stringValue();
-		;
 		setProperty("location", repoLocation);
 
 		// id: the name of the location
@@ -82,8 +84,9 @@ public class SPARQLRepositoryInformation extends RepositoryInformation {
 
 			if (graph.contains(repNode, Vocabulary.FEDX.SUPPORTS_ASK_QUERIES, FedXUtil.literal("false"))
 					|| graph.contains(repNode, Vocabulary.FEDX.SUPPORTS_ASK_QUERIES,
-							FedXUtil.valueFactory().createLiteral(false)))
+							FedXUtil.valueFactory().createLiteral(false))) {
 				c.setSupportsASKQueries(false);
+			}
 
 			setEndpointConfiguration(c);
 		}
@@ -95,7 +98,7 @@ public class SPARQLRepositoryInformation extends RepositoryInformation {
 
 	/**
 	 * Derive an identifier from the endpoint
-	 * 
+	 *
 	 * @param endpoint
 	 * @return the identifier
 	 */

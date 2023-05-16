@@ -1,16 +1,19 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.monitoring;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.eclipse.rdf4j.federated.Config;
+import org.eclipse.rdf4j.federated.FedXConfig;
 import org.eclipse.rdf4j.federated.structures.QueryInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,12 +24,12 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Requires monitoring to be enabled:
  * </p>
- * 
+ *
  * <ul>
- * <li>{@link Config#isEnableMonitoring()}</li>
- * <li>{@link Config#isLogQueries()}</li>
+ * <li>{@link FedXConfig#isEnableMonitoring()}</li>
+ * <li>{@link FedXConfig#isLogQueries()}</li>
  * </ul>
- * 
+ *
  * @author Andreas Schwarte
  *
  */

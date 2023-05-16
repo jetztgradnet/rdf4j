@@ -1,23 +1,25 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console.command;
 
 import java.io.IOException;
 import java.io.OutputStream;
-
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -27,7 +29,6 @@ import java.util.regex.Pattern;
 
 import org.eclipse.rdf4j.common.io.UncloseableOutputStream;
 import org.eclipse.rdf4j.console.Util;
-
 import org.eclipse.rdf4j.console.setting.ConsoleWidth;
 import org.eclipse.rdf4j.console.setting.Prefixes;
 import org.eclipse.rdf4j.console.setting.QueryPrefix;
@@ -35,9 +36,7 @@ import org.eclipse.rdf4j.console.setting.ShowPrefix;
 import org.eclipse.rdf4j.console.setting.WorkDir;
 import org.eclipse.rdf4j.console.util.ConsoleQueryResultWriter;
 import org.eclipse.rdf4j.console.util.ConsoleRDFWriter;
-
 import org.eclipse.rdf4j.model.Namespace;
-
 import org.eclipse.rdf4j.query.MalformedQueryException;
 import org.eclipse.rdf4j.query.QueryEvaluationException;
 import org.eclipse.rdf4j.query.QueryInterruptedException;
@@ -53,7 +52,6 @@ import org.eclipse.rdf4j.query.parser.QueryParserUtil;
 import org.eclipse.rdf4j.query.resultio.QueryResultFormat;
 import org.eclipse.rdf4j.query.resultio.QueryResultIO;
 import org.eclipse.rdf4j.query.resultio.QueryResultWriter;
-
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryException;
 import org.eclipse.rdf4j.rio.RDFFormat;
@@ -62,7 +60,7 @@ import org.eclipse.rdf4j.rio.Rio;
 
 /**
  * Abstract query evaluator command
- * 
+ *
  * @author Dale Visser
  * @author Bart Hanssens
  */
@@ -81,7 +79,7 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * @param evaluator
 	 */
 	public QueryEvaluator(TupleAndGraphQueryEvaluator evaluator) {
@@ -91,7 +89,7 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 
 	/**
 	 * Check if query string already contains query prefixes
-	 * 
+	 *
 	 * @param query query string
 	 * @return true if namespaces are already used
 	 */
@@ -99,7 +97,7 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 
 	/**
 	 * Add namespace prefixes to query
-	 * 
+	 *
 	 * @param result
 	 * @param namespaces collection of known namespaces
 	 */
@@ -114,7 +112,7 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 
 	/**
 	 * Get console width setting.
-	 * 
+	 *
 	 * @return width in columns
 	 */
 	private int getConsoleWidth() {
@@ -123,7 +121,7 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 
 	/**
 	 * Get query prefix setting.
-	 * 
+	 *
 	 * @return true if prefixes are used for querying
 	 */
 	private boolean getQueryPrefix() {
@@ -132,7 +130,7 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 
 	/**
 	 * Get show prefix setting.
-	 * 
+	 *
 	 * @return true if prefixes are used for displaying.
 	 */
 	private boolean getShowPrefix() {
@@ -141,7 +139,7 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 
 	/**
 	 * Get a set of namespaces
-	 * 
+	 *
 	 * @return set of namespace prefixes
 	 */
 	private Set<Namespace> getPrefixes() {
@@ -150,7 +148,7 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 
 	/**
 	 * Get working dir setting Use a working dir setting when not found.
-	 * 
+	 *
 	 * @return path of working dir
 	 */
 	private Path getWorkDir() {
@@ -158,10 +156,10 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 	}
 
 	/**
-	 * Execute a SPARQL or SERQL query, defaults to SPARQL
-	 * 
+	 * Execute a SPARQL query
+	 *
 	 * @param command   to execute
-	 * @param operation "sparql", "serql", "base" or SPARQL query form
+	 * @param operation "sparql", "base" or SPARQL query form
 	 */
 	public void executeQuery(final String command, final String operation) {
 		Repository repository = state.getRepository();
@@ -172,8 +170,6 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 
 		if (sparqlQueryStart.contains(operation)) {
 			parseAndEvaluateQuery(QueryLanguage.SPARQL, command);
-		} else if ("serql".equals(operation)) {
-			parseAndEvaluateQuery(QueryLanguage.SERQL, command.substring("serql".length()));
 		} else if ("sparql".equals(operation)) {
 			parseAndEvaluateQuery(QueryLanguage.SPARQL, command.substring("sparql".length()));
 		} else {
@@ -211,7 +207,7 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 	/**
 	 * Get absolute path to output file, using working directory for relative file name. Verifies that the file doesn't
 	 * exist or can be overwritten if it does exist.
-	 * 
+	 *
 	 * @param filename file name
 	 * @return path absolute path
 	 * @throws IllegalArgumentException
@@ -232,7 +228,7 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 	/**
 	 * Read (possibly multi-line) query. Returns multi-line query as one string, or the original string if query is not
 	 * multi-line.
-	 * 
+	 *
 	 * @param queryLn   query language
 	 * @param queryText query string
 	 * @return query or null
@@ -253,9 +249,8 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 	}
 
 	/**
-	 * Parse and evaluate a SERQL or SPARQL query. Check if query is multi-line or to be read from input file, and check
 	 * if results are to be written to an output file.
-	 * 
+	 *
 	 * @param queryLn   query language
 	 * @param queryText query string
 	 */
@@ -312,7 +307,7 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 	/**
 	 * Get a query result writer based upon the file name (extension), or return the console result writer when path is
 	 * null.
-	 * 
+	 *
 	 * @param path path or null
 	 * @param out  output stream or null
 	 * @return result writer
@@ -339,7 +334,7 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 	/**
 	 * Get a graph result (RIO) writer based upon the file name (extension), or return the console result writer when
 	 * path is null.
-	 * 
+	 *
 	 * @param path path or null
 	 * @param out  output stream or null
 	 * @return result writer
@@ -356,15 +351,12 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 			}
 			w = Rio.createWriter(fmt.get(), out);
 		}
-		if (getShowPrefix()) {
-			getPrefixes().stream().forEach(ns -> w.handleNamespace(ns.getPrefix(), ns.getName()));
-		}
 		return w;
 	}
 
 	/**
 	 * Get output stream for a file, or for the console output if path is null
-	 * 
+	 *
 	 * @param path file path or null
 	 * @return file or console output stream
 	 * @throws IOException
@@ -376,8 +368,8 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 	}
 
 	/**
-	 * Evaluate a SPARQL or SERQL query that has already been parsed
-	 * 
+	 * Evaluate a SPARQL query that has already been parsed
+	 *
 	 * @param queryLn query language
 	 * @param query   parsed query
 	 * @param path
@@ -400,7 +392,8 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 				evaluator.evaluateBooleanQuery(queryLn, queryString, writer);
 			} else if (query instanceof ParsedGraphQuery) {
 				RDFWriter writer = getRDFWriter(path, os);
-				evaluator.evaluateGraphQuery(queryLn, queryString, writer);
+				evaluator.evaluateGraphQuery(queryLn, queryString, writer,
+						getShowPrefix() ? getPrefixes() : Collections.emptySet());
 			} else if (query instanceof ParsedUpdate) {
 				// no outputstream for updates, can only be console output
 				if (path != null) {
@@ -416,8 +409,8 @@ public abstract class QueryEvaluator extends ConsoleCommand {
 	}
 
 	/**
-	 * Add namespace prefixes to SPARQL or SERQL query
-	 * 
+	 * Add namespace prefixes to SPARQL query
+	 *
 	 * @param queryString query string
 	 * @return query string with prefixes
 	 */

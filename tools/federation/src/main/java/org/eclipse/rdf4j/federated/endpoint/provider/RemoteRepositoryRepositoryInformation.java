@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.endpoint.provider;
 
@@ -15,28 +18,28 @@ import org.eclipse.rdf4j.repository.http.HTTPRepository;
 
 /**
  * Class holding information for RDF4J {@link HTTPRepository} initialization.
- * 
+ *
  * <p>
  * Format:
  * </p>
- * 
+ *
  * <pre>
  * <%name%> a sd:Service ;
  *  	fedx:store "RemoteRepository" ;
  *  	fedx:repositoryServer "%location%" ;
  *  	fedx:repositoryName "%name%" .
- * 
+ *
  * <http://dbpedia> a sd:Service ;
  *  	fedx:store "RemoteRepository";
  *  	fedx:repositoryServer "http://<host>/openrdf-sesame" ;
  *  	fedx:repositoryName "dbpedia" .
  * </pre>
- * 
+ *
  * <p>
  * Note: the id is constructed from the name: http://dbpedia.org/ => remote_dbpedia.org
  * </p>
- * 
- * 
+ *
+ *
  * @author Andreas Schwarte
  *
  */

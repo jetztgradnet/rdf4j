@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.queryrender;
 
@@ -17,8 +20,8 @@ import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.util.Literals;
 
 /**
- * Utility methods for rendering (parts of) SeRQL and SPARQL query strings.
- * 
+ * Utility methods for rendering (parts of) SPARQL query strings.
+ *
  * @author Michael Grove
  */
 public final class RenderUtils {
@@ -30,20 +33,8 @@ public final class RenderUtils {
 	}
 
 	/**
-	 * Return the query string rendering of the {@link org.eclipse.rdf4j.model.Value}
-	 * 
-	 * @param theValue the value to render
-	 * @return the value rendered in its query string representation
-	 * @deprecated Use {@link #toSPARQL(Value)} instead.
-	 */
-	@Deprecated
-	public static String getSPARQLQueryString(Value theValue) {
-		return toSPARQL(theValue);
-	}
-
-	/**
 	 * Return the SPARQL query string rendering of the {@link org.eclipse.rdf4j.model.Value}
-	 * 
+	 *
 	 * @param theValue the value to render
 	 * @return the value rendered in its SPARQL query string representation
 	 */
@@ -55,7 +46,7 @@ public final class RenderUtils {
 	/**
 	 * Append the SPARQL query string rendering of the {@link org.eclipse.rdf4j.model.Value} to the supplied
 	 * {@link StringBuilder}.
-	 * 
+	 *
 	 * @param value   the value to render
 	 * @param builder the {@link StringBuilder} to append to
 	 * @return the original {@link StringBuilder} with the value appended.
@@ -82,51 +73,10 @@ public final class RenderUtils {
 	}
 
 	/**
-	 * Return the query string rendering of the {@link Value}
-	 * 
-	 * @param theValue the value to render
-	 * @return the value rendered in its query string representation
-	 * @deprecated Use {{@link #toSeRQL(Value)} instead.
-	 */
-	@Deprecated
-	public static String getSerqlQueryString(Value theValue) {
-		return toSeRQL(theValue);
-	}
-
-	/**
-	 * Return the query string rendering of the {@link Value}
-	 * 
-	 * @param theValue the value to render
-	 * @return the value rendered in its query string representation
-	 */
-	public static String toSeRQL(Value theValue) {
-		StringBuilder aBuffer = new StringBuilder();
-
-		if (theValue instanceof IRI) {
-			IRI aURI = (IRI) theValue;
-			aBuffer.append("<").append(aURI.toString()).append(">");
-		} else if (theValue instanceof BNode) {
-			aBuffer.append("_:").append(((BNode) theValue).getID());
-		} else if (theValue instanceof Literal) {
-			Literal aLit = (Literal) theValue;
-
-			aBuffer.append("\"").append(escape(aLit.getLabel())).append("\"");
-
-			if (Literals.isLanguageLiteral(aLit)) {
-				aBuffer.append("@").append(aLit.getLanguage());
-			} else {
-				aBuffer.append("^^<").append(aLit.getDatatype().toString()).append(">");
-			}
-		}
-
-		return aBuffer.toString();
-	}
-
-	/**
 	 * Properly escape out any special characters in the query string. Replaces unescaped double quotes with \" and
 	 * replaces slashes '\' which are not a valid escape sequence such as \t or \n with a double slash '\\' so they are
 	 * unescaped correctly by a SPARQL parser.
-	 * 
+	 *
 	 * @param theString the query string to escape chars in
 	 * @return the escaped query string
 	 */

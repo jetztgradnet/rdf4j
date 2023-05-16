@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.nativerdf.config;
 
@@ -149,9 +152,9 @@ public class NativeStoreConfig extends BaseSailConfig {
 
 		try {
 
-			Models.objectLiteral(m.filter(implNode, TRIPLE_INDEXES, null))
+			Models.objectLiteral(m.getStatements(implNode, TRIPLE_INDEXES, null))
 					.ifPresent(lit -> setTripleIndexes(lit.getLabel()));
-			Models.objectLiteral(m.filter(implNode, FORCE_SYNC, null)).ifPresent(lit -> {
+			Models.objectLiteral(m.getStatements(implNode, FORCE_SYNC, null)).ifPresent(lit -> {
 				try {
 					setForceSync(lit.booleanValue());
 				} catch (IllegalArgumentException e) {
@@ -160,7 +163,7 @@ public class NativeStoreConfig extends BaseSailConfig {
 				}
 			});
 
-			Models.objectLiteral(m.filter(implNode, VALUE_CACHE_SIZE, null)).ifPresent(lit -> {
+			Models.objectLiteral(m.getStatements(implNode, VALUE_CACHE_SIZE, null)).ifPresent(lit -> {
 				try {
 					setValueCacheSize(lit.intValue());
 				} catch (NumberFormatException e) {
@@ -169,7 +172,7 @@ public class NativeStoreConfig extends BaseSailConfig {
 				}
 			});
 
-			Models.objectLiteral(m.filter(implNode, VALUE_ID_CACHE_SIZE, null)).ifPresent(lit -> {
+			Models.objectLiteral(m.getStatements(implNode, VALUE_ID_CACHE_SIZE, null)).ifPresent(lit -> {
 				try {
 					setValueIDCacheSize(lit.intValue());
 				} catch (NumberFormatException e) {
@@ -178,7 +181,7 @@ public class NativeStoreConfig extends BaseSailConfig {
 				}
 			});
 
-			Models.objectLiteral(m.filter(implNode, NAMESPACE_CACHE_SIZE, null)).ifPresent(lit -> {
+			Models.objectLiteral(m.getStatements(implNode, NAMESPACE_CACHE_SIZE, null)).ifPresent(lit -> {
 				try {
 					setNamespaceCacheSize(lit.intValue());
 				} catch (NumberFormatException e) {
@@ -187,7 +190,7 @@ public class NativeStoreConfig extends BaseSailConfig {
 				}
 			});
 
-			Models.objectLiteral(m.filter(implNode, NAMESPACE_ID_CACHE_SIZE, null)).ifPresent(lit -> {
+			Models.objectLiteral(m.getStatements(implNode, NAMESPACE_ID_CACHE_SIZE, null)).ifPresent(lit -> {
 				try {
 					setNamespaceIDCacheSize(lit.intValue());
 				} catch (NumberFormatException e) {

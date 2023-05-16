@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console.command;
 
@@ -20,7 +23,6 @@ import org.eclipse.rdf4j.console.ConsoleState;
 import org.eclipse.rdf4j.console.Util;
 import org.eclipse.rdf4j.console.setting.ConsoleSetting;
 import org.eclipse.rdf4j.console.setting.WorkDir;
-
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
@@ -31,7 +33,7 @@ import org.eclipse.rdf4j.rio.UnsupportedRDFormatException;
 
 /**
  * Export triples to file
- * 
+ *
  * @author Bart Hanssens
  */
 public class Export extends ConsoleCommand {
@@ -58,7 +60,7 @@ public class Export extends ConsoleCommand {
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * @param consoleIO
 	 * @param state
 	 * @param settings
@@ -94,7 +96,7 @@ public class Export extends ConsoleCommand {
 
 	/**
 	 * Get working dir setting.
-	 * 
+	 *
 	 * @return path of working dir
 	 */
 	private Path getWorkDir() {
@@ -103,7 +105,7 @@ public class Export extends ConsoleCommand {
 
 	/**
 	 * Export to a file
-	 * 
+	 *
 	 * @param repository repository to export
 	 * @param fileName   file name
 	 * @param context    context(s) (if any)

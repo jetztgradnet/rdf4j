@@ -1,13 +1,15 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package demos;
 
-import org.eclipse.rdf4j.federated.Config;
 import org.eclipse.rdf4j.federated.FedXFactory;
 import org.eclipse.rdf4j.federated.repository.FedXRepository;
 import org.eclipse.rdf4j.query.BindingSet;
@@ -19,14 +21,12 @@ public class GettingStartedDemo {
 
 	public static void main(String[] args) {
 
-		Config.initialize();
-
-		Config.getConfig().set("debugQueryPlan", "true");
-
 		FedXRepository repository = FedXFactory.newFederation()
 				.withSparqlEndpoint("http://dbpedia.org/sparql")
 				.withSparqlEndpoint("https://query.wikidata.org/sparql")
 				.create();
+
+		repository.init();
 
 		try (RepositoryConnection conn = repository.getConnection()) {
 

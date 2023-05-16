@@ -1,22 +1,25 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.sail;
 
 import java.io.File;
 
-import org.eclipse.rdf4j.RDF4JException;
+import org.eclipse.rdf4j.common.exception.RDF4JException;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryException;
-import org.eclipse.rdf4j.repository.base.AbstractRepository;
 import org.eclipse.rdf4j.repository.RepositoryResolver;
 import org.eclipse.rdf4j.repository.RepositoryResolverClient;
+import org.eclipse.rdf4j.repository.base.AbstractRepository;
 
 /**
  * <p>
@@ -33,7 +36,7 @@ import org.eclipse.rdf4j.repository.RepositoryResolverClient;
  * from having to provide implementation details in its configuration data. Instead, it only has to provide an
  * unambiguous local identifier to the proxy.
  * </p>
- * 
+ *
  * @author Dale Visser
  */
 public class ProxyRepository extends AbstractRepository implements RepositoryResolverClient {
@@ -44,7 +47,9 @@ public class ProxyRepository extends AbstractRepository implements RepositoryRes
 
 	private String proxiedID;
 
-	/** independent life cycle */
+	/**
+	 * independent life cycle
+	 */
 	private volatile RepositoryResolver resolver;
 
 	public ProxyRepository() {
@@ -53,7 +58,7 @@ public class ProxyRepository extends AbstractRepository implements RepositoryRes
 
 	/**
 	 * Creates a repository instance that proxies to a repository of the give ID.
-	 * 
+	 *
 	 * @param proxiedIdentity id of the proxied repository
 	 */
 	public ProxyRepository(String proxiedIdentity) {
@@ -63,7 +68,7 @@ public class ProxyRepository extends AbstractRepository implements RepositoryRes
 
 	/**
 	 * Creates a repository instance that proxies to the given repository.
-	 * 
+	 *
 	 * @param resolver        manager that the proxied repository is associated with
 	 * @param proxiedIdentity id of the proxied repository
 	 */
@@ -141,7 +146,7 @@ public class ProxyRepository extends AbstractRepository implements RepositoryRes
 		if (resolver == null) {
 			throw new RepositoryException("Expected RepositoryResolver to be set.");
 		}
-		getProxiedRepository().initialize();
+		getProxiedRepository().init();
 	}
 
 	@Override

@@ -1,21 +1,25 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.model.impl;
 
-import org.eclipse.rdf4j.model.IRI;
-import org.eclipse.rdf4j.model.util.URIUtil;
-
 import java.util.Objects;
+
+import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.base.AbstractIRI;
+import org.eclipse.rdf4j.model.util.URIUtil;
 
 /**
  * The default implementation of the {@link IRI} interface.
  */
-public class SimpleIRI implements IRI {
+public class SimpleIRI extends AbstractIRI {
 
 	/*-----------*
 	 * Constants *
@@ -57,7 +61,7 @@ public class SimpleIRI implements IRI {
 	 *
 	 * @param iriString A String representing a valid, absolute IRI. May not be <code>null</code>.
 	 * @throws IllegalArgumentException If the supplied IRI is not a valid (absolute) IRI.
-	 * @see {@link SimpleValueFactory#createIRI(String)}
+	 * @see org.eclipse.rdf4j.model.impl.SimpleValueFactory#createIRI(String)
 	 */
 	protected SimpleIRI(String iriString) {
 		setIRIString(iriString);
@@ -76,12 +80,6 @@ public class SimpleIRI implements IRI {
 
 		this.iriString = iriString;
 		this.localNameIdx = -1;
-	}
-
-	// Implements IRI.toString()
-	@Override
-	public String toString() {
-		return iriString;
 	}
 
 	@Override
@@ -107,27 +105,4 @@ public class SimpleIRI implements IRI {
 		return iriString.substring(localNameIdx);
 	}
 
-	// Implements IRI.equals(Object)
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-
-		if (o instanceof IRI) {
-
-			String a = toString();
-			String b = o.toString();
-
-			return a.equals(b);
-		}
-
-		return false;
-	}
-
-	// Implements IRI.hashCode()
-	@Override
-	public int hashCode() {
-		return iriString.hashCode();
-	}
 }

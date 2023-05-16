@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.console.command;
 
@@ -20,7 +23,6 @@ import org.eclipse.rdf4j.console.LockRemover;
 import org.eclipse.rdf4j.console.Util;
 import org.eclipse.rdf4j.console.setting.ConsoleSetting;
 import org.eclipse.rdf4j.console.setting.WorkDir;
-
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
@@ -31,7 +33,7 @@ import org.eclipse.rdf4j.rio.UnsupportedRDFormatException;
 
 /**
  * Load command
- * 
+ *
  * @author Dale Visser
  */
 public class Load extends ConsoleCommand {
@@ -61,7 +63,7 @@ public class Load extends ConsoleCommand {
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * @param consoleIO
 	 * @param state
 	 * @param settings
@@ -102,7 +104,7 @@ public class Load extends ConsoleCommand {
 
 	/**
 	 * Get working dir setting.
-	 * 
+	 *
 	 * @return path of working dir
 	 */
 	private Path getWorkDir() {
@@ -111,7 +113,7 @@ public class Load extends ConsoleCommand {
 
 	/**
 	 * Load data into a repository
-	 * 
+	 *
 	 * @param repository repository
 	 * @param baseURI
 	 * @param context
@@ -156,7 +158,7 @@ public class Load extends ConsoleCommand {
 	/**
 	 * Handle exceptions when loading data in a read-only repository. If a lock is present and can be removed, the
 	 * command will be executed again.
-	 * 
+	 *
 	 * @param repository repository
 	 * @param caught     exception
 	 * @param tokens     full command as series of tokens
@@ -178,7 +180,7 @@ public class Load extends ConsoleCommand {
 
 	/**
 	 * Add data from a URL or local file. If the dataURL is null, then the datafile will be used.
-	 * 
+	 *
 	 * @param repository repository
 	 * @param baseURI    base URI
 	 * @param context    context (can be null)
@@ -207,7 +209,7 @@ public class Load extends ConsoleCommand {
 
 	/**
 	 * Get context as resource
-	 * 
+	 *
 	 * @param repository
 	 * @param context
 	 * @return array of size one, or null

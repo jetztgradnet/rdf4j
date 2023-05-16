@@ -1,15 +1,19 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.resultio.sparqljson;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashSet;
@@ -17,51 +21,47 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.eclipse.rdf4j.common.io.CharSink;
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.util.Literals;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.query.Binding;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.QueryResultHandlerException;
 import org.eclipse.rdf4j.query.TupleQueryResultHandlerException;
 import org.eclipse.rdf4j.query.resultio.AbstractQueryResultWriter;
 import org.eclipse.rdf4j.query.resultio.BasicQueryWriterSettings;
-import org.eclipse.rdf4j.query.resultio.QueryResultWriter;
 import org.eclipse.rdf4j.rio.RioSetting;
 import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
 
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonFactoryBuilder;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.StreamWriteFeature;
 import com.fasterxml.jackson.core.util.DefaultIndenter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter.Indenter;
 
 /**
  * An abstract class to implement the base functionality for both SPARQLBooleanJSONWriter and SPARQLResultsJSONWriter.
- * 
+ *
  * @author Peter Ansell
  */
-abstract class AbstractSPARQLJSONWriter extends AbstractQueryResultWriter implements QueryResultWriter {
+abstract class AbstractSPARQLJSONWriter extends AbstractQueryResultWriter implements CharSink {
 
-	private static final JsonFactory JSON_FACTORY = new JsonFactory();
-
-	static {
-		// Disable features that may work for most JSON where the field names are
-		// in limited supply,
-		// but does not work for RDF/JSON where a wide range of URIs are used for
-		// subjects and
-		// predicates
-		JSON_FACTORY.disable(JsonFactory.Feature.INTERN_FIELD_NAMES);
-		JSON_FACTORY.disable(JsonFactory.Feature.CANONICALIZE_FIELD_NAMES);
-		JSON_FACTORY.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
-	}
-
-	/*-----------*
-	 * Variables *
-	 *-----------*/
+	private static final JsonFactory JSON_FACTORY = new JsonFactoryBuilder()
+			// Disable features that may work for most JSON where the field names are
+			// in limited supply,
+			// but does not work for RDF/JSON where a wide range of URIs are used for
+			// subjects and
+			// predicates
+			.disable(JsonFactory.Feature.INTERN_FIELD_NAMES)
+			.disable(JsonFactory.Feature.CANONICALIZE_FIELD_NAMES)
+			.disable(StreamWriteFeature.AUTO_CLOSE_TARGET)
+			.build();
 
 	protected boolean firstTupleWritten = false;
 
@@ -75,14 +75,26 @@ abstract class AbstractSPARQLJSONWriter extends AbstractQueryResultWriter implem
 
 	protected boolean linksFound = false;
 
-	private final JsonGenerator jg;
+	protected final JsonGenerator jg;
+
+	private final Writer writer;
 
 	protected AbstractSPARQLJSONWriter(OutputStream out) {
+		this(new OutputStreamWriter(out, StandardCharsets.UTF_8));
+	}
+
+	protected AbstractSPARQLJSONWriter(Writer writer) {
+		this.writer = writer;
 		try {
-			jg = JSON_FACTORY.createGenerator(new OutputStreamWriter(out, StandardCharsets.UTF_8));
+			jg = JSON_FACTORY.createGenerator(writer);
 		} catch (IOException e) {
 			throw new IllegalArgumentException(e);
 		}
+	}
+
+	@Override
+	public final Writer getWriter() {
+		return writer;
 	}
 
 	@Override
@@ -107,6 +119,8 @@ abstract class AbstractSPARQLJSONWriter extends AbstractQueryResultWriter implem
 
 	@Override
 	public void startQueryResult(List<String> columnHeaders) throws TupleQueryResultHandlerException {
+		super.startQueryResult(columnHeaders);
+
 		try {
 			if (!documentOpen) {
 				startDocument();
@@ -122,17 +136,13 @@ abstract class AbstractSPARQLJSONWriter extends AbstractQueryResultWriter implem
 				jg.writeString(nextColumn);
 			}
 			jg.writeEndArray();
-		} catch (IOException e) {
-			throw new TupleQueryResultHandlerException(e);
-		} catch (TupleQueryResultHandlerException e) {
-			throw e;
-		} catch (QueryResultHandlerException e) {
+		} catch (IOException | QueryResultHandlerException e) {
 			throw new TupleQueryResultHandlerException(e);
 		}
 	}
 
 	@Override
-	public void handleSolution(BindingSet bindingSet) throws TupleQueryResultHandlerException {
+	protected void handleSolutionImpl(BindingSet bindingSet) throws TupleQueryResultHandlerException {
 		try {
 			if (!documentOpen) {
 				startDocument();
@@ -162,11 +172,7 @@ abstract class AbstractSPARQLJSONWriter extends AbstractQueryResultWriter implem
 			}
 
 			jg.writeEndObject();
-		} catch (IOException e) {
-			throw new TupleQueryResultHandlerException(e);
-		} catch (TupleQueryResultHandlerException e) {
-			throw e;
-		} catch (QueryResultHandlerException e) {
+		} catch (IOException | QueryResultHandlerException e) {
 			throw new TupleQueryResultHandlerException(e);
 		}
 	}
@@ -195,11 +201,7 @@ abstract class AbstractSPARQLJSONWriter extends AbstractQueryResultWriter implem
 			// results braces
 			jg.writeEndObject();
 			endDocument();
-		} catch (IOException e) {
-			throw new TupleQueryResultHandlerException(e);
-		} catch (TupleQueryResultHandlerException e) {
-			throw e;
-		} catch (QueryResultHandlerException e) {
+		} catch (IOException | QueryResultHandlerException e) {
 			throw new TupleQueryResultHandlerException(e);
 		}
 	}
@@ -299,7 +301,7 @@ abstract class AbstractSPARQLJSONWriter extends AbstractQueryResultWriter implem
 				jg.writeObjectField("xml:lang", lit.getLanguage().orElse(null));
 			} else {
 				IRI datatype = lit.getDatatype();
-				boolean ignoreDatatype = datatype.equals(XMLSchema.STRING) && xsdStringToPlainLiteral();
+				boolean ignoreDatatype = datatype.equals(XSD.STRING) && xsdStringToPlainLiteral();
 				if (!ignoreDatatype) {
 					jg.writeObjectField("datatype", lit.getDatatype().stringValue());
 				}
@@ -348,10 +350,8 @@ abstract class AbstractSPARQLJSONWriter extends AbstractQueryResultWriter implem
 	@Override
 	public final Collection<RioSetting<?>> getSupportedSettings() {
 		Set<RioSetting<?>> result = new HashSet<>(super.getSupportedSettings());
-
 		result.add(BasicQueryWriterSettings.JSONP_CALLBACK);
 		result.add(BasicWriterSettings.PRETTY_PRINT);
-		result.add(BasicWriterSettings.XSD_STRING_TO_PLAIN_LITERAL);
 
 		return result;
 	}

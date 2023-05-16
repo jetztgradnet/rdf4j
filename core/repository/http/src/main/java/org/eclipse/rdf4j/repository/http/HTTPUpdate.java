@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.http;
 
@@ -22,9 +25,9 @@ import org.eclipse.rdf4j.repository.RepositoryException;
 /**
  * Update specific to the HTTP protocol. Methods in this class may throw the specific RepositoryException subclass
  * UnautorizedException, the semantics of which is defined by the HTTP protocol.
- * 
- * @see org.eclipse.rdf4j.http.protocol.UnauthorizedException
+ *
  * @author Jeen Broekstra
+ * @see org.eclipse.rdf4j.http.protocol.UnauthorizedException
  */
 public class HTTPUpdate extends AbstractHTTPUpdate {
 
@@ -39,19 +42,14 @@ public class HTTPUpdate extends AbstractHTTPUpdate {
 	public void execute() throws UpdateExecutionException {
 		try {
 			if (httpCon.getRepository().useCompatibleMode()) {
-				if (httpCon.isAutoCommit()) {
+				if (!httpCon.isActive()) {
 					// execute update immediately
 					SPARQLProtocolSession client = getHttpClient();
 					try {
 						client.sendUpdate(getQueryLanguage(), getQueryString(), getBaseURI(), dataset, includeInferred,
 								getMaxExecutionTime(), getBindingsArray());
-					} catch (UnauthorizedException e) {
-						throw new HTTPUpdateExecutionException(e.getMessage(), e);
-					} catch (QueryInterruptedException e) {
-						throw new HTTPUpdateExecutionException(e.getMessage(), e);
-					} catch (MalformedQueryException e) {
-						throw new HTTPUpdateExecutionException(e.getMessage(), e);
-					} catch (IOException e) {
+					} catch (UnauthorizedException | QueryInterruptedException | MalformedQueryException
+							| IOException e) {
 						throw new HTTPUpdateExecutionException(e.getMessage(), e);
 					}
 				} else {
@@ -66,13 +64,7 @@ public class HTTPUpdate extends AbstractHTTPUpdate {
 				httpCon.flushTransactionState(Action.UPDATE);
 				client.sendUpdate(getQueryLanguage(), getQueryString(), getBaseURI(), dataset, includeInferred,
 						getMaxExecutionTime(), getBindingsArray());
-			} catch (UnauthorizedException e) {
-				throw new HTTPUpdateExecutionException(e.getMessage(), e);
-			} catch (QueryInterruptedException e) {
-				throw new HTTPUpdateExecutionException(e.getMessage(), e);
-			} catch (MalformedQueryException e) {
-				throw new HTTPUpdateExecutionException(e.getMessage(), e);
-			} catch (IOException e) {
+			} catch (UnauthorizedException | QueryInterruptedException | MalformedQueryException | IOException e) {
 				throw new HTTPUpdateExecutionException(e.getMessage(), e);
 			}
 		} catch (RepositoryException e) {

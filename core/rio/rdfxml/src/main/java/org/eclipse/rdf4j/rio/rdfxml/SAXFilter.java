@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.rdfxml;
 
@@ -39,7 +42,7 @@ class SAXFilter implements ContentHandler {
 	/**
 	 * The RDF parser to supply the filtered SAX events to.
 	 */
-	private RDFXMLParser rdfParser;
+	private final RDFXMLParser rdfParser;
 
 	/**
 	 * A Locator indicating a position in the text that is currently being parsed by the SAX parser.
@@ -49,12 +52,12 @@ class SAXFilter implements ContentHandler {
 	/**
 	 * Stack of ElementInfo objects.
 	 */
-	private Stack<ElementInfo> elInfoStack = new Stack<>();
+	private final Stack<ElementInfo> elInfoStack = new Stack<>();
 
 	/**
 	 * StringBuilder used to collect text during parsing.
 	 */
-	private StringBuilder charBuf = new StringBuilder(512);
+	private final StringBuilder charBuf = new StringBuilder(512);
 
 	/**
 	 * The document's URI.
@@ -77,7 +80,7 @@ class SAXFilter implements ContentHandler {
 	 * New namespace mappings that have been reported for the next start tag by the SAX parser, but that are not yet
 	 * assigned to an ElementInfo object.
 	 */
-	private Map<String, String> newNamespaceMappings = new LinkedHashMap<>();
+	private final Map<String, String> newNamespaceMappings = new LinkedHashMap<>();
 
 	/**
 	 * Flag indicating whether we're currently parsing RDF elements.
@@ -103,13 +106,13 @@ class SAXFilter implements ContentHandler {
 	 * The prefixes that are defined in the XML literal itself (this in contrast to the namespaces from the XML
 	 * literal's context).
 	 */
-	private List<String> xmlLiteralPrefixes = new ArrayList<>();
+	private final List<String> xmlLiteralPrefixes = new ArrayList<>();
 
 	/**
 	 * The prefixes that were used in an XML literal, but that were not defined in it (but rather in the XML literal's
 	 * context).
 	 */
-	private List<String> unknownPrefixesInXMLLiteral = new ArrayList<>();
+	private final List<String> unknownPrefixesInXMLLiteral = new ArrayList<>();
 
 	/*--------------*
 	 * Constructors *
@@ -147,7 +150,9 @@ class SAXFilter implements ContentHandler {
 	}
 
 	public void setDocumentURI(String documentURI) {
-		this.documentURI = createBaseURI(documentURI);
+		if (documentURI != null) {
+			this.documentURI = createBaseURI(documentURI);
+		}
 	}
 
 	public void setParseStandAloneDocuments(boolean standAloneDocs) {
@@ -176,9 +181,7 @@ class SAXFilter implements ContentHandler {
 	public void startDocument() throws SAXException {
 		try {
 			rdfParser.startDocument();
-		} catch (RDFParseException e) {
-			throw new SAXException(e);
-		} catch (RDFHandlerException e) {
+		} catch (RDFParseException | RDFHandlerException e) {
 			throw new SAXException(e);
 		}
 	}
@@ -187,9 +190,7 @@ class SAXFilter implements ContentHandler {
 	public void endDocument() throws SAXException {
 		try {
 			rdfParser.endDocument();
-		} catch (RDFParseException e) {
-			throw new SAXException(e);
-		} catch (RDFHandlerException e) {
+		} catch (RDFParseException | RDFHandlerException e) {
 			throw new SAXException(e);
 		}
 	}
@@ -212,9 +213,7 @@ class SAXFilter implements ContentHandler {
 			if (rdfParser.getRDFHandler() != null) {
 				rdfParser.getRDFHandler().handleNamespace(prefix, uri);
 			}
-		} catch (RDFParseException e) {
-			throw new SAXException(e);
-		} catch (RDFHandlerException e) {
+		} catch (RDFParseException | RDFHandlerException e) {
 			throw new SAXException(e);
 		}
 	}
@@ -281,9 +280,7 @@ class SAXFilter implements ContentHandler {
 
 				charBuf.setLength(0);
 			}
-		} catch (RDFParseException e) {
-			throw new SAXException(e);
-		} catch (RDFHandlerException e) {
+		} catch (RDFParseException | RDFHandlerException e) {
 			throw new SAXException(e);
 		}
 	}
@@ -298,7 +295,9 @@ class SAXFilter implements ContentHandler {
 		elInfoStack.push(deferredElement);
 		rdfContextStackHeight++;
 
-		rdfParser.setBaseURI(deferredElement.baseURI.toString());
+		if (deferredElement.baseURI != null) {
+			rdfParser.setBaseURI(deferredElement.baseURI.toString());
+		}
 		rdfParser.setXMLLang(deferredElement.xmlLang);
 
 		rdfParser.startElement(deferredElement.namespaceURI, deferredElement.localName, deferredElement.qName,
@@ -356,7 +355,9 @@ class SAXFilter implements ContentHandler {
 			// Check for any deferred start elements
 			if (deferredElement != null) {
 				// Start element still deferred, this is an empty element
-				rdfParser.setBaseURI(deferredElement.baseURI.toString());
+				if (deferredElement.baseURI != null) {
+					rdfParser.setBaseURI(deferredElement.baseURI.toString());
+				}
 				rdfParser.setXMLLang(deferredElement.xmlLang);
 
 				rdfParser.emptyElement(deferredElement.namespaceURI, deferredElement.localName, deferredElement.qName,
@@ -389,9 +390,7 @@ class SAXFilter implements ContentHandler {
 
 				rdfParser.endElement(namespaceURI, localName, qName);
 			}
-		} catch (RDFParseException e) {
-			throw new SAXException(e);
-		} catch (RDFHandlerException e) {
+		} catch (RDFParseException | RDFHandlerException e) {
 			throw new SAXException(e);
 		}
 	}
@@ -428,9 +427,7 @@ class SAXFilter implements ContentHandler {
 					}
 				}
 			}
-		} catch (RDFParseException e) {
-			throw new SAXException(e);
-		} catch (RDFHandlerException e) {
+		} catch (RDFParseException | RDFHandlerException e) {
 			throw new SAXException(e);
 		}
 	}
@@ -574,9 +571,25 @@ class SAXFilter implements ContentHandler {
 				}
 			}
 
-			// Insert this String before the first '>' character
-			int endOfFirstStartTag = charBuf.indexOf(">");
-			charBuf.insert(endOfFirstStartTag, contextPrefixes.toString());
+			int i = 0;
+			int opentag = 0;
+			while (i < charBuf.length()) {
+				char ch = charBuf.charAt(i);
+				if (ch == '<') {
+					if ((i + 1) < charBuf.length()) {
+						char nextChar = charBuf.charAt(i + 1);
+						if (nextChar != '/' && opentag == 0) {
+							opentag++;
+							int endOfFirstStartTag = charBuf.substring(i).indexOf(">");
+							charBuf.insert(endOfFirstStartTag + i, contextPrefixes.toString());
+						} else {
+							opentag--;
+						}
+					}
+				}
+				i += 1;
+			}
+
 		}
 
 		unknownPrefixesInXMLLiteral.clear();
@@ -657,8 +670,8 @@ class SAXFilter implements ContentHandler {
 		}
 
 		public void setBaseURI(String uriString) {
-			// Resolve the specified base URI against the inherited base URI
-			baseURI = baseURI.resolve(createBaseURI(uriString));
+			// Resolve the specified base URI against the inherited base URI (if any)
+			baseURI = baseURI != null ? baseURI.resolve(createBaseURI(uriString)) : createBaseURI(uriString);
 		}
 
 		public void setNamespaceMappings(Map<String, String> namespaceMappings) {

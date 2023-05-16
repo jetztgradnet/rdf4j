@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.nativerdf.btree;
 
@@ -30,7 +33,7 @@ class ConcurrentNodeCache extends ConcurrentCache<Integer, Node> {
 
 	public ConcurrentNodeCache(Function<Integer, Node> reader) {
 		super(0); // cleanUp, when actually run, will try to completely purge the cache (but retain currently used
-					// nodes)
+		// nodes)
 		this.reader = reader;
 	}
 
@@ -57,15 +60,17 @@ class ConcurrentNodeCache extends ConcurrentCache<Integer, Node> {
 			if (v.getUsageCount() == 0 && v.isEmpty() && v.isLeaf()) {
 				writeNode.accept(v);
 				return null;
-			} else
+			} else {
 				return v;
+			}
 		});
 		return nn == null;
 	}
 
 	public void release(Node node, boolean forceSync) {
-		if (forceSync)
+		if (forceSync) {
 			writeNode.accept(node);
+		}
 		cleanUp();
 	}
 
@@ -73,11 +78,13 @@ class ConcurrentNodeCache extends ConcurrentCache<Integer, Node> {
 	protected boolean onEntryRemoval(Integer key) {
 		Node node = cache.get(key);
 
-		if (node == null)
+		if (node == null) {
 			return true;
+		}
 
-		if (node.getUsageCount() > 0)
+		if (node.getUsageCount() > 0) {
 			return false;
+		}
 
 		writeNode.accept(node);
 

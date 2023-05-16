@@ -1,11 +1,16 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.http.client;
+
+import static org.eclipse.rdf4j.http.protocol.Protocol.TRANSACTION_SETTINGS_PREFIX;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -22,6 +27,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -50,10 +57,10 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-import org.eclipse.rdf4j.IsolationLevel;
-import org.eclipse.rdf4j.OpenRDFUtil;
-import org.eclipse.rdf4j.RDF4JException;
+import org.eclipse.rdf4j.common.exception.RDF4JException;
 import org.eclipse.rdf4j.common.io.IOUtil;
+import org.eclipse.rdf4j.common.transaction.IsolationLevel;
+import org.eclipse.rdf4j.common.transaction.TransactionSetting;
 import org.eclipse.rdf4j.http.protocol.Protocol;
 import org.eclipse.rdf4j.http.protocol.Protocol.Action;
 import org.eclipse.rdf4j.http.protocol.UnauthorizedException;
@@ -90,7 +97,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A {@link SPARQLProtocolSession} subclass which extends the standard SPARQL 1.1 Protocol with additional
  * functionality, as documented in the <a href="http://docs.rdf4j.org/rest-api">RDF4J REST API</a>.
- * 
+ *
  * @author Andreas Schwarte
  * @author Jeen Broekstra
  * @see <a href="http://docs.rdf4j.org/rest-api">RDF4J REST API</a>
@@ -108,21 +115,28 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 
 	private String transactionURL;
 
-	private ScheduledExecutorService executor;
+	private final ScheduledExecutorService pingScheduler;
 
 	private ScheduledFuture<?> ping;
 
 	private long pingDelay = PINGDELAY;
 
+	/**
+	 * @deprecated since 3.6.2 - use {@link #RDF4JProtocolSession(HttpClient, ExecutorService)} instead
+	 */
+	@Deprecated
 	public RDF4JProtocolSession(HttpClient client, ScheduledExecutorService executor) {
-		super(client, executor);
-		this.executor = executor;
+		this(client, (ExecutorService) executor);
+	}
 
-		// we want to preserve bnode ids to allow Sesame API methods to match
+	public RDF4JProtocolSession(HttpClient client, ExecutorService executor) {
+		super(client, executor);
+
+		// we want to preserve bnode ids to allow RDF4J API methods to match
 		// blank nodes.
 		getParserConfig().set(BasicParserSettings.PRESERVE_BNODE_IDS, true);
 
-		// Sesame client has preference for binary response formats, as these are
+		// RDF4J Protocol has a preference for binary response formats, as these are
 		// most performant
 		setPreferredTupleQueryResultFormat(TupleQueryResultFormat.BINARY);
 		setPreferredRDFFormat(RDFFormat.BINARY);
@@ -135,6 +149,14 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 		} catch (Exception e) {
 			logger.warn("Could not read integer value of system property {}", Protocol.CACHE_TIMEOUT_PROPERTY);
 		}
+
+		// use a single-threaded scheduled executor to handle keepalive pings for transactions
+		pingScheduler = Executors.newSingleThreadScheduledExecutor((Runnable runnable) -> {
+			Thread thread = Executors.defaultThreadFactory().newThread(runnable);
+			thread.setName("rdf4j-pingScheduler");
+			thread.setDaemon(true);
+			return thread;
+		});
 	}
 
 	public void setServerURL(String serverURL) {
@@ -192,6 +214,7 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 				ping.cancel(false);
 				ping = null;
 			}
+			pingScheduler.shutdownNow();
 		}
 	}
 
@@ -298,7 +321,7 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 
 	/**
 	 * Create a new repository.
-	 * 
+	 *
 	 * @param config the repository configuration
 	 * @throws IOException
 	 * @throws RepositoryException
@@ -332,7 +355,7 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 
 	/**
 	 * Update the config of an existing repository.
-	 * 
+	 *
 	 * @param config the repository configuration
 	 * @throws IOException
 	 * @throws RepositoryException
@@ -389,7 +412,6 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 	 * @throws RDFHandlerException
 	 * @throws QueryInterruptedException
 	 * @throws UnauthorizedException
-	 * 
 	 * @since 3.1.0
 	 */
 	public void getRepositoryConfig(StatementCollector statementCollector) throws UnauthorizedException,
@@ -480,7 +502,7 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 				new HttpPut(Protocol.getNamespacePrefixLocation(getQueryURL(), prefix)));
 
 		try {
-			method.setEntity(new StringEntity(name, ContentType.create("text/plain", "UTF-8")));
+			method.setEntity(new StringEntity(name, ContentType.create("text/plain", StandardCharsets.UTF_8)));
 			executeNoContent(method);
 		} catch (RepositoryException e) {
 			throw e;
@@ -608,6 +630,11 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 
 	public synchronized void beginTransaction(IsolationLevel isolationLevel)
 			throws RDF4JException, IOException, UnauthorizedException {
+		beginTransaction((TransactionSetting) isolationLevel);
+	}
+
+	public synchronized void beginTransaction(TransactionSetting... transactionSettings)
+			throws RDF4JException, IOException, UnauthorizedException {
 		checkRepositoryURL();
 
 		if (transactionURL != null) {
@@ -620,9 +647,17 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 			method.setHeader("Content-Type", Protocol.FORM_MIME_TYPE + "; charset=utf-8");
 
 			List<NameValuePair> params = new ArrayList<>();
-			if (isolationLevel != null) {
-				params.add(new BasicNameValuePair(Protocol.ISOLATION_LEVEL_PARAM_NAME,
-						isolationLevel.getURI().stringValue()));
+
+			for (TransactionSetting transactionSetting : transactionSettings) {
+				if (transactionSetting == null) {
+					continue;
+				}
+				params.add(
+						new BasicNameValuePair(
+								TRANSACTION_SETTINGS_PREFIX + transactionSetting.getName(),
+								transactionSetting.getValue()
+						)
+				);
 			}
 
 			method.setEntity(new UrlEncodedFormEntity(params, UTF8));
@@ -645,6 +680,39 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 			}
 		} finally {
 			method.reset();
+		}
+	}
+
+	public synchronized void prepareTransaction() throws RDF4JException, IOException, UnauthorizedException {
+		checkRepositoryURL();
+
+		if (transactionURL == null) {
+			throw new IllegalStateException("Transaction URL has not been set");
+		}
+
+		HttpPut method = null;
+		try {
+			URIBuilder url = new URIBuilder(transactionURL);
+			url.addParameter(Protocol.ACTION_PARAM_NAME, Action.PREPARE.toString());
+			method = applyAdditionalHeaders(new HttpPut(url.build()));
+
+			final HttpResponse response = execute(method);
+			try {
+				int code = response.getStatusLine().getStatusCode();
+				if (code == HttpURLConnection.HTTP_OK) {
+				} else {
+					throw new RepositoryException("unable to prepare transaction. HTTP error code " + code);
+				}
+			} finally {
+				EntityUtils.consumeQuietly(response.getEntity());
+			}
+		} catch (URISyntaxException e) {
+			logger.error("could not create URL for transaction prepare", e);
+			throw new RuntimeException(e);
+		} finally {
+			if (method != null) {
+				method.reset();
+			}
 		}
 	}
 
@@ -725,7 +793,7 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 			ping.cancel(false);
 		}
 		if (pingDelay > 0) {
-			ping = executor.schedule(() -> {
+			ping = pingScheduler.schedule(() -> {
 				executeTransactionPing();
 			}, pingDelay, TimeUnit.MILLISECONDS);
 		}
@@ -736,7 +804,7 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 		if (transactionURL == null) {
 			return; // transaction has already been closed
 		}
-		HttpPost method = null;
+		HttpPost method;
 		try {
 			URIBuilder url = new URIBuilder(transactionURL);
 			url.addParameter(Protocol.ACTION_PARAM_NAME, Action.PING.toString());
@@ -758,7 +826,7 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 
 	/**
 	 * Appends the action as a parameter to the supplied url
-	 * 
+	 *
 	 * @param url    a url on which to append the parameter. it is assumed the url has no parameters.
 	 * @param action the action to add as a parameter
 	 * @return the url parametrized with the supplied action
@@ -769,12 +837,12 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 
 	/**
 	 * Sends a transaction list as serialized XML to the server.
-	 * 
-	 * @deprecated since 2.8.0
+	 *
 	 * @param txn
 	 * @throws IOException
 	 * @throws RepositoryException
 	 * @throws UnauthorizedException
+	 * @deprecated since 2.8.0
 	 */
 	@Deprecated
 	public void sendTransaction(final Iterable<? extends TransactionOperation> txn)
@@ -867,7 +935,7 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 	@Override
 	protected HttpUriRequest getQueryMethod(QueryLanguage ql, String query, String baseURI, Dataset dataset,
 			boolean includeInferred, int maxQueryTime, Binding... bindings) {
-		RequestBuilder builder = null;
+		RequestBuilder builder;
 		String transactionURL = getTransactionURL();
 		if (transactionURL != null) {
 			builder = RequestBuilder.put(transactionURL);
@@ -900,7 +968,7 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 	@Override
 	protected HttpUriRequest getUpdateMethod(QueryLanguage ql, String update, String baseURI, Dataset dataset,
 			boolean includeInferred, int maxExecutionTime, Binding... bindings) {
-		RequestBuilder builder = null;
+		RequestBuilder builder;
 		String transactionURL = getTransactionURL();
 		if (transactionURL != null) {
 			builder = RequestBuilder.put(transactionURL);
@@ -970,12 +1038,10 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 
 			@Override
 			public void writeTo(OutputStream out) throws IOException {
-				try {
+				try (contents) {
 					OutputStreamWriter writer = new OutputStreamWriter(out, charset);
 					IOUtil.transfer(contents, writer);
 					writer.flush();
-				} finally {
-					contents.close();
 				}
 			}
 		};
@@ -986,7 +1052,8 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 	protected void upload(HttpEntity reqEntity, String baseURI, boolean overwrite, boolean preserveNodeIds,
 			Action action, Resource... contexts)
 			throws IOException, RDFParseException, RepositoryException, UnauthorizedException {
-		OpenRDFUtil.verifyContextNotNull(contexts);
+		Objects.requireNonNull(contexts,
+				"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 
 		checkRepositoryURL();
 
@@ -1032,9 +1099,7 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 				// Send request
 				try {
 					executeNoContent((HttpUriRequest) method);
-				} catch (RepositoryException e) {
-					throw e;
-				} catch (RDFParseException e) {
+				} catch (RepositoryException | RDFParseException e) {
 					throw e;
 				} catch (RDF4JException e) {
 					throw new RepositoryException(e);
@@ -1103,7 +1168,10 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 		List<NameValuePair> queryParams = new ArrayList<>();
 
 		queryParams.add(new BasicNameValuePair(Protocol.QUERY_LANGUAGE_PARAM_NAME, ql.getName()));
-		queryParams.add(new BasicNameValuePair(Protocol.UPDATE_PARAM_NAME, update));
+
+		if (update != null) {
+			queryParams.add(new BasicNameValuePair(Protocol.UPDATE_PARAM_NAME, update));
+		}
 
 		if (baseURI != null) {
 			queryParams.add(new BasicNameValuePair(Protocol.BASEURI_PARAM_NAME, baseURI));
@@ -1149,5 +1217,4 @@ public class RDF4JProtocolSession extends SPARQLProtocolSession {
 		}
 		return method;
 	}
-
 }

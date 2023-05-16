@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.trix;
 
@@ -29,7 +32,6 @@ import java.util.Set;
 import org.apache.commons.io.input.BOMInputStream;
 import org.eclipse.rdf4j.common.xml.SimpleSAXAdapter;
 import org.eclipse.rdf4j.common.xml.SimpleSAXParser;
-import org.eclipse.rdf4j.common.xml.XMLReaderFactory;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Resource;
@@ -42,9 +44,9 @@ import org.eclipse.rdf4j.rio.RDFHandlerException;
 import org.eclipse.rdf4j.rio.RDFParseException;
 import org.eclipse.rdf4j.rio.RioSetting;
 import org.eclipse.rdf4j.rio.helpers.AbstractRDFParser;
-import org.eclipse.rdf4j.rio.helpers.XMLReaderBasedParser;
 import org.eclipse.rdf4j.rio.helpers.TriXParserSettings;
 import org.eclipse.rdf4j.rio.helpers.XMLParserSettings;
+import org.eclipse.rdf4j.rio.helpers.XMLReaderBasedParser;
 import org.xml.sax.ErrorHandler;
 import org.xml.sax.InputSource;
 import org.xml.sax.Locator;
@@ -54,7 +56,7 @@ import org.xml.sax.XMLReader;
 
 /**
  * A parser that can parse RDF files that are in the <a href="http://www.w3.org/2004/03/trix/">TriX format</a> .
- * 
+ *
  * @author Arjohn Kampman
  */
 public class TriXParser extends XMLReaderBasedParser implements ErrorHandler {
@@ -76,7 +78,7 @@ public class TriXParser extends XMLReaderBasedParser implements ErrorHandler {
 	/**
 	 * Creates a new TriXParser that will use the supplied ValueFactory to create objects for resources, bNodes,
 	 * literals and statements.
-	 * 
+	 *
 	 * @param valueFactory A ValueFactory.
 	 */
 	public TriXParser(ValueFactory valueFactory) {
@@ -110,52 +112,30 @@ public class TriXParser extends XMLReaderBasedParser implements ErrorHandler {
 		return results;
 	}
 
-	/**
-	 * Parses the data from the supplied InputStream, using the supplied baseURI to resolve any relative URI references.
-	 * 
-	 * @param in      The InputStream from which to read the data, must not be <tt>null</tt>.
-	 * @param baseURI The URI associated with the data in the InputStream, must not be <tt>null</tt>.
-	 * @throws IOException              If an I/O error occurred while data was read from the InputStream.
-	 * @throws RDFParseException        If the parser has found an unrecoverable parse error.
-	 * @throws RDFHandlerException      If the configured statement handler encountered an unrecoverable error.
-	 * @throws IllegalArgumentException If the supplied input stream or base URI is <tt>null</tt>.
-	 */
 	@Override
 	public void parse(InputStream in, String baseURI) throws IOException, RDFParseException, RDFHandlerException {
 		if (in == null) {
 			throw new IllegalArgumentException("Input stream cannot be 'null'");
 		}
-		if (baseURI == null) {
-			throw new IllegalArgumentException("Base URI cannot be 'null'");
-		}
 
 		InputSource inputSource = new InputSource(new BOMInputStream(in, false));
-		inputSource.setSystemId(baseURI);
+		if (baseURI != null) {
+			inputSource.setSystemId(baseURI);
+		}
 
 		parse(inputSource);
 	}
 
-	/**
-	 * Parses the data from the supplied Reader, using the supplied baseURI to resolve any relative URI references.
-	 * 
-	 * @param reader  The Reader from which to read the data, must not be <tt>null</tt>.
-	 * @param baseURI The URI associated with the data in the InputStream, must not be <tt>null</tt>.
-	 * @throws IOException              If an I/O error occurred while data was read from the InputStream.
-	 * @throws RDFParseException        If the parser has found an unrecoverable parse error.
-	 * @throws RDFHandlerException      If the configured statement handler has encountered an unrecoverable error.
-	 * @throws IllegalArgumentException If the supplied reader or base URI is <tt>null</tt>.
-	 */
 	@Override
 	public void parse(Reader reader, String baseURI) throws IOException, RDFParseException, RDFHandlerException {
 		if (reader == null) {
 			throw new IllegalArgumentException("Reader cannot be 'null'");
 		}
-		if (baseURI == null) {
-			throw new IllegalArgumentException("Base URI cannot be 'null'");
-		}
 
 		InputSource inputSource = new InputSource(reader);
-		inputSource.setSystemId(baseURI);
+		if (baseURI != null) {
+			inputSource.setSystemId(baseURI);
+		}
 
 		parse(inputSource);
 	}
@@ -281,7 +261,7 @@ public class TriXParser extends XMLReaderBasedParser implements ErrorHandler {
 
 		private boolean parsingContext;
 
-		private List<Value> valueList;
+		private final List<Value> valueList;
 
 		public TriXSAXHandler() {
 			currentContext = null;
@@ -346,9 +326,7 @@ public class TriXParser extends XMLReaderBasedParser implements ErrorHandler {
 				} else if (tagName.equals(CONTEXT_TAG)) {
 					currentContext = null;
 				}
-			} catch (RDFParseException e) {
-				throw new SAXException(e);
-			} catch (RDFHandlerException e) {
+			} catch (RDFParseException | RDFHandlerException e) {
 				throw new SAXException(e);
 			}
 		}

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.nativerdf;
 
@@ -15,17 +18,18 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.eclipse.rdf4j.IsolationLevel;
-import org.eclipse.rdf4j.OpenRDFUtil;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.common.iteration.CloseableIteratorIteration;
 import org.eclipse.rdf4j.common.iteration.ConvertingIteration;
 import org.eclipse.rdf4j.common.iteration.EmptyIteration;
 import org.eclipse.rdf4j.common.iteration.FilterIteration;
 import org.eclipse.rdf4j.common.iteration.UnionIteration;
+import org.eclipse.rdf4j.common.transaction.IsolationLevel;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Namespace;
 import org.eclipse.rdf4j.model.Resource;
@@ -35,6 +39,7 @@ import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.query.algebra.evaluation.impl.EvaluationStatistics;
 import org.eclipse.rdf4j.sail.SailException;
 import org.eclipse.rdf4j.sail.base.BackingSailSource;
+import org.eclipse.rdf4j.sail.base.Changeset;
 import org.eclipse.rdf4j.sail.base.SailDataset;
 import org.eclipse.rdf4j.sail.base.SailSink;
 import org.eclipse.rdf4j.sail.base.SailSource;
@@ -46,7 +51,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A disk based {@link SailStore} implementation that keeps committed statements in a {@link TripleStore}.
- * 
+ *
  * @author James Leigh
  */
 class NativeSailStore implements SailStore {
@@ -203,10 +208,10 @@ class NativeSailStore implements SailStore {
 
 	/**
 	 * Creates a statement iterator based on the supplied pattern.
-	 * 
-	 * @param subj     The subject of the pattern, or <tt>null</tt> to indicate a wildcard.
-	 * @param pred     The predicate of the pattern, or <tt>null</tt> to indicate a wildcard.
-	 * @param obj      The object of the pattern, or <tt>null</tt> to indicate a wildcard.
+	 *
+	 * @param subj     The subject of the pattern, or <var>null</var> to indicate a wildcard.
+	 * @param pred     The predicate of the pattern, or <var>null</var> to indicate a wildcard.
+	 * @param obj      The object of the pattern, or <var>null</var> to indicate a wildcard.
 	 * @param contexts The context(s) of the pattern. Note that this parameter is a vararg and as such is optional. If
 	 *                 no contexts are supplied the method operates on the entire repository.
 	 * @return A StatementIterator that can be used to iterate over the statements that match the specified pattern.
@@ -245,7 +250,7 @@ class NativeSailStore implements SailStore {
 			for (Resource context : contexts) {
 				if (context == null) {
 					contextIDList.add(0);
-				} else {
+				} else if (!context.isTriple()) {
 					int contextID = valueStore.getID(context);
 
 					if (contextID != NativeValue.UNKNOWN_ID) {
@@ -420,6 +425,11 @@ class NativeSailStore implements SailStore {
 		}
 
 		@Override
+		public void observeAll(Set<Changeset.SimpleStatementPattern> observed) {
+			// serializable is not supported at this level
+		}
+
+		@Override
 		public void clear(Resource... contexts) throws SailException {
 			removeStatements(null, null, null, explicit, contexts);
 		}
@@ -430,13 +440,14 @@ class NativeSailStore implements SailStore {
 		}
 
 		@Override
-		public void deprecate(Resource subj, IRI pred, Value obj, Resource ctx) throws SailException {
-			removeStatements(subj, pred, obj, explicit, ctx);
+		public void deprecate(Statement statement) throws SailException {
+			removeStatements(statement.getSubject(), statement.getPredicate(), statement.getObject(), explicit,
+					statement.getContext());
 		}
 
 		/**
 		 * Starts a transaction on the triplestore, if necessary.
-		 * 
+		 *
 		 * @throws SailException if a transaction could not be started.
 		 */
 		private synchronized void startTriplestoreTransaction() throws SailException {
@@ -453,7 +464,8 @@ class NativeSailStore implements SailStore {
 
 		private boolean addStatement(Resource subj, IRI pred, Value obj, boolean explicit, Resource... contexts)
 				throws SailException {
-			OpenRDFUtil.verifyContextNotNull(contexts);
+			Objects.requireNonNull(contexts,
+					"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 			boolean result = false;
 			sinkStoreAccessLock.lock();
 			try {
@@ -492,7 +504,8 @@ class NativeSailStore implements SailStore {
 
 		private long removeStatements(Resource subj, IRI pred, Value obj, boolean explicit, Resource... contexts)
 				throws SailException {
-			OpenRDFUtil.verifyContextNotNull(contexts);
+			Objects.requireNonNull(contexts,
+					"contexts argument may not be null; either the value should be cast to Resource or an empty array should be supplied");
 
 			sinkStoreAccessLock.lock();
 			try {
@@ -559,6 +572,16 @@ class NativeSailStore implements SailStore {
 				sinkStoreAccessLock.unlock();
 			}
 		}
+
+		@Override
+		public boolean deprecateByQuery(Resource subj, IRI pred, Value obj, Resource[] contexts) {
+			return removeStatements(subj, pred, obj, explicit, contexts) > 0;
+		}
+
+		@Override
+		public boolean supportsDeprecateByQuery() {
+			return true;
+		}
 	}
 
 	/**
@@ -589,7 +612,7 @@ class NativeSailStore implements SailStore {
 
 		@Override
 		public CloseableIteration<? extends Resource, SailException> getContextIDs() throws SailException {
-			return new CloseableIteratorIteration<Resource, SailException>(contextStore.iterator());
+			return new CloseableIteratorIteration<>(contextStore.iterator());
 		}
 
 		@Override

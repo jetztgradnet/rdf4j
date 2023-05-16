@@ -1,14 +1,17 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.inferencer.fc;
 
-import org.eclipse.rdf4j.IsolationLevel;
-import org.eclipse.rdf4j.IsolationLevels;
+import org.eclipse.rdf4j.common.transaction.IsolationLevel;
+import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.sail.Sail;
@@ -25,16 +28,16 @@ public abstract class AbstractForwardChainingInferencerConnection extends Infere
 		implements SailConnectionListener {
 
 	/*-----------*
-	* Constants *
-	*-----------*/
+	 * Constants *
+	 *-----------*/
 
 	static private final Logger logger = LoggerFactory.getLogger(AbstractForwardChainingInferencerConnection.class);
 
 	/*-----------*
-	* Variables *
-	*-----------*/
+	 * Variables *
+	 *-----------*/
 
-	private Sail sail;
+	private final Sail sail;
 
 	/**
 	 * true if the base Sail reported removed statements.
@@ -49,8 +52,8 @@ public abstract class AbstractForwardChainingInferencerConnection extends Infere
 	protected int totalInferred;
 
 	/*--------------*
-	* Constructors *
-	*--------------*/
+	 * Constructors *
+	 *--------------*/
 
 	public AbstractForwardChainingInferencerConnection(Sail sail, InferencerConnection con) {
 		super(con);
@@ -59,8 +62,8 @@ public abstract class AbstractForwardChainingInferencerConnection extends Infere
 	}
 
 	/*---------*
-	* Methods *
-	*---------*/
+	 * Methods *
+	 *---------*/
 
 	// Called by base sail
 	@Override
@@ -114,14 +117,11 @@ public abstract class AbstractForwardChainingInferencerConnection extends Infere
 
 	@Override
 	public void begin() throws SailException {
-		this.begin(null);
+		this.begin(sail.getDefaultIsolationLevel());
 	}
 
 	@Override
 	public void begin(IsolationLevel level) throws SailException {
-		if (level == null) {
-			level = sail.getDefaultIsolationLevel();
-		}
 
 		IsolationLevel compatibleLevel = IsolationLevels.getCompatibleIsolationLevel(level,
 				sail.getSupportedIsolationLevels());

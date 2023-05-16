@@ -1,18 +1,21 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.spin.function;
 
 import java.util.Set;
 
-import org.eclipse.rdf4j.RDF4JException;
+import org.eclipse.rdf4j.common.exception.RDF4JException;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
+import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
-import org.eclipse.rdf4j.model.URI;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.BooleanLiteral;
@@ -22,6 +25,7 @@ import org.eclipse.rdf4j.model.vocabulary.SPIN;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.BooleanQuery;
 import org.eclipse.rdf4j.query.Query;
+import org.eclipse.rdf4j.query.QueryEvaluationException;
 import org.eclipse.rdf4j.query.TupleQuery;
 import org.eclipse.rdf4j.query.TupleQueryResult;
 import org.eclipse.rdf4j.query.algebra.Extension;
@@ -86,17 +90,18 @@ public class EvalFunction extends AbstractSpinFunction implements Function {
 				ParsedTupleQuery tupleQuery = (ParsedTupleQuery) parsedQuery;
 				TupleQuery queryOp = qp.prepare(tupleQuery);
 				addArguments(queryOp, args);
-				TupleQueryResult queryResult = queryOp.evaluate();
-				if (queryResult.hasNext()) {
-					BindingSet bs = queryResult.next();
-					Set<String> bindingNames = tupleQuery.getTupleExpr().getBindingNames();
-					if (!bindingNames.isEmpty()) {
-						result = bs.getValue(bindingNames.iterator().next());
+				try (TupleQueryResult queryResult = queryOp.evaluate()) {
+					if (queryResult.hasNext()) {
+						BindingSet bs = queryResult.next();
+						Set<String> bindingNames = tupleQuery.getTupleExpr().getBindingNames();
+						if (!bindingNames.isEmpty()) {
+							result = bs.getValue(bindingNames.iterator().next());
+						} else {
+							throw new ValueExprEvaluationException("No value");
+						}
 					} else {
 						throw new ValueExprEvaluationException("No value");
 					}
-				} else {
-					throw new ValueExprEvaluationException("No value");
 				}
 			} else if (parsedQuery instanceof ParsedBooleanQuery) {
 				ParsedBooleanQuery booleanQuery = (ParsedBooleanQuery) parsedQuery;
@@ -115,17 +120,15 @@ public class EvalFunction extends AbstractSpinFunction implements Function {
 	}
 
 	private boolean isQuery(Resource r, TripleSource store) throws RDF4JException {
-		CloseableIteration<? extends URI, ? extends RDF4JException> typeIter = TripleSources.getObjectURIs(r, RDF.TYPE,
-				store);
-		try {
+		try (CloseableIteration<? extends IRI, QueryEvaluationException> typeIter = TripleSources.getObjectURIs(r,
+				RDF.TYPE,
+				store)) {
 			while (typeIter.hasNext()) {
-				URI type = typeIter.next();
+				IRI type = typeIter.next();
 				if (SP.SELECT_CLASS.equals(type) || SP.ASK_CLASS.equals(type) || SPIN.TEMPLATES_CLASS.equals(type)) {
 					return true;
 				}
 			}
-		} finally {
-			typeIter.close();
 		}
 
 		return false;
@@ -133,10 +136,10 @@ public class EvalFunction extends AbstractSpinFunction implements Function {
 
 	protected static void addArguments(Query query, Value... args) throws ValueExprEvaluationException {
 		for (int i = 1; i < args.length; i += 2) {
-			if (!(args[i] instanceof URI)) {
-				throw new ValueExprEvaluationException("Argument " + i + " must be a URI");
+			if (!(args[i] instanceof IRI)) {
+				throw new ValueExprEvaluationException("Argument " + i + " must be a IRI");
 			}
-			query.setBinding(((URI) args[i]).getLocalName(), args[i + 1]);
+			query.setBinding(((IRI) args[i]).getLocalName(), args[i + 1]);
 		}
 	}
 }

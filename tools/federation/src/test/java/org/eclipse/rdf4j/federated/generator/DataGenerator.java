@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.generator;
 
@@ -16,10 +19,10 @@ import java.util.Set;
 
 /**
  * Data generator for 4 endpoints
- * 
+ *
  * Endpoint1: Person Data (rdf:type={foaf:Person, ns1:Person}, foaf:project, foaf:name, owl:sameAs{author in ns4)
- * 
- * 
+ *
+ *
  * @author andreas_s
  *
  */
@@ -33,7 +36,7 @@ public class DataGenerator {
 	public static final int PROBABILITY_IS_AUTHOR = 70; // probability in % that a person is an author (owl_sameAs)
 	public static final int PROBABILITY_HAS_PERSON = 80; // probability in % that a project has a responsible person
 
-	protected Random rand = new Random();
+	protected Random rand = new Random(64352342);
 
 	// string build for the endpoints
 	protected StringBuilder endpoint1 = new StringBuilder();
@@ -98,30 +101,35 @@ public class DataGenerator {
 	protected void createPersons() {
 
 		// endpoint 1
-		for (int i = 1; i <= PERSONS_1; i++)
+		for (int i = 1; i <= PERSONS_1; i++) {
 			appendLine(endpoint1, createPerson(i));
+		}
 
 		// endpoint 2
-		for (int i = PERSONS_1 + 1; i <= PERSONS_1 + PERSONS_2; i++)
+		for (int i = PERSONS_1 + 1; i <= PERSONS_1 + PERSONS_2; i++) {
 			appendLine(endpoint2, createPerson(i));
+		}
 	}
 
 	protected void createProjects() {
 
 		// endpoint 3
-		for (int i = 1; i <= PROJECTS; i++)
+		for (int i = 1; i <= PROJECTS; i++) {
 			appendLine(endpoint3, createProject(i));
+		}
 	}
 
 	protected void createPublications() {
 
 		// endpoint 4
-		for (int i = 1; i <= AUTHORS; i++)
+		for (int i = 1; i <= AUTHORS; i++) {
 			appendLine(endpoint4, createAuthor(i));
+		}
 
 		// endpoint 4
-		for (int i = 1; i <= PUBLICATIONS; i++)
+		for (int i = 1; i <= PUBLICATIONS; i++) {
 			appendLine(endpoint4, createPublication(i));
+		}
 
 	}
 
@@ -159,7 +167,7 @@ public class DataGenerator {
 
 	/**
 	 * Create a publication for endpoint 3, and randomly assign up to 4 authors
-	 * 
+	 *
 	 * @param id
 	 * @return
 	 */
@@ -173,11 +181,12 @@ public class DataGenerator {
 
 		// create up to 4 authors (randomly select) for each publication
 		int hasAuthors = rand(4);
-		Set<Integer> authors = new HashSet<Integer>();
+		Set<Integer> authors = new HashSet<>();
 		for (int i = 0; i < hasAuthors; i++) {
 			int authorId = rand(AUTHORS);
-			if (authors.contains(authorId))
+			if (authors.contains(authorId)) {
 				continue;
+			}
 			authors.add(authorId);
 			appendLine(sb, pubUri + " :hasAuthor :Author_" + authorId + " .");
 		}
@@ -218,7 +227,7 @@ public class DataGenerator {
 
 	/**
 	 * Return an integer between 1 and upper (inclusive)
-	 * 
+	 *
 	 * @param upperInclusive
 	 * @return
 	 */
@@ -228,7 +237,7 @@ public class DataGenerator {
 
 	/**
 	 * Returns true if the the event is probable using random generator. True iff rand(100)<probability, false otherwise
-	 * 
+	 *
 	 * @param probability
 	 * @return
 	 */

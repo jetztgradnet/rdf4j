@@ -1,15 +1,18 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.rio.jsonld;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -23,29 +26,28 @@ import java.util.Arrays;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
-import org.eclipse.rdf4j.model.URI;
 import org.eclipse.rdf4j.model.Value;
-import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.model.util.Models;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.RDFWriter;
 import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.rio.WriterConfig;
 import org.eclipse.rdf4j.rio.helpers.JSONLDSettings;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Yasen Marinov
  */
 public class JSONLDHierarchicalWriterTest {
 
-	private static ValueFactory vf = SimpleValueFactory.getInstance();
+	private static final SimpleValueFactory vf = SimpleValueFactory.getInstance();
 	private Model model;
 	private WriterConfig writerConfig;
 
-	@Before
+	@BeforeEach
 	public void setup() {
 		model = new LinkedHashModel();
 		writerConfig = new WriterConfig();
@@ -265,9 +267,9 @@ public class JSONLDHierarchicalWriterTest {
 
 	/**
 	 * Verify output hierarchy does not duplicate nodes B and C.
-	 * 
+	 *
 	 * @throws IOException
-	 * @see https://github.com/eclipse/rdf4j/issues/1283
+	 * @see <a href="https://github.com/eclipse/rdf4j/issues/1283">GH-1283</a>
 	 */
 	@Test
 	public void testOrder() throws IOException {
@@ -297,11 +299,11 @@ public class JSONLDHierarchicalWriterTest {
 		verifyOutput();
 	}
 
-	private void addStatement(Resource subject, URI predicate, Value object, Resource context) {
+	private void addStatement(Resource subject, IRI predicate, Value object, Resource context) {
 		model.add(vf.createStatement(subject, predicate, object, context));
 	}
 
-	private void addStatement(Resource subject, URI predicate, Value object) {
+	private void addStatement(Resource subject, IRI predicate, Value object) {
 		model.add(vf.createStatement(subject, predicate, object));
 	}
 
@@ -315,7 +317,7 @@ public class JSONLDHierarchicalWriterTest {
 
 	private void verifyModelIsNotChanged(File file) throws IOException {
 		Model model2 = Rio.parse(new FileInputStream(file), null, RDFFormat.JSONLD);
-		assertTrue(model2.equals(model));
+		assertTrue(Models.isomorphic(model, model2));
 	}
 
 	private void compareWithJsonFile(File file) throws IOException {
@@ -353,15 +355,15 @@ public class JSONLDHierarchicalWriterTest {
 		@Override
 		public void write(int b) throws IOException {
 			if (Arrays.binarySearch(toIgnore, b) < 0) {
-				while (Arrays.binarySearch(toIgnore, charInFile = is.read()) >= 0)
-					;
-				assertEquals("Files are equal", charInFile, b);
+				while (Arrays.binarySearch(toIgnore, charInFile = is.read()) >= 0) {
+				}
+				assertEquals(charInFile, b, "Files are equal");
 			}
 		}
 
 		@Override
 		public void close() throws IOException {
-			assertTrue("Streams match", is.read() == -1);
+			assertTrue(is.read() == -1, "Streams match");
 			super.close();
 		}
 	}

@@ -1,24 +1,27 @@
 /*******************************************************************************
  * Copyright (c) 2018 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.algebra.evaluation.function.string;
+
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.BooleanLiteral;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.query.algebra.evaluation.ValueExprEvaluationException;
-import org.junit.Before;
-import org.junit.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class ConcatTest {
 
@@ -36,7 +39,7 @@ public class ConcatTest {
 
 	private static final Literal foo_nl = vf.createLiteral("foo", "nl");
 
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
 		concatFunc = new Concat();
 	}
@@ -46,7 +49,7 @@ public class ConcatTest {
 		Literal result = concatFunc.evaluate(vf, foo, bar);
 
 		assertThat(result.stringValue()).isEqualTo("foobar");
-		assertThat(result.getDatatype()).isEqualTo(XMLSchema.STRING);
+		assertThat(result.getDatatype()).isEqualTo(XSD.STRING);
 		assertThat(result.getLanguage().isPresent()).isFalse();
 	}
 
@@ -65,7 +68,7 @@ public class ConcatTest {
 		Literal result = concatFunc.evaluate(vf, foo_nl, bar_en);
 
 		assertThat(result.stringValue()).isEqualTo("foobar");
-		assertThat(result.getDatatype()).isEqualTo(XMLSchema.STRING);
+		assertThat(result.getDatatype()).isEqualTo(XSD.STRING);
 		assertThat(result.getLanguage().isPresent()).isFalse();
 	}
 
@@ -74,7 +77,7 @@ public class ConcatTest {
 		Literal result = concatFunc.evaluate(vf, foo, bar_en);
 
 		assertThat(result.stringValue()).isEqualTo("foobar");
-		assertThat(result.getDatatype()).isEqualTo(XMLSchema.STRING);
+		assertThat(result.getDatatype()).isEqualTo(XSD.STRING);
 		assertThat(result.getLanguage().isPresent()).isFalse();
 	}
 

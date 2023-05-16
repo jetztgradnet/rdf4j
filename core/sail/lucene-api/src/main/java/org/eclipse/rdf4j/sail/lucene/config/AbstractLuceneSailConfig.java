@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.lucene.config;
 
@@ -30,7 +33,7 @@ public abstract class AbstractLuceneSailConfig extends AbstractDelegatingSailImp
 
 	private String indexDir;
 
-	private Properties parameters = new Properties();
+	private final Properties parameters = new Properties();
 
 	/*--------------*
 	 * Constructors *
@@ -99,11 +102,11 @@ public abstract class AbstractLuceneSailConfig extends AbstractDelegatingSailImp
 	public void parse(Model graph, Resource implNode) throws SailConfigException {
 		super.parse(graph, implNode);
 
-		Literal indexDirLit = Models.objectLiteral(graph.filter(implNode, INDEX_DIR, null))
+		Literal indexDirLit = Models.objectLiteral(graph.getStatements(implNode, INDEX_DIR, null))
 				.orElseThrow(() -> new SailConfigException("no value found for " + INDEX_DIR));
 
 		setIndexDir(indexDirLit.getLabel());
-		for (Statement stmt : graph.filter(implNode, null, null)) {
+		for (Statement stmt : graph.getStatements(implNode, null, null)) {
 			if (stmt.getPredicate().getNamespace().equals(LuceneSailConfigSchema.NAMESPACE)) {
 				if (stmt.getObject() instanceof Literal) {
 					String key = stmt.getPredicate().getLocalName();

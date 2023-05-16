@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2019 Eclipse RDF4J contributors.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.federated.endpoint.provider;
 
@@ -18,13 +21,13 @@ import org.eclipse.rdf4j.repository.RepositoryException;
 
 /**
  * Returns an {@link Endpoint} for an already configured {@link Repository}.
- * 
+ *
  * <p>
  * If the repository is already initialized, it is assumed that the lifecycle is managed externally (see
  * {@link RepositoryEndpoint}. Otherwise, FedX will make sure to take care for the lifecycle of the repository, i.e.
  * initialize and shutdown (see {@link ManagedRepositoryEndpoint}).
  * </p>
- * 
+ *
  * @author Andreas Schwarte
  * @see RepositoryEndpoint
  * @see ManagedRepositoryEndpoint
@@ -49,8 +52,6 @@ public class RepositoryEndpointProvider implements EndpointProvider<RepositoryIn
 					repository.init();
 					didInitialize = true;
 				}
-
-				ProviderUtil.checkConnectionIfConfigured(repository);
 			} finally {
 				if (didInitialize) {
 					repository.shutDown();

@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.query.impl;
 
@@ -21,6 +24,7 @@ import org.eclipse.rdf4j.query.TupleQueryResult;
 /**
  * An iterating implementation of the {@link TupleQueryResult} interface.
  */
+@Deprecated(since = "4.1.0")
 public class IteratingTupleQueryResult extends IterationWrapper<BindingSet, QueryEvaluationException>
 		implements TupleQueryResult {
 
@@ -38,7 +42,7 @@ public class IteratingTupleQueryResult extends IterationWrapper<BindingSet, Quer
 	 * Creates a query result object with the supplied binding names. <em>The supplied list of binding names is assumed
 	 * to be constant</em>; care should be taken that the contents of this list doesn't change after supplying it to
 	 * this solution.
-	 * 
+	 *
 	 * @param bindingNames The binding names, in order of projection.
 	 */
 	public IteratingTupleQueryResult(List<String> bindingNames, Iterable<? extends BindingSet> bindingSets) {
@@ -53,7 +57,7 @@ public class IteratingTupleQueryResult extends IterationWrapper<BindingSet, Quer
 	 * Creates a query result object with the supplied binding names. <em>The supplied list of binding names is assumed
 	 * to be constant</em>; care should be taken that the contents of this list doesn't change after supplying it to
 	 * this solution.
-	 * 
+	 *
 	 * @param bindingNames The binding names, in order of projection.
 	 */
 	public IteratingTupleQueryResult(List<String> bindingNames,
@@ -72,5 +76,4 @@ public class IteratingTupleQueryResult extends IterationWrapper<BindingSet, Quer
 	public List<String> getBindingNames() throws QueryEvaluationException {
 		return bindingNames;
 	}
-
 }

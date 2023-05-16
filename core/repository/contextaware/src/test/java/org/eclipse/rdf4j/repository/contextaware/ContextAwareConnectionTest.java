@@ -1,16 +1,18 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.repository.contextaware;
 
-import static org.eclipse.rdf4j.query.QueryLanguage.SERQL;
 import static org.eclipse.rdf4j.query.QueryLanguage.SPARQL;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -29,6 +31,7 @@ import org.eclipse.rdf4j.query.QueryLanguage;
 import org.eclipse.rdf4j.query.TupleQuery;
 import org.eclipse.rdf4j.query.TupleQueryResult;
 import org.eclipse.rdf4j.query.TupleQueryResultHandler;
+import org.eclipse.rdf4j.query.explanation.Explanation;
 import org.eclipse.rdf4j.query.impl.AbstractQuery;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
@@ -36,7 +39,7 @@ import org.eclipse.rdf4j.repository.RepositoryException;
 import org.eclipse.rdf4j.repository.base.RepositoryConnectionWrapper;
 import org.eclipse.rdf4j.repository.base.RepositoryWrapper;
 import org.eclipse.rdf4j.rio.RDFHandler;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class ContextAwareConnectionTest {
 
@@ -50,6 +53,11 @@ public class ContextAwareConnectionTest {
 		@Override
 		public void evaluate(RDFHandler arg0) {
 		}
+
+		@Override
+		public Explanation explain(Explanation.Level level) {
+			throw new UnsupportedOperationException();
+		}
 	}
 
 	static class InvocationHandlerStub implements InvocationHandler {
@@ -61,6 +69,10 @@ public class ContextAwareConnectionTest {
 	}
 
 	static class QueryStub extends AbstractQuery {
+		@Override
+		public Explanation explain(Explanation.Level level) {
+			throw new UnsupportedOperationException();
+		}
 	}
 
 	static class RepositoryStub extends RepositoryWrapper {
@@ -84,6 +96,11 @@ public class ContextAwareConnectionTest {
 
 		@Override
 		public void evaluate(TupleQueryResultHandler arg0) {
+		}
+
+		@Override
+		public Explanation explain(Explanation.Level level) {
+			throw new UnsupportedOperationException();
 		}
 	}
 
@@ -121,7 +138,6 @@ public class ContextAwareConnectionTest {
 		Repository repo = stub.getRepository();
 		ContextAwareConnection con = new ContextAwareConnection(repo, stub);
 		con.setReadContexts(context);
-		con.setQueryLanguage(SERQL);
 		con.prepareGraphQuery(SPARQL, queryString, null);
 	}
 
@@ -148,7 +164,6 @@ public class ContextAwareConnectionTest {
 		Repository repo = stub.getRepository();
 		ContextAwareConnection con = new ContextAwareConnection(repo, stub);
 		con.setReadContexts(context);
-		con.setQueryLanguage(SERQL);
 		con.prepareQuery(SPARQL, queryString, null);
 	}
 
@@ -175,7 +190,6 @@ public class ContextAwareConnectionTest {
 		Repository repo = stub.getRepository();
 		ContextAwareConnection con = new ContextAwareConnection(repo, stub);
 		con.setReadContexts(context);
-		con.setQueryLanguage(SERQL);
 		con.prepareTupleQuery(SPARQL, queryString, null);
 	}
 
@@ -207,9 +221,9 @@ public class ContextAwareConnectionTest {
 		Repository repo = stub.getRepository();
 		ContextAwareConnection a = new ContextAwareConnection(repo, stub);
 		ContextAwareConnection b = new ContextAwareConnection(repo, a);
-		b.setQueryLanguage(QueryLanguage.SERQL);
-		assertEquals(QueryLanguage.SERQL, b.getQueryLanguage());
-		assertEquals(QueryLanguage.SERQL, a.getQueryLanguage());
+		b.setQueryLanguage(QueryLanguage.SPARQL);
+		assertEquals(QueryLanguage.SPARQL, b.getQueryLanguage());
+		assertEquals(QueryLanguage.SPARQL, a.getQueryLanguage());
 	}
 
 	@Test

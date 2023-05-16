@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.common.webapp.navigation;
 
@@ -14,7 +17,7 @@ import java.util.Map;
 
 /**
  * Group represents a logical group of views in a NavigationModel.
- * 
+ *
  * @author Herko ter Horst
  */
 public class Group extends AbstractNavigationNode {
@@ -27,7 +30,7 @@ public class Group extends AbstractNavigationNode {
 
 	/**
 	 * Construct a new group with the specified ID.
-	 * 
+	 *
 	 * @param id the ID of the group
 	 */
 	public Group(String id) {
@@ -39,7 +42,7 @@ public class Group extends AbstractNavigationNode {
 
 	/**
 	 * Add a group to this group. The group becomes a sub-group of this group.
-	 * 
+	 *
 	 * @param group the group to add
 	 */
 	public void addGroup(Group group) {
@@ -49,7 +52,7 @@ public class Group extends AbstractNavigationNode {
 
 	/**
 	 * Get the sub-group with the specified ID.
-	 * 
+	 *
 	 * @param id the ID of the sub-group
 	 * @return the sub-group with the specified ID, or null if this group doesn't contain a sub-group with that ID
 	 */
@@ -59,7 +62,7 @@ public class Group extends AbstractNavigationNode {
 
 	/**
 	 * Get the list of sub-groups
-	 * 
+	 *
 	 * @return the list of sub-groups
 	 */
 	public List<Group> getGroups() {
@@ -68,7 +71,7 @@ public class Group extends AbstractNavigationNode {
 
 	/**
 	 * Add a view to this group.
-	 * 
+	 *
 	 * @param view the view to add
 	 */
 	public void addView(View view) {
@@ -83,7 +86,7 @@ public class Group extends AbstractNavigationNode {
 
 	/**
 	 * Get the view with the specified name.
-	 * 
+	 *
 	 * @param viewName the name of the view (ID+suffix)
 	 * @return the view with the specified name, or null if this group doesn't contain a view with that name
 	 */
@@ -92,7 +95,7 @@ public class Group extends AbstractNavigationNode {
 	}
 
 	protected View findViewInternal(String viewName) {
-		View result = null;
+		View result;
 
 		int indexOfSeparator = viewName.indexOf(getPathSeparator());
 		if (indexOfSeparator > 0) {
@@ -108,7 +111,7 @@ public class Group extends AbstractNavigationNode {
 
 	/**
 	 * Get the list of views.
-	 * 
+	 *
 	 * @return the list of views
 	 */
 	public List<View> getViews() {

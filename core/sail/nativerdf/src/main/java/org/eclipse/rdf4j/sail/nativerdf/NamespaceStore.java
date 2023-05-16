@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.nativerdf;
 
@@ -26,14 +29,14 @@ import org.eclipse.rdf4j.model.impl.SimpleNamespace;
 /**
  * An in-memory store for namespace prefix information that uses a file for persistence. Namespaces are encoded in the
  * file as records as follows:
- * 
+ *
  * <pre>
  *   byte 1 - 2     : the length of the encoded namespace name
  *   byte 3 - A     : the UTF-8 encoded namespace name
  *   byte A+1 - A+2 : the length of the encoded namespace prefix
  *   byte A+3 - end : the UTF-8 encoded namespace prefix
  * </pre>
- * 
+ *
  * @author Arjohn Kampman
  */
 class NamespaceStore implements Iterable<SimpleNamespace> {

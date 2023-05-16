@@ -1,28 +1,33 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 
 package org.eclipse.rdf4j.sail.memory;
 
+import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.sail.SailException;
 import org.eclipse.rdf4j.sail.SailReadOnlyException;
 import org.eclipse.rdf4j.sail.base.SailSourceConnection;
+import org.eclipse.rdf4j.sail.features.ThreadSafetyAware;
 import org.eclipse.rdf4j.sail.helpers.DefaultSailChangedEvent;
 
 /**
  * Implementation of a Sail Connection for memory stores.
- * 
+ *
  * @author Arjohn Kampman
  * @author jeen
  */
-public class MemoryStoreConnection extends SailSourceConnection {
+public class MemoryStoreConnection extends SailSourceConnection implements ThreadSafetyAware {
 
 	/*-----------*
 	 * Variables *
@@ -40,6 +45,7 @@ public class MemoryStoreConnection extends SailSourceConnection {
 		super(sail, sail.getSailStore(), sail.getEvaluationStrategyFactory());
 		this.sail = sail;
 		sailChangedEvent = new DefaultSailChangedEvent(sail);
+		useConnectionLock = false;
 	}
 
 	/*---------*
@@ -115,5 +121,10 @@ public class MemoryStoreConnection extends SailSourceConnection {
 
 	public MemoryStore getSail() {
 		return sail;
+	}
+
+	@Override
+	public boolean supportsConcurrentReads() {
+		return getTransactionIsolation() != null && getTransactionIsolation() != IsolationLevels.SERIALIZABLE;
 	}
 }

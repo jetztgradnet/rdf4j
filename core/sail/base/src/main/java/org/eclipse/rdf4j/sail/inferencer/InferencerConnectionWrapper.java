@@ -1,9 +1,12 @@
 /*******************************************************************************
  * Copyright (c) 2015 Eclipse RDF4J contributors, Aduna, and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Distribution License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *******************************************************************************/
 package org.eclipse.rdf4j.sail.inferencer;
 
@@ -21,7 +24,7 @@ import org.eclipse.rdf4j.sail.helpers.NotifyingSailConnectionWrapper;
 
 /**
  * An extension of ConnectionWrapper that implements the {@link InferencerConnection} interface.
- * 
+ *
  * @author Arjohn Kampman
  */
 public class InferencerConnectionWrapper extends NotifyingSailConnectionWrapper implements InferencerConnection {
@@ -43,7 +46,7 @@ public class InferencerConnectionWrapper extends NotifyingSailConnectionWrapper 
 
 	/**
 	 * Gets the connection that is wrapped by this object.
-	 * 
+	 *
 	 * @return The connection that was supplied to the constructor of this class.
 	 */
 	@Override
@@ -113,6 +116,13 @@ public class InferencerConnectionWrapper extends NotifyingSailConnectionWrapper 
 	public CloseableIteration<? extends Resource, SailException> getContextIDs() throws SailException {
 		flushUpdates();
 		return super.getContextIDs();
+	}
+
+	@Override
+	public boolean hasStatement(Resource subj, IRI pred, Value obj, boolean includeInferred, Resource... contexts)
+			throws SailException {
+		flushUpdates();
+		return super.hasStatement(subj, pred, obj, includeInferred, contexts);
 	}
 
 	/**
